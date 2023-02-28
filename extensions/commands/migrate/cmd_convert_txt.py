@@ -6,17 +6,17 @@ from conan.api.output import cli_out_write
 from conans.client.loader_txt import ConanFileTextLoader
 
 
-@conan_command(group="Custom commands", formatters={"text": cli_out_write})
-def convert_txt_recipe(conan_api, parser, *args, **kwargs):
+@conan_command(group="Extension", formatters={"text": cli_out_write})
+def convert_txt(conan_api, parser, *args, **kwargs):
     """
     Convert a conanfile.txt to a conanfile.py
     """
     parser.add_argument("path", help="Path to a folder containing a conanfile.txt")
     args = parser.parse_args(*args)
 
-    path = conan_api.local.get_conanfile_path(args.path, os.getcwd(), py=False)
+    path = os.path.join(args.path, "conanfile.txt")  if os.path.isdir(args.path) else args.path
     txt = ConanFileTextLoader(open(path, "r").read())
-    template = textwrap.dedent('''
+    template = textwrap.dedent("""\
         from conan import ConanFile
         {% if layout == "cmake_layout" %}
         from conan.tools.cmake import cmake_layout
@@ -27,8 +27,9 @@ def convert_txt_recipe(conan_api, parser, *args, **kwargs):
 
         class Pkg(ConanFile):
             {% if generators %}
-            generators ={% for g in generators %} "{{g}}",{%endfor%}
+            generators ={% for g in generators %} "{{g}}",{% endfor %}
             {% endif %}
+
             {% if options %}
             default_options = {{options}}
             {% endif %}
@@ -56,7 +57,7 @@ def convert_txt_recipe(conan_api, parser, *args, **kwargs):
             def layout(self):
                 {{layout}}(self)
             {% endif %}
-            ''')
+            """)
     conanfile = Template(template, trim_blocks=True, lstrip_blocks=True)
     options = {}
     for o in txt.options.splitlines():
