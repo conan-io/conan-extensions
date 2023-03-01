@@ -18,7 +18,7 @@ Afterwards, running `conan --help` should show you all the custom commands avail
 
 ### Custom Commands
 
-These are the current supported custom commands:
+These are the currently supported custom commands:
 
 #### [Convert txt](extensions/commands/migrate/)
 
