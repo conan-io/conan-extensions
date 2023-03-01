@@ -3,26 +3,16 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   conan_stable_linux:
     runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - { name: "Conan Latest - Python 3.6", python: 3.6, toxenv: "py36-conan-latest", pyver: "py36" }
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.config.python }}
+        python-version: 3.6
     - name: Install dependencies
-      env:
-        PYVER: ${{ matrix.config.pyver }}
       run: |
         pip install -U pip
-        pip install tox
-    - name: ${{ matrix.config.name }}
-      env:
-        TOXENV: ${{ matrix.config.toxenv }}
-        PYVER: ${{ matrix.config.pyver }}
+        pip install pytest conan
+    - name: Conan latest - Python 3.6
       run: |
-        tox -v
+        pytest -v tests
