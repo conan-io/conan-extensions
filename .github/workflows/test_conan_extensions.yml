@@ -1,0 +1,28 @@
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  conan_stable_linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "Conan Latest - Python 3.6", python: 3.6, toxenv: "py36-conan-latest", pyver: "py36" }
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.config.python }}
+    - name: Install dependencies
+      env:
+        PYVER: ${{ matrix.config.pyver }}
+      run: |
+        pip install -U pip
+        pip install tox
+    - name: ${{ matrix.config.name }}
+      env:
+        TOXENV: ${{ matrix.config.toxenv }}
+        PYVER: ${{ matrix.config.pyver }}
+      run: |
+        tox -v
