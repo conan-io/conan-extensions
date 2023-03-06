@@ -1,6 +1,7 @@
-venv/*
 .idea/*
+.github/*
+venv/*
+tests/*
 .gitignore
 LICENSE
 README.md
-tests/*
