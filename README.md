@@ -20,9 +20,19 @@ Afterwards, running `conan --help` should show you all the custom commands avail
 
 These are the currently supported custom commands:
 
-#### [Convert txt](extensions/commands/migrate/)
+#### [Convert txt](extensions/commands/migrate/cmd_convert_txt.py)
 
 Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
+
+### [Export all recipe versions](extensions/commands/cci/cmd_export_all_versions.py)
+
+For either a single recipe, a list of recipes, or a folder with recipes,
+exports all the versions declared in a `config.yml` file to the local cache
+
+### [List v2 ready](extensions/commands/cci/cmd_list_v2_ready.py)
+
+For a list of references, returns a list of which have their latest revision present in the given remote,
+and whether it provides any binaries.
 
 ```
 conan migrate:convert-txt conanfile.txt > conanfile.py
