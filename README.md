@@ -20,6 +20,11 @@ Afterwards, running `conan --help` should show you all the custom commands avail
 
 These are the currently supported custom commands:
 
+#### [Clean](extensions/commands/management/cmd_clean.py)
+
+Deletes (from the local cache or remotes) every recipe and package revision,
+except for the latest package revision from the latest recipe revision.
+
 #### [Convert txt](extensions/commands/migrate/)
 
 Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
@@ -27,6 +32,17 @@ Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
 ```
 conan migrate:convert-txt conanfile.txt > conanfile.py
 ```
+
+
+### Deployers
+
+#### [Deploy sources](extensions/deployers/sources_deploy.py)
+
+Copies the sources of every dependency of the recipe into its output folder
+
+#### [Deploy licenses](extensions/deployers/licenses_deploy.py)
+
+Copies all the licenses of every dependency of the recipe into its output folder
 
 ### Testing
 
