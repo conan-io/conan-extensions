@@ -3,13 +3,13 @@ import json
 import textwrap
 import yaml
 
-from conan.api.output import ConanOutput
+from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command, OnceArgument
 from conan.errors import ConanException
 
 
 def output_json(result):
-    print(json.dumps({
+    cli_out_write(json.dumps({
         "exported": [repr(r) for r in result['exported']],
         "failures": result['failures']
     }))
@@ -87,29 +87,28 @@ def export_all_versions(conan_api, parser, *args):
         if not os.path.isfile(config_file):
             raise ConanException(f"The file {config_file} does not exist")
 
-        with open(config_file, "r") as file:
-            config = yaml.safe_load(file)
-            for version in config["versions"]:
-                recipe_subfolder = config["versions"][version]["folder"]
-                if folders_to_export and recipe_subfolder not in folders_to_export:
-                    continue
-                conanfile = os.path.join(recipe_folder, recipe_subfolder, "conanfile.py")
-                if not os.path.isfile(conanfile):
-                    raise ConanException(f"The file {conanfile} does not exist")
+        config = yaml.safe_load(open(config_file, "r"))
+        for version in config["versions"]:
+            recipe_subfolder = config["versions"][version]["folder"]
+            if folders_to_export and recipe_subfolder not in folders_to_export:
+                continue
+            conanfile = os.path.join(recipe_folder, recipe_subfolder, "conanfile.py")
+            if not os.path.isfile(conanfile):
+                raise ConanException(f"The file {conanfile} does not exist")
 
-                out.verbose(f"Exporting {recipe_name}/{version} from {recipe_subfolder}/")
-                try:
-                    ref = conan_api.export.export(os.path.abspath(conanfile), recipe_name, version, None, None)
-                    out.verbose(f"Exported {ref}")
+            out.verbose(f"Exporting {recipe_name}/{version} from {recipe_subfolder}/")
+            try:
+                ref = conan_api.export.export(os.path.abspath(conanfile), recipe_name, version, None, None)
+                out.verbose(f"Exported {ref}")
 
-                    if recipe_name not in exported:
-                        exported[recipe_name] = []
-                    exported[recipe_name].append(ref)
-                    exported_refs.append(ref)
-                    
-                    exported_with_revision.append(f"{ref[0].name}/{ref[0].version}#{ref[0].revision}")
-                except Exception as e:
-                    failed.update({f"{recipe_name}/{recipe_subfolder}": str(e)})
+                if recipe_name not in exported:
+                    exported[recipe_name] = []
+                exported[recipe_name].append(ref)
+                exported_refs.append(ref)
+
+                exported_with_revision.append(f"{ref[0].name}/{ref[0].version}#{ref[0].revision}")
+            except Exception as e:
+                failed.update({f"{recipe_name}/{recipe_subfolder}": str(e)})
 
     out.title("EXPORTED RECIPES")
     for item in exported.keys():
