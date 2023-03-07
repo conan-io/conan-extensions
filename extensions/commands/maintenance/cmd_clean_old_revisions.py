@@ -8,8 +8,8 @@ recipe_color = Color.BRIGHT_BLUE
 removed_color = Color.BRIGHT_YELLOW
 
 
-@conan_command(group="Custom commands")
-def clean(conan_api: ConanAPI, parser, *args):
+@conan_command(group="Extensions")
+def clean_old_revisions(conan_api: ConanAPI, parser, *args):
     """
     Deletes (from local cache or remotes) all recipe and package revisions but
     the latest package revision from the latest recipe revision.
