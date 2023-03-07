@@ -20,6 +20,11 @@ Afterwards, running `conan --help` should show you all the custom commands avail
 
 These are the currently supported custom commands:
 
+#### [Clean](extensions/commands/management/cmd_clean_old_revisions.py)
+
+Deletes (from the local cache or remotes) every recipe and package revision,
+except for the latest package revision from the latest recipe revision.
+
 #### [Convert txt](extensions/commands/migrate/)
 
 Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
@@ -27,6 +32,7 @@ Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
 ```
 conan migrate:convert-txt conanfile.txt > conanfile.py
 ```
+
 
 ### Testing
 
