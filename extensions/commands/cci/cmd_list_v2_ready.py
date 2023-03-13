@@ -25,7 +25,7 @@ def list_v2_ready(conan_api: conan.api.conan_api.ConanAPI, parser, *args):
     parser.add_argument('--skip-binaries', action='store_true', default=False, help="Skip binary checking for packages")
     args = parser.parse_args(*args)
 
-    recipes_to_create = args.name if args.name else os.listdir('./recipes/')
+    recipes_to_create = os.listdir(args.path)
     remote = conan_api.remotes.get(args.remote)
     profiles = [(conan_api.profiles.get_profile([profile]), profile) for profile in args.profiles]
 
