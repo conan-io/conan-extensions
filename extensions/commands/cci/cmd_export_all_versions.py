@@ -54,7 +54,7 @@ def export_all_versions(conan_api, parser, *args):
     Export all version of either a single recipe, a list of recipes, or a global recipes folder
     """
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-n', '--name', action=OnceArgument, help="Name of the recipe to export")
+    group.add_argument('-n', '--name', action=OnceArgument, help="Name of the recipe to export. This will export only one recipe.")
     group.add_argument('-l', '--list', action=OnceArgument, help="YAML file with list of recipes to export")
     group.add_argument('-p', '--path', action=OnceArgument, help="Path of the global recipe folder")
     args = parser.parse_args(*args)
