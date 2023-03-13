@@ -34,6 +34,11 @@ conan migrate:convert-txt conanfile.txt > conanfile.py
 For a list of references, returns a list of which have their latest revision present in the given remote,
 and whether it provides any binaries.
 
+
+```
+conan cci:list-v2-ready -r conancenter -f json conan-center-index/recipes > list-v2-ready.json
+```
+
 ### Testing
 
 To validate a new extension, it's possible to write a test that exercises its usage.
