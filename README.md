@@ -28,6 +28,12 @@ Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
 conan migrate:convert-txt conanfile.txt > conanfile.py
 ```
 
+
+#### [List v2 ready](extensions/commands/cci/cmd_list_v2_ready.py)
+
+For a list of references, returns a list of which have their latest revision present in the given remote,
+and whether it provides any binaries.
+
 ### Testing
 
 To validate a new extension, it's possible to write a test that exercises its usage.
