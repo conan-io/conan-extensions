@@ -13,6 +13,11 @@ def output_json(results):
     print(json.dumps(results, indent=2))
 
 
+def output_file_json(file_path, results):
+    with open(file_path, 'w') as f:
+        json.dump(results, f)
+
+
 @conan_command(group="Conan Center Index", formatters={"json": output_json})
 def list_v2_ready(conan_api: conan.api.conan_api.ConanAPI, parser, *args):
     """
@@ -22,6 +27,7 @@ def list_v2_ready(conan_api: conan.api.conan_api.ConanAPI, parser, *args):
     parser.add_argument('path', help="Path to global recipes folder")
     parser.add_argument('-r', '--remote', action=OnceArgument, help="Remote to query against")
     parser.add_argument('-p', '--profiles', action='append', default=list(), help="List of profiles to run graph info with if --skip-binaries is false")
+    parser.add_argument('-f', '--output-file', action=OnceArgument, help="A JSON file path to store the output")
     parser.add_argument('--skip-binaries', action='store_true', default=False, help="Skip binary checking for packages")
     args = parser.parse_args(*args)
 
@@ -113,4 +119,8 @@ def list_v2_ready(conan_api: conan.api.conan_api.ConanAPI, parser, *args):
                                 out.error(f"Error with graph info {ref}: {str(e)}")
                 except Exception as e:
                     out.error(f"Unexpected error for {ref}: {e}")
+
+    if args.output_file:
+        output_file_json(args.file_output, global_results)
+
     return global_results
