@@ -122,7 +122,7 @@ def export_all_versions(conan_api, parser, *args):
     for item in exported_with_revision:
         out.info(f"{item}")
 
-    out.title("REFERENCE LIST")
+    out.title("VERSION LIST")
 
     versions_list = [f"{item[1]}" for item in exported_refs]
     out.info(f'{versions_list}')
