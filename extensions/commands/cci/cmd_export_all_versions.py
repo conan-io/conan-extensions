@@ -14,6 +14,28 @@ def output_json(result):
         "failures": result['failures']
     }))
 
+def output_text(result):
+    exported = result["exported"]
+    failed = result["failures"]
+    exported_with_revision = result["exported_with_revisions"]
+    versions_list = result["exported_with_versions"]
+
+    cli_out_write("EXPORTED RECIPES")
+    for item in exported.keys():
+        cli_out_write(f"{item}: exported {len(exported[item])} versions")
+
+    cli_out_write("FAILED TO EXPORT")
+    for key, value in failed.items():
+        cli_out_write(f"{key}, {value}")
+
+    cli_out_write("RECIPE REFERENCES")
+    for item in exported_with_revision:
+        cli_out_write(f"{item}")
+
+    cli_out_write("VERSION LIST")
+    cli_out_write(f'{versions_list}')
+
+
 
 def output_markdown(result):
     exported = result['exported']
@@ -48,7 +70,7 @@ def output_markdown(result):
     print("</table>")
 
 
-@conan_command(group="Conan Center Index", formatters={"text": lambda result: None, "json": output_json, "md": output_markdown})
+@conan_command(group="Conan Center Index", formatters={"text": output_text, "json": output_json, "md": output_markdown})
 def export_all_versions(conan_api, parser, *args):
     """
     Export all version of either a single recipe, a list of recipes, or a global recipes folder
@@ -110,21 +132,7 @@ def export_all_versions(conan_api, parser, *args):
             except Exception as e:
                 failed.update({f"{recipe_name}/{recipe_subfolder}": str(e)})
 
-    out.title("EXPORTED RECIPES")
-    for item in exported.keys():
-        out.info(f"{item}: exported {len(exported[item])} versions")
-
-    out.title("FAILED TO EXPORT")
-    for key, value in failed.items():
-        out.info(f"{key}, {value}")
-
-    out.title("RECIPE REFERENCES")
-    for item in exported_with_revision:
-        out.info(f"{item}")
-
-    out.title("VERSION LIST")
-
-    versions_list = [f"{item[1]}" for item in exported_refs]
-    out.info(f'{versions_list}')
-
-    return {"exported": exported, "failures": failed}
+    return {"exported": exported,
+            "failures": failed,
+            "exported_with_revisions": exported_with_revision,
+            "exported_with_versions": [f"{item[1]}" for item in exported_refs]}
