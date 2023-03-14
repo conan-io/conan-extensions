@@ -39,7 +39,8 @@ def list_v2_ready(conan_api: conan.api.conan_api.ConanAPI, parser, *args):
         recipe_folder = os.path.join("recipes", recipe_name)
         config_file = os.path.join(recipe_folder, "config.yml")
         if not os.path.exists(config_file):
-            raise ConanException(f"The file {config_file} does not exist")
+            out.error(f"The file {config_file} does not exist")
+            continue
 
         with open(config_file, "r") as file:
             config = yaml.safe_load(file)
