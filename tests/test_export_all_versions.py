@@ -67,4 +67,5 @@ def test_convert_txt():
     save("recipes/pkgb/all/conanfile.py", conanfile % "pkgb")
 
     run("conan cci:export-all-versions -p recipes")
-    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p", 't'))) == 4
+
+    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 6
