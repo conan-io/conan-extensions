@@ -100,7 +100,7 @@ def create_build_info(data, build_name, build_number):
     }
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    local_tz_offset = now.astimezone().strftime('%z')
+    local_tz_offset = "+0100"#now.astimezone().strftime('%z')
     formatted_time = now.strftime(
         '%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
 
