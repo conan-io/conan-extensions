@@ -63,6 +63,7 @@ def get_hashes(file_path):
             sha256.update(data)
     return md5, sha1, sha256
 
+
 def get_rrev_artifacts(node):
     artifacts = []
     recipe_folder = node.get("recipe_folder")
@@ -73,11 +74,11 @@ def get_rrev_artifacts(node):
             file_name = file_path.name
             md5, sha1, sha256 = get_hashes(file_path)
             artifacts.append({"name": file_name,
-                                "type": os.path.splitext(file_name)[1].lstrip('.'),
-                                "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
-                                "sha256": sha256,
-                                "sha1": sha1,
-                                "md5": md5})
+                              "type": os.path.splitext(file_name)[1].lstrip('.'),
+                              "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
+                              "sha256": sha256,
+                              "sha1": sha1,
+                              "md5": md5})
     return artifacts
 
 
@@ -113,7 +114,7 @@ def create_build_info(data, build_name, build_number):
         '%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
 
     # Apparently if the timestamp has the Z the BuildInfo is not correctly identified in Artifactory
-    #if local_tz_offset == "+0000":
+    # if local_tz_offset == "+0000":
     #    formatted_time = formatted_time[:-5] + "Z"
 
     # from here: https://github.com/jfrog/build-info-go/blob/9b6f2ec13eedc41ad0f66882e630c2882f90cc76/buildinfo-schema.json#L63
