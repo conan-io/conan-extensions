@@ -17,7 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest conan
+        pip install pytest git+https://github.com/conan-io/conan.git@release/2.0
     - name: Conan latest - Python 3.6
       run: |
         pytest -v tests
