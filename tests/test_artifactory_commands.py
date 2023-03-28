@@ -38,7 +38,7 @@ def run(cmd):
 def test_build_info_create():
     repo = os.path.join(os.path.dirname(__file__), "..")
 
-    build_name = "test_bi_create"
+    build_name = "mybuildinfo"
     build_number = "1"
 
     run(f"conan config install {repo}")
