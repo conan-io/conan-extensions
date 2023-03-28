@@ -61,7 +61,7 @@ def get_hashes(file_path):
             md5.update(data)
             sha1.update(data)
             sha256.update(data)
-    return md5, sha1, sha256
+    return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
 def get_rrev_artifacts(node):
