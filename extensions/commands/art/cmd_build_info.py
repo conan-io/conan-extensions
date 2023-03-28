@@ -100,12 +100,12 @@ def create_build_info(data, build_name, build_number):
     }
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    local_tz_offset = "+0100"#now.astimezone().strftime('%z')
+    local_tz_offset = now.astimezone().strftime('%z')
     formatted_time = now.strftime(
         '%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
 
-    if local_tz_offset == "+0000":
-        formatted_time = formatted_time[:-5] + "Z"
+    #if local_tz_offset == "+0000":
+    #    formatted_time = formatted_time[:-5] + "Z"
 
     # from here: https://github.com/jfrog/build-info-go/blob/9b6f2ec13eedc41ad0f66882e630c2882f90cc76/buildinfo-schema.json#L63
     if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}(Z|[+-]\d{4})$', formatted_time):
