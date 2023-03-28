@@ -46,11 +46,10 @@ def get_export_path_from_rrev(rrev):
     return f"_/{ref.name}/{ref.version}/_/{ref.revision}/export"
 
 
-def get_hash(type, file):
-    file.seek(0, 0)
-    data = file.read()
-    method = getattr(hashlib, type)
-    return method(data).hexdigest()
+def get_hash(type, file_path):
+    with open(file_path, "rb") as f:
+        digest = hashlib.file_digest(f, type)
+    return digest.hexdigest() 
 
 
 def get_rrev_artifacts(node):
@@ -60,17 +59,13 @@ def get_rrev_artifacts(node):
     # TODO: throw error if d is empty? Force that the artifacts where uploaded before getting the BuildInfo?
     for file_path in dl_folder.glob("*"):
         if file_path.is_file():
-            with open(file_path, "rb") as file:
-                file_name = file_path.name
-                md5 = get_hash("md5", file)
-                sha1 = get_hash("sha1", file)
-                sha256 = get_hash("sha256", file)
-                artifacts.append({"name": file_name,
-                                  "type": os.path.splitext(file_name)[1].lstrip('.'),
-                                  "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
-                                  "sha256": sha256,
-                                  "sha1": sha1,
-                                  "md5": md5})
+            file_name = file_path.name
+            artifacts.append({"name": file_name,
+                                "type": os.path.splitext(file_name)[1].lstrip('.'),
+                                "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
+                                "sha256": get_hash("sha256", file_path),
+                                "sha1": get_hash("sha1", file_path),
+                                "md5": get_hash("md5", file_path)})
     return artifacts
 
 
