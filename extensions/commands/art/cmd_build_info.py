@@ -48,8 +48,9 @@ def get_export_path_from_rrev(rrev):
 
 def get_hash(type, file):
     file.seek(0, 0)
+    data = file.read()
     method = getattr(hashlib, type)
-    return method(file.read()).hexdigest()
+    return method(data).hexdigest()
 
 
 def get_rrev_artifacts(node):
