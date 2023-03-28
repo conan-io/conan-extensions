@@ -8,6 +8,7 @@ jobs:
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.CONAN_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
+      ART_URL: "https://conanv2beta.jfrog.io/artifactory"
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
