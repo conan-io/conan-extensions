@@ -46,11 +46,22 @@ def get_export_path_from_rrev(rrev):
     return f"_/{ref.name}/{ref.version}/_/{ref.revision}/export"
 
 
-def get_hash(type, file_path):
-    with open(file_path, "rb") as f:
-        digest = hashlib.file_digest(f, type)
-    return digest.hexdigest() 
+def get_hashes(file_path):
+    BUF_SIZE = 65536
 
+    md5 = hashlib.md5()
+    sha1 = hashlib.sha1()
+    sha256 = hashlib.sha256()
+
+    with open(file_path, 'rb') as f:
+        while True:
+            data = f.read(BUF_SIZE)
+            if not data:
+                break
+            md5.update(data)
+            sha1.update(data)
+            sha256.update(data)
+    return md5, sha1, sha256
 
 def get_rrev_artifacts(node):
     artifacts = []
@@ -60,12 +71,13 @@ def get_rrev_artifacts(node):
     for file_path in dl_folder.glob("*"):
         if file_path.is_file():
             file_name = file_path.name
+            md5, sha1, sha256 = get_hashes(file_path)
             artifacts.append({"name": file_name,
                                 "type": os.path.splitext(file_name)[1].lstrip('.'),
                                 "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
-                                "sha256": get_hash("sha256", file_path),
-                                "sha1": get_hash("sha1", file_path),
-                                "md5": get_hash("md5", file_path)})
+                                "sha256": sha256,
+                                "sha1": sha1,
+                                "md5": md5})
     return artifacts
 
 
@@ -100,6 +112,7 @@ def create_build_info(data, build_name, build_number):
     formatted_time = now.strftime(
         '%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
 
+    # Apparently if the timestamp has the Z the BuildInfo is not correctly identified in Artifactory
     #if local_tz_offset == "+0000":
     #    formatted_time = formatted_time[:-5] + "Z"
 
