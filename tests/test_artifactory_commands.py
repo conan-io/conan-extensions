@@ -44,5 +44,5 @@ def test_build_info_create():
     run("conan remove mypkg -c -r extensions-stg")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run("conan art:build-info create create.json test_bi_create 1 > buildinfo.json")
-    run(f'conan art:property set https://conanv2beta.jfrog.io/artifactory extensions-stg mypkg/1.0 --property="build.name=test_bi_create" --property="build.number=1" --user={os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")} --password={os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
-    run(f'conan art:build-info upload buildinfo.json https://conanv2beta.jfrog.io/artifactory --user={os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")} --password={os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+    run(f'conan art:property set https://conanv2beta.jfrog.io/artifactory extensions-stg mypkg/1.0 --property="build.name=test_bi_create" --property="build.number=1" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload buildinfo.json https://conanv2beta.jfrog.io/artifactory --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
