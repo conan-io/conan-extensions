@@ -46,6 +46,12 @@ def get_export_path_from_rrev(rrev):
     return f"_/{ref.name}/{ref.version}/_/{ref.revision}/export"
 
 
+def get_hash(type, file):
+    file.seek(0, 0)
+    method = getattr(hashlib, type)
+    return method(file.read()).hexdigest()
+
+
 def get_rrev_artifacts(node):
     artifacts = []
     recipe_folder = node.get("recipe_folder")
@@ -55,10 +61,9 @@ def get_rrev_artifacts(node):
         if file_path.is_file():
             with open(file_path, "rb") as file:
                 file_name = file_path.name
-                read_file = file.read()
-                md5 = hashlib.md5(read_file).hexdigest()
-                sha1 = hashlib.sha1(read_file).hexdigest()
-                sha256 = hashlib.sha256(read_file).hexdigest()
+                md5 = get_hash("md5", file)
+                sha1 = get_hash("sha1", file)
+                sha256 = get_hash("sha256", file)
                 artifacts.append({"name": file_name,
                                   "type": os.path.splitext(file_name)[1].lstrip('.'),
                                   "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
@@ -104,7 +109,8 @@ def create_build_info(data, build_name, build_number):
 
     # from here: https://github.com/jfrog/build-info-go/blob/9b6f2ec13eedc41ad0f66882e630c2882f90cc76/buildinfo-schema.json#L63
     if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}(Z|[+-]\d{4})$', formatted_time):
-        raise ValueError("Time format does not match BuildInfo required format.")
+        raise ValueError(
+            "Time format does not match BuildInfo required format.")
 
     ret = {"version": "1.0.1",
            "name": properties.get("name"),
@@ -132,7 +138,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("name", help="Build name property for BuildInfo.")
-    subparser.add_argument("number", help="Build number property for BuildInfo.")
+    subparser.add_argument(
+        "number", help="Build number property for BuildInfo.")
     args = parser.parse_args(*args)
 
     with open(args.json, 'r') as f:
