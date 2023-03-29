@@ -30,6 +30,14 @@ Commands useful for migrations
 Commands useful in Conan Center Index or its forks
 
 
+### Deployer
+
+These are the currently supported custom commands:
+
+#### [Runtime Zipper](extensions/deploy/runtime_zip_deploy.py)
+
+Makes a ZIP with all the executables
+
 ### Testing
 
 To validate a new extension, it's possible to write a test that exercises its usage.
