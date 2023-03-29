@@ -206,8 +206,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     """
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
-    subparser.add_argument(
-        "url", help="Artifactory url, like: https://<address>/artifactory")
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
@@ -220,3 +219,29 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     request_url = f"{args.url}/api/build"
     api_request("put", request_url, args.user, args.password,
                 args.apikey, json_data=payload)
+
+
+@conan_subcommand()
+def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Promote the BuildInfo from the source to the target repository.
+    """
+
+    subparser.add_argument("build_name", help="BuildInfo name to promote.")
+    subparser.add_argument("build_number", help="BuildInfo number to promote.")
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+    subparser.add_argument("source_repo", help="Source repo for promotion.")
+    subparser.add_argument("target_repo", help="Target repo for promotion.")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    promotion_json = f'{{"sourceRepo": "{args.source_repo}", "targetRepo": "{args.target_repo}"}}'
+
+    request_url = f"{args.url}/api/build/promote/{args.build_name}/{args.build_number}"
+
+    api_request("post", request_url, args.user, args.password,
+                args.apikey, json_data=promotion_json)

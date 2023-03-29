@@ -63,3 +63,10 @@ def test_build_info_create():
     run(f'conan art:property set {os.getenv("ART_URL")} extensions-stg mypkg/1.0 --property="build.name={build_name}" --property="build.number={build_number}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:build-info create create.json {build_name} {build_number} > {build_name}.json')
     run(f'conan art:build-info upload {build_name}.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    try:
+        run("conan remove mypkg -c -r extensions-prod")
+    except:
+        pass
+
+    run(f'conan art:build-info promote {build_name} {build_number} {os.getenv("ART_URL")} extensions-stg extensions-prod --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
