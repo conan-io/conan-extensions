@@ -41,6 +41,32 @@ def response_to_str(response):
         return response.content
 
 
+def api_request(type, request_url, user=None, password=None, apikey=None, json_data=None):
+
+    headers = {}
+    if json_data:
+        headers.update({"Content-Type": "application/json"})
+    if apikey:
+        headers.update({"X-JFrog-Art-Api": apikey})
+
+    requests_method = getattr(requests, type)
+    if user and password:
+        response = requests_method(request_url, auth=(
+            user, password), data=json_data, headers=headers)
+    elif apikey:
+        response = requests_method(
+            request_url, data=json_data, headers=headers)
+    else:
+        response = requests_method(request_url)
+
+    if response.status_code == 401:
+        raise Exception(response_to_str(response))
+    elif response.status_code not in [200, 204]:
+        raise Exception(response_to_str(response))
+
+    return response_to_str(response)
+
+
 def get_remote_path(rrev, package_id=None, prev=None):
     ref = RecipeReference.loads(rrev)
     rev_path = f"_/{ref.name}/{ref.version}/_/{ref.revision}"
@@ -187,24 +213,10 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("--apikey", help="apikey for the repository")
     args = parser.parse_args(*args)
 
-    url = args.url
-    user = args.user
-    password = args.password
-    apikey = args.apikey
 
-    with open(args.build_info) as json_data:
-        request_url = f"{url.rstrip('/')}/api/build"
-        if user and password:
-            response = requests.put(request_url, headers={"Content-Type": "application/json"},
-                                    data=json_data, auth=(user, password))
-        elif apikey:
-            response = requests.put(request_url, headers={"Content-Type": "application/json",
-                                                          "X-JFrog-Art-Api": apikey},
-                                    data=json_data)
-        else:
-            response = requests.put(request_url)
+    with open(args.build_info) as f:
+        payload = json.dumps(json.load(f))
 
-        if response.status_code == 401:
-            raise Exception(response_to_str(response))
-        elif response.status_code != 204:
-            raise Exception(response_to_str(response))
+    request_url = f"{args.url}/api/build"
+    api_request("put", request_url, args.user, args.password,
+                args.apikey, json_data=payload)
