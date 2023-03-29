@@ -243,5 +243,4 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
 
     request_url = f"{args.url}/api/build/promote/{args.build_name}/{args.build_number}"
 
-    api_request("post", request_url, args.user, args.password,
-                args.apikey, json_data=promotion_json)
+    api_request("post", request_url, args.user, args.password, args.apikey, json_data=promotion_json)
