@@ -7,3 +7,4 @@ LICENSE
 README.md
 *.DS_Store*
 *.pytest_cache*
+tmp/*

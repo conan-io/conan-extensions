@@ -41,9 +41,14 @@ def response_to_str(response):
         return response.content
 
 
-def get_export_path_from_rrev(rrev):
+def get_remote_path(rrev, package_id=None, prev=None):
     ref = RecipeReference.loads(rrev)
-    return f"_/{ref.name}/{ref.version}/_/{ref.revision}/export"
+    rev_path = f"_/{ref.name}/{ref.version}/_/{ref.revision}"
+    if not package_id:
+        return f"{rev_path}/export"
+    else:
+        assert prev
+        return f"{rev_path}/package/{package_id}/{prev}"
 
 
 def get_hashes(file_path):
@@ -64,10 +69,9 @@ def get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
-def get_rrev_artifacts(node):
+def get_artifacts(cache_folder, remote_path):
     artifacts = []
-    recipe_folder = node.get("recipe_folder")
-    dl_folder = Path(recipe_folder).parents[0] / "d"
+    dl_folder = Path(cache_folder).parents[0] / "d"
     # TODO: throw error if d is empty? Force that the artifacts where uploaded before getting the BuildInfo?
     for file_path in dl_folder.glob("*"):
         if file_path.is_file():
@@ -75,7 +79,7 @@ def get_rrev_artifacts(node):
             md5, sha1, sha256 = get_hashes(file_path)
             artifacts.append({"name": file_name,
                               "type": os.path.splitext(file_name)[1].lstrip('.'),
-                              "path": f'{get_export_path_from_rrev(node.get("ref"))}/{file_name}',
+                              "path": f'{remote_path}/{file_name}',
                               "sha256": sha256,
                               "sha1": sha1,
                               "md5": md5})
@@ -92,10 +96,19 @@ def get_modules(json):
     for node in nodes:
         ref = node.get("ref")
         if ref and ref != "conanfile":
+            remote_path = get_remote_path(ref)
             module = {
                 "type": "conan",
                 "id": str(ref),
-                "artifacts": get_rrev_artifacts(node)
+                "artifacts": get_artifacts(node.get("recipe_folder"), remote_path)
+            }
+            ret.append(module)
+        if node.get("package_id") and node.get("prev"):
+            remote_path = get_remote_path(ref, node.get("package_id"), node.get("prev"))
+            module = {
+                "type": "conan",
+                "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                "artifacts": get_artifacts(node.get("package_folder"), remote_path)
             }
             ret.append(module)
     return ret
