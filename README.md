@@ -6,7 +6,7 @@ useful for different purposes, like [Artifactory](https://jfrog.com/artifactory)
 The contents of this repository are *not* production ready, they are intended as an aiding guide,
 and you'll probably want to create your own custom commands and/or deployers taking these as a base to ensure they meet your needs.
 
-### Conan config install
+## Conan config install
 
 To install all the available extensions, run:
 
@@ -16,23 +16,19 @@ conan config install https://github.com/conan-io/conan-extensions.git
 
 Afterwards, running `conan --help` should show you all the custom commands available.
 
+
 ### Custom Commands
 
 These are the currently supported custom commands:
 
-#### [Convert txt](extensions/commands/migrate/cmd_convert_txt.py)
+#### [Migration](extensions/commands/migrate/)
 
-Gets a `conanfile.txt` as input and outputs its equivalent `conanfile.py`
+Commands useful for migrations
 
-### [Export all recipe versions](extensions/commands/cci/cmd_export_all_versions.py)
+#### [Conan Center Index](extensions/commands/cci/)
 
-For either a single recipe, a list of recipes, or a folder with recipes,
-exports all the versions declared in a `config.yml` file to the local cache
+Commands useful in Conan Center Index or its forks
 
-
-```
-conan migrate:convert-txt conanfile.txt > conanfile.py
-```
 
 ### Testing
 
