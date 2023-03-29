@@ -1,9 +1,24 @@
-import tempfile
 import os
-
+import tempfile
 
 from tools import run
 
+try:
+    # to test locally with an artifactory instance that already has
+    # extensions-stg and extensions-prod repos, define this dict of credentials
+    # in credentials.py (the file is gitignored)
+
+    # environment = {
+    #     "CONAN_LOGIN_USERNAME_EXTENSIONS_PROD": "......",
+    #     "CONAN_PASSWORD_EXTENSIONS_PROD": "......",
+    #     "CONAN_LOGIN_USERNAME_EXTENSIONS_STG": "......",
+    #     "CONAN_PASSWORD_EXTENSIONS_STG": "......",
+    #     "ART_URL": "https://url/artifactory",
+    # }
+
+    from credentials import environment
+except ImportError:
+    environment = {}
 
 import pytest
 
@@ -13,10 +28,10 @@ def conan_test():
     old_env = dict(os.environ)
     env_vars = {"CONAN_HOME": tempfile.mkdtemp(suffix='conans')}
     os.environ.update(env_vars)
+    os.environ.update(environment)
     current = tempfile.mkdtemp(suffix="conans")
     cwd = os.getcwd()
     os.chdir(current)
-
     run("conan profile detect")
     run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
     run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
