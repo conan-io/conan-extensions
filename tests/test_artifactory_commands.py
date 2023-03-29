@@ -29,12 +29,6 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def run(cmd):
-    ret = os.system(cmd)
-    if ret != 0:
-        raise Exception(f"Failed CMD: {cmd}")
-
-
 def test_build_info_create():
     repo = os.path.join(os.path.dirname(__file__), "..")
 
@@ -43,7 +37,7 @@ def test_build_info_create():
 
     run(f"conan config install {repo}")
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
-    run("conan create . --format json > create.json")
+    run("conan create . --format json -tf='' > create.json")
 
     try:
         run("conan remove mypkg -c -r extensions-stg")
