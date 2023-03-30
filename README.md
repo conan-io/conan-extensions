@@ -32,7 +32,7 @@ Commands useful in Conan Center Index or its forks
 
 ### Deployer
 
-These are the currently supported custom commands:
+These are the currently supported custom deployers:
 
 #### [Runtime Zipper](extensions/deploy/runtime_zip_deploy.py)
 
