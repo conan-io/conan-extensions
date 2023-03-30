@@ -99,7 +99,7 @@ def property(conan_api: ConanAPI, parser, *args):
 @conan_subcommand()
 def property_add(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Set properties for artifacts under a Conan reference recursively.
+    Append properties for artifacts under a Conan reference recursively.
     """
 
     add_default_arguments(subparser)
