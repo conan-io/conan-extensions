@@ -85,8 +85,9 @@ def test_build_info_create():
 
     run('conan remove mypkg* -c')
 
-    # we have to remove the package from the source repo because in the promotion we copy
-    # by default, not move
+    # we have to remove the package from the source repo because in the Conan promotion we copy
+    # Conan promotions must always be copy, and the clean must be handled manually
+    # otherwise you can end up deleting recipe artifacts that other packages use
     run('conan remove mypkg* -c -r extensions-stg')
 
     # check that we can install from the prod repo after the promotion

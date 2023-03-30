@@ -233,12 +233,6 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
-    # FIXME: when we promote builds the folder for the artifacts from the source
-    # repo stay there. Maybe just use the copy=true always and handle the removal
-    # of the source repo with Conan directly or with some helper command with the Build Info as
-    # the input
-    subparser.add_argument("--move", help="Whether to copy instead of move. Default: false",
-                           action='store_true', default=False)
     subparser.add_argument("--dependencies", help="Whether to move/copy the build's dependencies. Default: false.", 
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
@@ -252,7 +246,9 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     promotion_json = {
         "sourceRepo": args.source_repo, 
         "targetRepo": args.target_repo,
-        "copy": "false" if args.move else "true",
+        # Conan promotions must always be copy, and the clean must be handled manually
+        # otherwise you can end up deleting recipe artifacts that other packages use
+        "copy": "true", 
         "dependencies": "true" if args.dependencies else "false",
         "comment": args.comment
     }
