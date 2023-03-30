@@ -38,6 +38,8 @@ def test_deploy_runtime_zip():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
     run("conan --help")
+    
+    # Let's build a application to bundle
     run("conan new cmake_exe --define name=hello --define version=0.1")
     run("conan profile detect")
     run("conan create .")
