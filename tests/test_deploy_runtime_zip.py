@@ -42,7 +42,7 @@ def test_deploy_runtime_zip():
     run("conan profile detect")
     run("conan create .")
 
-    run("conan install --requires hello/0.1 --deploy=runtime_zip")
+    run("conan install --requires hello/0.1 --deploy=runtime_zip_deploy")
     assert True
 
 
