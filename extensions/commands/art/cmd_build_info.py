@@ -20,7 +20,7 @@ def response_to_str(response):
     try:
         # A bytes message, decode it as str
         if isinstance(content, bytes):
-            content = content.decode()
+            content = content.decode('utf-8')
 
         content_type = response.headers.get("content-type")
 
@@ -217,8 +217,9 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
         payload = json.dumps(json.load(f))
 
     request_url = f"{args.url}/api/build"
-    api_request("put", request_url, args.user, args.password,
-                args.apikey, json_data=payload)
+    response = api_request("put", request_url, args.user, args.password,
+                           args.apikey, json_data=payload)
+    cli_out_write(response)
 
 
 @conan_subcommand()
@@ -233,14 +234,99 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
+    subparser.add_argument("--copy", help="Whether to copy instead of move. Default: false",
+                           action='store_true', default=False)
+    subparser.add_argument("--dependencies", help="Whether to move/copy the build's dependencies. Default: false.", 
+                           action='store_true', default=False)
+    subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
+    
+
+
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
 
     args = parser.parse_args(*args)
 
-    promotion_json = f'{{"sourceRepo": "{args.source_repo}", "targetRepo": "{args.target_repo}"}}'
+    promotion_json = {
+        "sourceRepo": args.source_repo, 
+        "targetRepo": args.target_repo,
+        "copy": "true" if args.copy else "false",
+        "dependencies": "true" if args.dependencies else "false",
+        "comment": args.comment
+    }
 
     request_url = f"{args.url}/api/build/promote/{args.build_name}/{args.build_number}"
 
-    api_request("post", request_url, args.user, args.password, args.apikey, json_data=promotion_json)
+    response = api_request("post", request_url, args.user, args.password, args.apikey, 
+                           json_data=json.dumps(promotion_json))
+
+    cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Get Build Info information.
+    """
+
+    subparser.add_argument("build_name", help="BuildInfo name to get.")
+    subparser.add_argument("build_number", help="BuildInfo number to get.")
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    request_url = f"{args.url}/api/build/{args.build_name}/{args.build_number}"
+
+    response = api_request("get", request_url, args.user, args.password, args.apikey)
+
+    cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Removes builds stored in Artifactory. Useful for cleaning up old build info data.
+    """
+
+    subparser.add_argument("build_name", help="BuildInfo name to promote.")
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+
+    subparser.add_argument("--build-number", help="BuildInfo numbers to promote. You can add " \
+                           "several build-numbers for the same build-name, like: --build-number=1 --build-number=2.",
+                           action='append')
+
+    subparser.add_argument("--delete-artifacts", help="Build artifacts are also removed " \
+                           "provided they have the corresponding build.name and build.number properties attached to them. " \
+                           "Default false.",
+                           action='store_true', default=False,)
+    subparser.add_argument("--delete-all", help="The whole build is removed. Default false.",
+                           action='store_true', default=False,)
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    delete_json = {
+        "buildName": args.build_name,
+        "buildNumbers": args.build_number,
+        "deleteArtifacts": "true" if args.delete_artifacts else "false",
+        "deleteAll": "true" if args.delete_all else "false",
+    }
+
+    request_url = f"{args.url}/api/build/delete"
+
+    print(request_url)
+
+    print(delete_json)
+
+    response = api_request("post", request_url, args.user, args.password, args.apikey,
+                           json_data=json.dumps(delete_json))
+
+    cli_out_write(response)
