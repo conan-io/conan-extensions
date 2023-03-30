@@ -30,7 +30,7 @@ Commands useful for migrations
 Commands useful in Conan Center Index or its forks
 
 
-### Deployer
+### [Deploy](extensions/deploy)
 
 These are the currently supported custom deployers:
 
