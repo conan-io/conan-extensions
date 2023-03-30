@@ -52,25 +52,29 @@ def test_build_info_create():
 
     run(f"conan config install {repo}")
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
-    run("conan create . --format json -tf='' > create.json")
 
-    try:
-        run("conan remove mypkg -c -r extensions-stg")
-    except:
-        pass
+    run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
+    run("conan create . --format json -tf='' -s build_type=Debug > create_debug.json")
+
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
 
     run("conan upload mypkg/1.0 -c -r extensions-stg")
-    run(f'conan art:property set {os.getenv("ART_URL")} extensions-stg mypkg/1.0 --property="build.name={build_name}" --property="build.number={build_number}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info create create.json {build_name} {build_number} > {build_name}.json')
-    run(f'conan art:build-info upload {build_name}.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    try:
-        run("conan remove mypkg -c -r extensions-prod")
-    except:
-        pass
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} > {build_name}_release.json')
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} > {build_name}_debug.json')
 
-    run(f'conan art:build-info promote {build_name} {build_number} {os.getenv("ART_URL")} extensions-stg extensions-prod --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    run(f'conan art:build-info get {build_name} {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    run(f'conan art:build-info delete {build_name} {os.getenv("ART_URL")} --build-number=1 --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+    run(f'conan art:build-info get {build_name}_release {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info get {build_name}_debug {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    #run(f'conan art:build-info promote {build_name} {build_number} {os.getenv("ART_URL")} extensions-stg extensions-prod --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    #run(f'conan art:build-info get {build_name} {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    #run(f'conan art:build-info delete {build_name} {os.getenv("ART_URL")} --build-number=1 --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')

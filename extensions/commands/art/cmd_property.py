@@ -170,3 +170,52 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
     request_url = f"{args.url}/api/metadata/{args.repository}/{get_path_from_ref(args.reference)}?&recursiveProperties={recursive}"
 
     api_request("patch", request_url, args.user, args.password, args.apikey, json_data=json_data)
+
+
+@conan_subcommand()
+def property_build_info_add(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Load a Build Info JSON and add the build.number and build.name properties to all the artifacts present in the JSON.
+    """
+
+    subparser.add_argument("json", help="Build Info JSON.")
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+    subparser.add_argument("repository", help="Artifactory repository.")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    with open(args.json, 'r') as f:
+        data = json.load(f)
+
+    build_name = data.get("name")
+    build_number = data.get("number")
+
+    for module in data.get('modules'):
+        for artifact in module.get('artifacts'):
+            artifact_properties = {}
+            artifact_path = artifact.get('path')
+            try:
+                request_url = f"{args.url}/api/storage/{args.repository}/{artifact_path}?properties"
+                props_response = api_request("get", request_url, args.user, args.password, args.apikey)
+                artifact_properties = json.loads(props_response).get("properties")
+            except:
+                pass
+
+            if artifact_properties.get("build.name") and build_name not in artifact_properties.get("build.name"):
+                artifact_properties["build.name"].append(build_name)
+            else:
+                artifact_properties["build.name"] = build_name
+
+            if artifact_properties.get("build.number") and build_number not in artifact_properties.get("build.number"):
+                artifact_properties["build.number"].append(build_number)
+            else:
+                artifact_properties["build.number"] = build_number
+        
+
+            request_url = f"{args.url}/api/metadata/{args.repository}/{artifact_path}"
+            api_request("patch", request_url, args.user, args.password,
+                        args.apikey, json_data=json.dumps({"props": artifact_properties}))

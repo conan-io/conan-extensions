@@ -187,8 +187,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("name", help="Build name property for BuildInfo.")
-    subparser.add_argument(
-        "number", help="Build number property for BuildInfo.")
+    subparser.add_argument("number", help="Build number property for BuildInfo.")
     args = parser.parse_args(*args)
 
     with open(args.json, 'r') as f:
@@ -207,18 +206,18 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
     args = parser.parse_args(*args)
 
-
     with open(args.build_info) as f:
-        payload = json.dumps(json.load(f))
+        build_info_json = json.load(f)        
 
     request_url = f"{args.url}/api/build"
     response = api_request("put", request_url, args.user, args.password,
-                           args.apikey, json_data=payload)
+                           args.apikey, json_data=json.dumps(build_info_json))
     cli_out_write(response)
 
 
