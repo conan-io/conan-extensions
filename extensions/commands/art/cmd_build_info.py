@@ -167,7 +167,7 @@ def create_build_info(data, build_name, build_number):
            "agent": {},
            "started": formatted_time,
            "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"},
-           "modules": get_modules(data)}
+           "modules": data}
 
     return json.dumps(ret, indent=4)
 
@@ -193,7 +193,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     with open(args.json, 'r') as f:
         data = json.load(f)
 
-    info = create_build_info(data, args.name, args.number)
+    info = create_build_info(get_modules(data), args.name, args.number)
 
     cli_out_write(info)
 
@@ -233,14 +233,16 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
-    subparser.add_argument("--copy", help="Whether to copy instead of move. Default: false",
+    # FIXME: when we promote builds the folder for the artifacts from the source
+    # repo stay there. Maybe just use the copy=true always and handle the removal
+    # of the source repo with Conan directly or with some helper command with the Build Info as
+    # the input
+    subparser.add_argument("--move", help="Whether to copy instead of move. Default: false",
                            action='store_true', default=False)
     subparser.add_argument("--dependencies", help="Whether to move/copy the build's dependencies. Default: false.", 
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
     
-
-
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
@@ -250,7 +252,7 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     promotion_json = {
         "sourceRepo": args.source_repo, 
         "targetRepo": args.target_repo,
-        "copy": "true" if args.copy else "false",
+        "copy": "false" if args.move else "true",
         "dependencies": "true" if args.dependencies else "false",
         "comment": args.comment
     }
@@ -259,7 +261,7 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
 
     response = api_request("post", request_url, args.user, args.password, args.apikey, 
                            json_data=json.dumps(promotion_json))
-
+    
     cli_out_write(response)
 
 
@@ -321,11 +323,42 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
 
     request_url = f"{args.url}/api/build/delete"
 
-    print(request_url)
-
-    print(delete_json)
-
     response = api_request("post", request_url, args.user, args.password, args.apikey,
                            json_data=json.dumps(delete_json))
 
     cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Append published build to the build info.
+    """
+
+    subparser.add_argument("build_name", help="The current build name.")
+    subparser.add_argument("build_number", help="The current build number.")
+
+    subparser.add_argument("--build-info", help="JSON file for the Build Info. You can add multiple files " \
+                           "like --build-info=release.json --build-info=debug.json",
+                           action="append")
+    
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    all_modules = []
+
+    for build_info_json in args.build_info:
+        with open(build_info_json, 'r') as f:
+            data = json.load(f)
+            for module in data.get("modules"):
+                # avoid repeating shared recipe modules between builds
+                if not any(d['id'] == module.get('id') for d in all_modules):
+                    all_modules.append(module)
+
+    build_info_result = create_build_info(all_modules, args.build_name, args.build_number)
+
+    cli_out_write(build_info_result)

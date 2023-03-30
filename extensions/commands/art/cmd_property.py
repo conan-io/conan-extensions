@@ -120,7 +120,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
                       args.user, args.password, args.apikey))
 
     # just consider those artifacts that have conan in the name
-    conan_artifacts = [artifact for artifact in data.get("files") if "conan" in artifact.get('uri')]
+    # conan_artifacts = [artifact for artifact in data.get("files") if "conan" in artifact.get('uri')]
 
     # get properties for all artifacts
     for artifact in data.get("files"):
