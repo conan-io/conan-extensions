@@ -14,7 +14,7 @@ def convert_txt(conan_api, parser, *args, **kwargs):
     parser.add_argument("path", help="Path to a folder containing a conanfile.txt")
     args = parser.parse_args(*args)
 
-    path = os.path.join(args.path, "conanfile.txt")  if os.path.isdir(args.path) else args.path
+    path = os.path.join(args.path, "conanfile.txt") if os.path.isdir(args.path) else args.path
     txt = ConanFileTextLoader(open(path, "r").read())
     template = textwrap.dedent("""\
         from conan import ConanFile
