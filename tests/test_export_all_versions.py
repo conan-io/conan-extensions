@@ -4,6 +4,9 @@ import os
 
 import pytest
 
+from tools import save, run
+
+
 @pytest.fixture(autouse=True)
 def conan_test():
     old_env = dict(os.environ)
@@ -18,22 +21,6 @@ def conan_test():
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
-
-
-def run(cmd):
-    ret = os.system(cmd)
-    if ret != 0:
-        raise Exception(f"Failed CMD: {cmd}")
-
-
-def save(f, content):
-    with open(f, "w") as f:
-        f.write(content)
-
-
-def load(f):
-    with open(f, "r") as f:
-        return f.read()
 
 
 def test_convert_txt():
