@@ -109,6 +109,10 @@ def get_artifacts(cache_folder, remote_path):
                               "sha256": sha256,
                               "sha1": sha1,
                               "md5": md5})
+    if not artifacts:
+        raise ConanException("Artifacts are missing in the cache. Probably the package " \
+                             "was not uploaded before creating the Build Info. Please upload " \
+                             "the package to the server and try again.")
     return artifacts
 
 

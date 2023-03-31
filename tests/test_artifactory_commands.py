@@ -83,6 +83,9 @@ def test_build_info_create():
 
     run(f'conan art:build-info promote {build_name}_aggregated {build_number} {os.getenv("ART_URL")} extensions-stg extensions-prod --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
+    # The local clean is because later I'm going to do a conan install from prod repo 
+    # and I want to make sure that the install succeeds because the package comes from 
+    # the remote and not because it's already in the cache. 
     run('conan remove mypkg* -c')
 
     # we have to remove the package from the source repo because in the Conan promotion we copy
@@ -100,3 +103,27 @@ def test_build_info_create():
 
     # even deleting the builds, the folders will stay there, so manually cleaning
     run('conan remove mypkg* -c -r extensions-prod')
+
+
+def test_fail_if_not_uploaded():
+    """
+    In order to create the Build Info we need the hashes of the artifacts that are uploaded
+    to Artifactory, but those artifacts: conan_source.tgz, conan_package.tgz, etc.
+    are only created on the upload process, that's why we need an upload previous to 
+    creating the Build Infos. If those artifacts are not in the cache, we raise.
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+
+    build_name = "mybuildinfo"
+    build_number = "1"
+
+    run(f"conan config install {repo}")
+
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+
+    run("conan create . --format json -tf='' > create.json")
+
+    out = run(f'conan art:build-info create create.json {build_name} {build_number}', error=True)
+
+    assert "Artifacts are missing in the cache" in out
