@@ -97,7 +97,7 @@ def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]
 
             if not patches_inserted and line.startswith("patches:"):
                 lines.append(f"  \"{version}\":\n")
-                for l in yaml.safe_dump(patches, canonical=False).splitlines():
+                for l in yaml.safe_dump(patches, default_style='"', default_flow_style=False).splitlines():
                     lines.append(f"    {l}\n")
                 sources_inserted = True
     with open(conan_data_yml_path, 'w') as conandata_file:
