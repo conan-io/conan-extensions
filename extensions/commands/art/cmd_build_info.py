@@ -342,11 +342,6 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                            "like --build-info=release.json --build-info=debug.json",
                            action="append")
     
-
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
     args = parser.parse_args(*args)
 
     all_modules = []
