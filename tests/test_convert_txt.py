@@ -2,6 +2,8 @@ import tempfile
 import textwrap
 import os
 
+from tools import load, save, run
+
 import pytest
 
 from tools import load, save, run
@@ -10,7 +12,7 @@ from tools import load, save, run
 @pytest.fixture(autouse=True)
 def conan_test():
     old_env = dict(os.environ)
-    env_vars = {"CONAN_HOME": tempfile.mkdtemp(suffix='conans')} 
+    env_vars = {"CONAN_HOME": tempfile.mkdtemp(suffix='conans')}
     os.environ.update(env_vars)
     current = tempfile.mkdtemp(suffix="conans")
     cwd = os.getcwd()

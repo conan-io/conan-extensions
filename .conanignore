@@ -4,4 +4,7 @@ venv/*
 tests/*
 .gitignore
 LICENSE
-README.md
+*README.md*
+*.DS_Store*
+*.pytest_cache*
+tmp/*
