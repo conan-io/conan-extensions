@@ -2,8 +2,11 @@ import subprocess
 
 
 def run(cmd, error=False):
-    process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    process = subprocess.Popen(cmd, 
+                               stdout=subprocess.PIPE, 
+                               stderr=subprocess.PIPE, 
+                               shell=True)
+
     out, err = process.communicate()
     out = out.decode("utf-8")
     err = err.decode("utf-8")

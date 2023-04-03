@@ -6,6 +6,8 @@ from tools import load, save, run
 
 import pytest
 
+from tools import load, save, run
+
 
 @pytest.fixture(autouse=True)
 def conan_test():
