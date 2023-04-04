@@ -1,7 +1,8 @@
 import ast
 import configparser
 import os
-import xml.etree.ElementTree as ET
+import sys
+import xml.etree.ElementTree
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -11,12 +12,13 @@ from conan.tools.scm import Version
 import requests
 import yaml
 
+
 @conan_command(group="Extension")
 def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
     """
     command creating a new version of the qt recipe
     """
-    
+
     parser.add_argument("version", help="version of qt to add to the recipe")
     args = parser.parse_args(*args)
 
@@ -24,7 +26,7 @@ def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
 
     if not os.path.isdir(recipe_folder(version)):
         ConanOutput().error(f"Recipe folder could not be found in {recipe_folder(version)}")
-        exit(-1)
+        sys.exit(-1)
 
     with requests.Session() as session:
         update_config_yml(version)
@@ -38,13 +40,13 @@ def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
 
     ConanOutput().success(f"qt version {version} successfully added to {recipe_folder(version)}.\n")
 
-    
+
 def update_config_yml(version: Version) -> None:
     with open("config.yml", "r") as config_file:
         config = yaml.safe_load(config_file)
         if str(version) in config["versions"]:
             ConanOutput().error(f"version \"{version}\" already present in config.yml")
-            exit(-1)
+            sys.exit(-1)
 
     lines = []
     with open('config.yml') as config_file:
@@ -72,33 +74,35 @@ def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[s
     mirrors.append(f"https://download.qt.io/archive/qt/{version.major}.{version.minor}/{version}/single/{archive_name}")
     with session.get(f"{link}.meta4") as req:
         req.raise_for_status()
-        tree = ET.fromstring(req.text)
+        tree = xml.etree.ElementTree.fromstring(req.text)
         if tree.tag != "{urn:ietf:params:xml:ns:metalink}metalink":
             ConanOutput().error(f"meta link root tag incorrect: expected \"metalink\" but got {tree.tag}")
-            exit(-1)
+            sys.exit(-1)
         file = tree.find("{urn:ietf:params:xml:ns:metalink}file")
         if not file:
             ConanOutput().error(f"Could not find `file` tag in {link}.meta4 file content")
-            exit(-1)
+            sys.exit(-1)
         sources_hash = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']").text
         mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url"))
     return sources_hash,mirrors
 
-def recipe_folder(version:Version) -> str:
+
+def recipe_folder(version: Version) -> str:
     return f"{version.major}.x.x"
 
-def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str])->None:
+
+def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]) -> None:
 
     conan_data_yml_path = f"{recipe_folder(version)}/conandata.yml"
-    
+
     with open(conan_data_yml_path, "r") as conandata_file:
         conandata = yaml.safe_load(conandata_file)
         if str(version) in conandata["sources"]:
             ConanOutput().error(f"version \"{version}\" already present in conandata.yml sources")
-            exit(-1)
+            sys.exit(-1)
         if str(version) in conandata["patches"]:
             ConanOutput().error(f"version \"{version}\" already present in conandata.yml patches")
-            exit(-1)
+            sys.exit(-1)
         patches = list(conandata["patches"].values())[0]
 
     lines = []
@@ -123,7 +127,8 @@ def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]
     with open(conan_data_yml_path, 'w') as conandata_file:
         conandata_file.writelines(lines)
 
-def create_modules_file(version:Version, session:requests.Session) -> None:
+
+def create_modules_file(version: Version, session: requests.Session) -> None:
     if version.major == 5:
         tag = f"v{version}-lts-lgpl"
     else:
@@ -133,7 +138,8 @@ def create_modules_file(version:Version, session:requests.Session) -> None:
         with open(f"{recipe_folder(version)}/qtmodules{version}.conf", 'w') as f:
             f.write(req.text)
 
-def update_conanfile(version:Version) -> None:
+
+def update_conanfile(version: Version) -> None:
     existing_modules = get_existing_modules(version)
     missing_modules = []
     for m in get_new_modules(version):
@@ -142,9 +148,9 @@ def update_conanfile(version:Version) -> None:
 
     if not missing_modules:
         return
-    
+
     line = insertion_line(version)
-    
+
     with open(f"{recipe_folder(version)}/conanfile.py") as f:
         recipe = f.readlines()
 
@@ -155,49 +161,51 @@ def update_conanfile(version:Version) -> None:
         f.write(f"]) # new modules for qt {version}\n")
         f.writelines(recipe[line:])
 
+
 def insertion_line(version):
     with open(f"{recipe_folder(version)}/conanfile.py") as f:
         recipe = f.read()
     node = ast.parse(recipe)
 
-    qtConanNode = None
+    qt_conan_node = None
     for node in node.body:
         if isinstance(node, ast.ClassDef) and node.name == "QtConan":
-            qtConanNode = node
+            qt_conan_node = node
             break
-    if not qtConanNode:
+    if not qt_conan_node:
         ConanOutput().error(f"Could not find QtConan class definition in recipe \"{recipe_folder(version)}/conanfile.py\"")
-        exit(-1)
+        sys.exit(-1)
 
-    submodulesNode = None
-    for node in qtConanNode.body:
+    submodules_node = None
+    for node in qt_conan_node.body:
         if not isinstance(node, ast.Assign):
             continue
         for target in node.targets:
             if target.id == "_submodules":
-                submodulesNode = node
-    if not submodulesNode:
+                submodules_node = node
+    if not submodules_node:
         ConanOutput().error(f"Could not find _submodules assignment in recipe \"{recipe_folder(version)}/conanfile.py\"")
-        exit(-1)
+        sys.exit(-1)
 
-    return submodulesNode.end_lineno
+    return submodules_node.end_lineno
 
-def get_new_modules(version:Version) -> list[str]:
+
+def get_new_modules(version: Version) -> list[str]:
     config = configparser.ConfigParser()
     config.read(f"{recipe_folder(version)}/qtmodules{version}.conf")
     new_modules = []
     if not config.sections():
         ConanOutput().error(f"no qtmodules.conf file for version {version}")
-        exit(-1)
+        sys.exit(-1)
     for s in config.sections():
         section = str(s)
         if not section.startswith("submodule "):
             ConanOutput().error(f"qtmodules.conf section does not start with \"submodule \": {section}")
-            exit(-1)
+            sys.exit(-1)
 
         if section.count('"') != 2:
             ConanOutput().error(f"qtmodules.conf section should contain two double quotes: {section}")
-            exit(-1)
+            sys.exit(-1)
 
         modulename = section[section.find('"') + 1: section.rfind('"')]
         status = str(config.get(section, "status"))
@@ -205,10 +213,10 @@ def get_new_modules(version:Version) -> list[str]:
             new_modules.append(modulename)
     return new_modules
 
-def get_existing_modules(version:Version) -> list[str]:
+
+def get_existing_modules(version: Version) -> list[str]:
     with open(f"{recipe_folder(version)}/conanfile.py") as f:
         recipe = f.read()
     _locals = locals()
     exec(recipe, globals(), _locals)
     return _locals["QtConan"]()._submodules
-    
