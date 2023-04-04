@@ -1,4 +1,5 @@
 import ast
+import functools
 import os
 import sys
 
@@ -29,6 +30,12 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
 
     at_least_one_bump = False
 
+    
+    @functools.cache
+    def latest_ref(name: str) -> str:
+        refs = conan_api.list.select(ListPattern(name), remote=remote)
+        return list(refs.recipes.keys())[-1]
+
     for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
@@ -40,12 +47,11 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
                     oldref = arg.value
                     name = oldref.split("/")[0]
                     try:
-                        refs = conan_api.list.select(ListPattern(name), remote=remote)
+                        newref = latest_ref(name)
                     except Exception as inst:
                         ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
                         ConanOutput().warning(inst)
                         continue
-                    newref = list(refs.recipes.keys())[-1]
                     if newref != oldref:
                         line = arg.lineno - 1
                         recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
