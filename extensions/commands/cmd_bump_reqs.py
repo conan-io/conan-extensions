@@ -24,8 +24,10 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
 
     with open(recipe_file) as f:
         recipe_lines = f.readlines()
-    
+
     remote = conan_api.remotes.list(args.remote)[0]
+
+    at_least_one_bump = False
 
     for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):
@@ -48,8 +50,11 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
                         line = arg.lineno - 1
                         recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
                         ConanOutput().info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
+                        at_least_one_bump = True
 
-    with open(recipe_file, 'w') as f:
-        f.writelines(recipe_lines)
-
-    ConanOutput().success(f"Successfully bumped the requirements of recipe {recipe_file}")
+    if at_least_one_bump:
+        with open(recipe_file, 'w') as f:
+            f.writelines(recipe_lines)
+        ConanOutput().success(f"Successfully bumped the requirements of recipe {recipe_file}")
+    else:
+        ConanOutput().success(f"All the requirements of recipe {recipe_file} are already up to date")
