@@ -25,14 +25,16 @@ def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
         update_conandata_yml(version, sources_hash, mirrors)
         create_modules_file(version, session)
 
-    ConanOutput().info(f"qt version {version} successfully added to {recipe_folder(version)}.")
-    ConanOutput().info("You may have to manually add new modules to recipe's `_submodules` member.")
+    ConanOutput().success(f"qt version {version} successfully added to {recipe_folder(version)}.\n"
+                          "You may have to manually add new modules to recipe's `_submodules` member.")
 
     
 def update_config_yml(version: Version) -> None:
     with open("config.yml", "r") as config_file:
         config = yaml.safe_load(config_file)
-        assert str(version) not in config["versions"], f"version \"{version}\" already present in config.yml"
+        if str(version) in config["versions"]:
+            ConanOutput().error(f"version \"{version}\" already present in config.yml")
+            exit(-1)
 
     lines = []
     with open('config.yml') as config_file:
@@ -61,9 +63,13 @@ def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[s
     with session.get(f"{link}.meta4") as req:
         req.raise_for_status()
         tree = ET.fromstring(req.text)
-        assert tree.tag == "{urn:ietf:params:xml:ns:metalink}metalink", f"meta link root tag incorrect: expected \"metalink\" but got {tree.tag}"
+        if tree.tag != "{urn:ietf:params:xml:ns:metalink}metalink":
+            ConanOutput().error(f"meta link root tag incorrect: expected \"metalink\" but got {tree.tag}")
+            exit(-1)
         file = tree.find("{urn:ietf:params:xml:ns:metalink}file")
-        assert file
+        if not file:
+            ConanOutput().error(f"Could not find `file` tag in {link}.meta4 file content")
+            exit(-1)
         sources_hash = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']").text
         mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url"))
     return sources_hash,mirrors
@@ -77,8 +83,12 @@ def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]
     
     with open(conan_data_yml_path, "r") as conandata_file:
         conandata = yaml.safe_load(conandata_file)
-        assert str(version) not in conandata["sources"], f"version \"{version}\" already present in conandata.yml sources"
-        assert str(version) not in conandata["patches"], f"version \"{version}\" already present in conandata.yml patches"
+        if str(version) in conandata["sources"]:
+            ConanOutput().error(f"version \"{version}\" already present in conandata.yml sources")
+            exit(-1)
+        if str(version) in conandata["patches"]:
+            ConanOutput().error(f"version \"{version}\" already present in conandata.yml patches")
+            exit(-1)
         patches = list(conandata["patches"].values())[0]
 
     lines = []
