@@ -1,3 +1,5 @@
+import ast
+import configparser
 import xml.etree.ElementTree as ET
 
 from conan.api.conan_api import ConanAPI
@@ -20,13 +22,13 @@ def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
     version = Version(args.version)
 
     with requests.Session() as session:
+        create_modules_file(version, session)
+        update_conanfile(version)
         update_config_yml(version)
         sources_hash, mirrors = get_hash_and_mirrors(version, session)
         update_conandata_yml(version, sources_hash, mirrors)
-        create_modules_file(version, session)
 
-    ConanOutput().success(f"qt version {version} successfully added to {recipe_folder(version)}.\n"
-                          "You may have to manually add new modules to recipe's `_submodules` member.")
+    ConanOutput().success(f"qt version {version} successfully added to {recipe_folder(version)}.\n")
 
     
 def update_config_yml(version: Version) -> None:
@@ -122,3 +124,83 @@ def create_modules_file(version:Version, session:requests.Session) -> None:
         req.raise_for_status()
         with open(f"{recipe_folder(version)}/qtmodules{version}.conf", 'w') as f:
             f.write(req.text)
+
+def update_conanfile(version:Version) -> None:
+    existing_modules = get_existing_modules(version)
+    missing_modules = []
+    for m in get_new_modules(version):
+        if m not in existing_modules:
+            missing_modules.append(m)
+
+    if not missing_modules:
+        return
+    
+    line = insertion_line(version)
+    
+    with open(f"{recipe_folder(version)}/conanfile.py") as f:
+        recipe = f.readlines()
+
+    with open(f"{recipe_folder(version)}/conanfile.py", "w") as f:
+        f.writelines(recipe[0:line])
+        f.write("    _submodules.extend([")
+        f.write(",".join(f'"{m}"' for m in missing_modules))
+        f.write(f"]) # new modules for qt {version}\n")
+        f.writelines(recipe[line:])
+
+def insertion_line(version):
+    with open(f"{recipe_folder(version)}/conanfile.py") as f:
+        recipe = f.read()
+    node = ast.parse(recipe)
+
+    qtConanNode = None
+    for node in node.body:
+        if isinstance(node, ast.ClassDef) and node.name == "QtConan":
+            qtConanNode = node
+            break
+    if not qtConanNode:
+        ConanOutput().error(f"Could not find QtConan class definition in recipe \"{recipe_folder(version)}/conanfile.py\"")
+        exit(-1)
+
+    submodulesNode = None
+    for node in qtConanNode.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if target.id == "_submodules":
+                submodulesNode = node
+    if not submodulesNode:
+        ConanOutput().error(f"Could not find _submodules assignment in recipe \"{recipe_folder(version)}/conanfile.py\"")
+        exit(-1)
+
+    return submodulesNode.end_lineno
+
+def get_new_modules(version):
+    config = configparser.ConfigParser()
+    config.read(f"{recipe_folder(version)}/qtmodules{version}.conf")
+    new_modules = []
+    if not config.sections():
+        ConanOutput().error(f"no qtmodules.conf file for version {version}")
+        exit(-1)
+    for s in config.sections():
+        section = str(s)
+        if not section.startswith("submodule "):
+            ConanOutput().error(f"qtmodules.conf section does not start with \"submodule \": {section}")
+            exit(-1)
+
+        if section.count('"') != 2:
+            ConanOutput().error(f"qtmodules.conf section should contain two double quotes: {section}")
+            exit(-1)
+
+        modulename = section[section.find('"') + 1: section.rfind('"')]
+        status = str(config.get(section, "status"))
+        if status not in ("obsolete", "ignore") and modulename not in ["qtbase", "qtqa", "qtrepotools"]:
+            new_modules.append(modulename)
+    return new_modules
+
+def get_existing_modules(version:Version) -> list[str]:
+    with open(f"{recipe_folder(version)}/conanfile.py") as f:
+        recipe = f.read()
+    _locals = locals()
+    exec(recipe, globals(), _locals)
+    return _locals["QtConan"]()._submodules
+    
