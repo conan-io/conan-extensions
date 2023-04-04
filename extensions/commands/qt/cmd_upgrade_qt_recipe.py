@@ -82,9 +82,16 @@ def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[s
         if not file:
             ConanOutput().error(f"Could not find `file` tag in {link}.meta4 file content")
             sys.exit(-1)
-        sources_hash = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']").text
-        mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url"))
-    return sources_hash,mirrors
+        hash_element = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']")
+        if hash_element is None:
+            ConanOutput().error(f"Could not find hash tag in {link}.meta4 file content")
+            sys.exit(-1)
+        sources_hash = hash_element.text
+        if sources_hash is None:
+            ConanOutput().error(f"Could not find hash text in {link}.meta4 file content")
+            sys.exit(-1)
+        mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url") if node.text)
+    return sources_hash, mirrors
 
 
 def recipe_folder(version: Version) -> str:
