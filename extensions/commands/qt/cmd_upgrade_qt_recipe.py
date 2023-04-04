@@ -121,15 +121,13 @@ def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]
             if not sources_inserted and line.startswith("sources:"):
                 lines.append(f"  \"{version}\":\n")
                 lines.append("    url:\n")
-                for m in mirrors:
-                    lines.append(f"      - \"{m}\"\n")
+                lines.extend(f"      - \"{m}\"\n" for m in mirrors)
                 lines.append(f"    sha256: \"{sources_hash}\"\n")
                 sources_inserted = True
 
             if not patches_inserted and line.startswith("patches:"):
                 lines.append(f"  \"{version}\":\n")
-                for l in yaml.safe_dump(patches, default_style='"', default_flow_style=False).splitlines():
-                    lines.append(f"    {l}\n")
+                lines.extend(f"    {line}\n" for line in yaml.safe_dump(patches, default_style='"', default_flow_style=False).splitlines())
                 sources_inserted = True
     with open(conan_data_yml_path, 'w') as conandata_file:
         conandata_file.writelines(lines)
@@ -148,10 +146,7 @@ def create_modules_file(version: Version, session: requests.Session) -> None:
 
 def update_conanfile(version: Version) -> None:
     existing_modules = get_existing_modules(version)
-    missing_modules = []
-    for m in get_new_modules(version):
-        if m not in existing_modules:
-            missing_modules.append(m)
+    missing_modules = [m for m in get_new_modules(version) if m not in existing_modules]
 
     if not missing_modules:
         return
@@ -163,9 +158,9 @@ def update_conanfile(version: Version) -> None:
 
     with open(f"{recipe_folder(version)}/conanfile.py", "w") as f:
         f.writelines(recipe[0:line])
-        f.write("    _submodules.extend([")
-        f.write(",".join(f'"{m}"' for m in missing_modules))
-        f.write(f"]) # new modules for qt {version}\n")
+        f.write("    _submodules += [")
+        f.write(", ".join(f'"{m}"' for m in missing_modules))
+        f.write(f"] # new modules for qt {version}\n")
         f.writelines(recipe[line:])
 
 
@@ -185,10 +180,12 @@ def insertion_line(version):
 
     submodules_node = None
     for node in qt_conan_node.body:
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if target.id == "_submodules":
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if target.id == "_submodules":
+                    submodules_node = node
+        elif isinstance(node, ast.AugAssign):
+            if node.target.id == "_submodules":
                 submodules_node = node
     if not submodules_node:
         ConanOutput().error(f"Could not find _submodules assignment in recipe \"{recipe_folder(version)}/conanfile.py\"")
