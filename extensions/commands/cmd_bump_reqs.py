@@ -23,11 +23,11 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
         sys.exit(-1)
 
     with open(recipe_file) as f:
-        recipe = f.read()
-        f.seek(0)
         recipe_lines = f.readlines()
+    
+    remote = conan_api.remotes.list(args.remote)[0]
 
-    for node in ast.walk(ast.parse(recipe)):
+    for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
                 if node.func.attr in ["requires", "build_requires", "tool_requires"]:
@@ -38,7 +38,7 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
                     oldref = arg.value
                     name = oldref.split("/")[0]
                     try:
-                        refs = conan_api.list.select(ListPattern(name), remote=conan_api.remotes.list(args.remote)[0])
+                        refs = conan_api.list.select(ListPattern(name), remote=remote)
                     except Exception as inst:
                         ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
                         ConanOutput().warning(inst)
