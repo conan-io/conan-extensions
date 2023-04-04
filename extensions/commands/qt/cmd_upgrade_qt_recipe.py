@@ -1,5 +1,6 @@
 import ast
 import configparser
+import os
 import xml.etree.ElementTree as ET
 
 from conan.api.conan_api import ConanAPI
@@ -21,12 +22,19 @@ def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
 
     version = Version(args.version)
 
+    if not os.path.isdir(recipe_folder(version)):
+        ConanOutput().error(f"Recipe folder could not be found in {recipe_folder(version)}")
+        exit(-1)
+
     with requests.Session() as session:
-        create_modules_file(version, session)
-        update_conanfile(version)
         update_config_yml(version)
         sources_hash, mirrors = get_hash_and_mirrors(version, session)
         update_conandata_yml(version, sources_hash, mirrors)
+        create_modules_file(version, session)
+        try:
+            update_conanfile(version)
+        except:
+            ConanOutput().error("Could not automatically add new modules. You may have to manually add new modules to recipe's `_submodules` member")
 
     ConanOutput().success(f"qt version {version} successfully added to {recipe_folder(version)}.\n")
 
@@ -174,7 +182,7 @@ def insertion_line(version):
 
     return submodulesNode.end_lineno
 
-def get_new_modules(version):
+def get_new_modules(version:Version) -> list[str]:
     config = configparser.ConfigParser()
     config.read(f"{recipe_folder(version)}/qtmodules{version}.conf")
     new_modules = []
