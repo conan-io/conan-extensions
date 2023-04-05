@@ -1,14 +1,20 @@
 import ast
 import functools
+import json
 import os
 import sys
+from typing import Any, Optional
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 
 
-@conan_command(group="Extension")
+def output_json(results):
+    print(json.dumps(results, indent=2))
+
+
+@conan_command(group="Extension", formatters={"json": output_json})
 def bump_reqs(conan_api: ConanAPI, parser, *args):
     """
     command bumping all requirements of a recipe
@@ -27,11 +33,10 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
 
     remote = conan_api.remotes.list(args.remote)[0]
 
-    at_least_one_bump = False
-
+    changes: list[dict[str, Any]] = []
 
     @functools.cache
-    def latest_ref(name: str) -> str:
+    def latest_ref(name: str) -> Optional[str]:
         refs = conan_api.search.recipes(name, remote=remote)
         if not refs:
             return None
@@ -55,11 +60,14 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
                         line = arg.lineno - 1
                         recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
                         ConanOutput().info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
-                        at_least_one_bump = True
+                        changes.append({"line": arg.lineno,
+                                        "old reference": oldref,
+                                        "new reference": newref})
 
-    if at_least_one_bump:
+    if changes:
         with open(recipe_file, 'w') as f:
             f.writelines(recipe_lines)
         ConanOutput().success(f"Successfully bumped the requirements of recipe {recipe_file}")
     else:
         ConanOutput().success(f"All the requirements of recipe {recipe_file} are already up to date")
+    return changes
