@@ -203,7 +203,7 @@ class BuildInfo:
                         checksums = self._cached_artifact_info.get(request_url)
 
                     if checksums:
-                        artifact_info = {"type": artifact.lstrip('.'),
+                        artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
                                          "sha256": checksums.get("sha256"),
                                          "sha1": checksums.get("sha1"),
                                          "md5": checksums.get("md5")}
