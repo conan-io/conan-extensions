@@ -4,7 +4,6 @@ import os
 import sys
 
 from conan.api.conan_api import ConanAPI
-from conan.api.model import ListPattern
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 
@@ -30,11 +29,13 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
 
     at_least_one_bump = False
 
-    
+
     @functools.cache
     def latest_ref(name: str) -> str:
-        refs = conan_api.list.select(ListPattern(name), remote=remote)
-        return list(refs.recipes.keys())[-1]
+        refs = conan_api.search.recipes(name, remote=remote)
+        if not refs:
+            return None
+        return str(max(refs))
 
     for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):
@@ -46,11 +47,9 @@ def bump_reqs(conan_api: ConanAPI, parser, *args):
                         continue
                     oldref = arg.value
                     name = oldref.split("/")[0]
-                    try:
-                        newref = latest_ref(name)
-                    except Exception as inst:
+                    newref = latest_ref(name)
+                    if not newref:
                         ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
-                        ConanOutput().warning(inst)
                         continue
                     if newref != oldref:
                         line = arg.lineno - 1
