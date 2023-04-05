@@ -214,4 +214,9 @@ def test_fail_if_not_uploaded():
 
     out = run(f'conan art:build-info create create.json {build_name} {build_number}', error=True)
 
-    assert "Artifacts are missing in the cache" in out
+    assert "Missing information in the Conan local cache, please provide " \
+           "the --url and --repository arguments to retrieve the information from" in out
+
+    out = run(f'conan art:build-info create create.json {build_name} {build_number} --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --repository=extensions-stg > {build_name}.json', error=True)
+
+    assert "There are no artifacts for the mypkg/1.0#" in out

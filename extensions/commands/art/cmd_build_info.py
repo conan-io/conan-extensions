@@ -191,10 +191,14 @@ class BuildInfo:
                 for artifact in artifacts_names:
                     request_url = f"{self._url}/api/storage/{repository}/{remote_path}/{artifact}"
                     if not self._cached_artifact_info.get(request_url):
-                        response = api_request("get", request_url, self._user, self._password, self._apikey)
-                        response_data = json.loads(response)
-                        checksums = response_data.get("checksums")
-                        self._cached_artifact_info[request_url] = checksums
+                        checksums = None
+                        try:
+                            response = api_request("get", request_url, self._user, self._password, self._apikey)
+                            response_data = json.loads(response)
+                            checksums = response_data.get("checksums")
+                            self._cached_artifact_info[request_url] = checksums
+                        except Exception:
+                            pass
                     else:
                         checksums = self._cached_artifact_info.get(request_url)
 
