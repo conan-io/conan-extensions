@@ -8,3 +8,5 @@ LICENSE
 *.DS_Store*
 *.pytest_cache*
 tmp/*
+tmp2/*
+.idea/*
