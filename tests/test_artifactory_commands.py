@@ -18,7 +18,7 @@ try:
 
     from credentials import creds_env
 except ImportError:
-    environment = {}
+    creds_env = {}
 
 import pytest
 
