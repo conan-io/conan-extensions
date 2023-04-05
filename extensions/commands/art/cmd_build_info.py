@@ -357,7 +357,7 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
-    subparser.add_argument("--dependencies", help="Whether to move/copy the build's dependencies. Default: false.",
+    subparser.add_argument("--dependencies", help="Whether to copy the build's dependencies or not. Default: false.",
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
 
@@ -414,7 +414,7 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     Removes builds stored in Artifactory. Useful for cleaning up old build info data.
     """
 
-    subparser.add_argument("build_name", help="BuildInfo name to promote.")
+    subparser.add_argument("build_name", help="BuildInfo name to delete.")
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
 
     subparser.add_argument("--build-number", help="BuildInfo numbers to promote. You can add " \
