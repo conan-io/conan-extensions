@@ -77,7 +77,7 @@ def get_remote_path(rrev, package_id=None, prev=None):
 
 
 def get_hashes(file_path):
-    BUF_SIZE = 65536
+    buf_size = 65536
 
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
@@ -85,7 +85,7 @@ def get_hashes(file_path):
 
     with open(file_path, 'rb') as f:
         while True:
-            data = f.read(BUF_SIZE)
+            data = f.read(buf_size)
             if not data:
                 break
             md5.update(data)
@@ -105,7 +105,6 @@ def get_node_by_id(nodes, id):
         if node.get("id") == int(id):
             return node
 
-
 def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
     local_tz_offset = now.astimezone().strftime('%z')
@@ -120,6 +119,36 @@ def get_formatted_time():
         raise ValueError("Time format does not match BuildInfo required format.")
 
     return formatted_time
+
+
+def transitive_requires(nodes, node_id, include_root=False):
+    requires_mapping = {node['id']: node['requires'] for node in nodes}
+
+    def dfs_paths(node, visited, path):
+        visited.add(node)
+        path.append(node)
+        if not requires_mapping[node]:
+            yield path.copy()
+        else:
+            for required_id_str in requires_mapping[node].keys():
+                required_id = int(required_id_str)
+                if required_id not in visited:
+                    yield from dfs_paths(required_id, visited, path)
+        visited.remove(node)
+        path.pop()
+
+    visited = set()
+    paths = list(dfs_paths(node_id, visited, []))
+    dependencies = paths if include_root else [path[1:] for path in paths]
+
+    return dependencies
+
+
+def unique_requires(transitive_reqs):
+    unique_deps = set()
+    for dependencies in transitive_reqs:
+        unique_deps.update(dependencies)
+    return sorted(list(unique_deps))
 
 
 class BuildInfo:
@@ -227,13 +256,6 @@ class BuildInfo:
                                  "Please upload the package to the server and try again.")
         return artifacts
 
-    def get_dependencies_artifacts(self, nodes, requires, artifact_type):
-        all_dependencies = []
-        for require in requires:
-            node = get_node_by_id(nodes, require)
-            all_dependencies.extend(self.get_artifacts(node, artifact_type, is_dependency=True))
-        return all_dependencies
-
     def get_modules(self):
         ret = []
         try:
@@ -244,6 +266,8 @@ class BuildInfo:
         for node in nodes:
             ref = node.get("ref")
             if ref and ref != "conanfile":
+                transitive_reqs = transitive_requires(nodes, node.get("id"))
+                unique_reqs = unique_requires(transitive_reqs)
                 # only add the nodes that were marked as built
                 if node.get("binary") == "Build":
                     requires = node.get("requires")
@@ -253,8 +277,13 @@ class BuildInfo:
                         "id": str(ref),
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
-                    if requires:
-                        module.update({"dependencies": self.get_dependencies_artifacts(nodes, requires, "recipe")})
+
+                    all_dependencies = []
+                    for require_id in unique_reqs:
+                        all_dependencies.extend(self.get_artifacts(get_node_by_id(nodes, require_id), "recipe", is_dependency=True))
+
+                    module.update({"dependencies": all_dependencies})
+    
                     ret.append(module)
                     # package module
                     if node.get("package_id") and node.get("prev"):
@@ -264,8 +293,11 @@ class BuildInfo:
                             "artifacts": self.get_artifacts(node, "package")
                         }
                         # get the dependencies and its artifacts
-                        if requires:
-                            module.update({"dependencies": self.get_dependencies_artifacts(nodes, requires, "package")})
+                        all_dependencies = []
+                        for require_id in unique_reqs:
+                            all_dependencies.extend(self.get_artifacts(get_node_by_id(nodes, require_id), "package", is_dependency=True))
+
+                        module.update({"dependencies": all_dependencies})
 
                         ret.append(module)
 
