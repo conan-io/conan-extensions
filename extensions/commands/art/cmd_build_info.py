@@ -105,6 +105,7 @@ def get_node_by_id(nodes, id):
         if node.get("id") == int(id):
             return node
 
+
 def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
     local_tz_offset = now.astimezone().strftime('%z')
@@ -280,10 +281,11 @@ class BuildInfo:
 
                     all_dependencies = []
                     for require_id in unique_reqs:
-                        all_dependencies.extend(self.get_artifacts(get_node_by_id(nodes, require_id), "recipe", is_dependency=True))
+                        all_dependencies.extend(
+                            self.get_artifacts(get_node_by_id(nodes, require_id), "recipe", is_dependency=True))
 
                     module.update({"dependencies": all_dependencies})
-    
+
                     ret.append(module)
                     # package module
                     if node.get("package_id") and node.get("prev"):
@@ -295,7 +297,8 @@ class BuildInfo:
                         # get the dependencies and its artifacts
                         all_dependencies = []
                         for require_id in unique_reqs:
-                            all_dependencies.extend(self.get_artifacts(get_node_by_id(nodes, require_id), "package", is_dependency=True))
+                            all_dependencies.extend(
+                                self.get_artifacts(get_node_by_id(nodes, require_id), "package", is_dependency=True))
 
                         module.update({"dependencies": all_dependencies})
 
