@@ -122,27 +122,52 @@ def get_formatted_time():
     return formatted_time
 
 
-def transitive_requires(nodes, node_id, include_root=False):
+def transitive_requires(nodes, node_id, include_root=False, invert_order=False):
     requires_mapping = {node['id']: node['requires'] for node in nodes}
 
-    def dfs_paths(node, visited, path):
+    def dfs_paths(node, visited, path, result):
         visited.add(node)
         path.append(node)
         if not requires_mapping[node]:
-            yield path.copy()
+            result.append(path.copy())
         else:
             for required_id_str in requires_mapping[node].keys():
                 required_id = int(required_id_str)
                 if required_id not in visited:
-                    yield from dfs_paths(required_id, visited, path)
+                    dfs_paths(required_id, visited, path, result)
         visited.remove(node)
         path.pop()
 
-    visited = set()
-    paths = list(dfs_paths(node_id, visited, []))
-    dependencies = paths if include_root else [path[1:] for path in paths]
+        return result
 
-    return dependencies
+    visited = set()
+    paths = list(dfs_paths(node_id, visited, [], []))
+    paths = paths if include_root else [path[1:] for path in paths]
+    paths = [path[::-1] for path in paths] if invert_order else paths
+    return paths
+
+
+def sublists_from_id(list_of_lists, target_id):
+    result = []
+    for sublist in list_of_lists:
+        if target_id in sublist:
+            index = sublist.index(target_id)
+            new_sublist = sublist[(index + 1):]
+            result.append(new_sublist)
+    return result
+
+
+def get_requested_by(nodes, node_id, artifact_type):
+    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
+    ret = []
+    for nodes_ids in sublists:
+        ref_list = []
+        for node_id in nodes_ids:
+            node = get_node_by_id(nodes, node_id)
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            ref_list.append(f"{node.get('ref')}{pkg}")
+        ret.append(ref_list)
+    return ret
 
 
 def unique_requires(transitive_reqs):
@@ -182,11 +207,15 @@ class BuildInfo:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
             remote_path = get_remote_path(node.get('ref'), node.get("package_id"), node.get("prev"))
 
+        # FIXME: refactor the impplementation
+
+        if is_dependency:
+            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+
         artifacts = []
         artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
         dl_folder = Path(artifacts_folder).parents[0] / "d"
 
-        # FIXME: refactor all this part
         file_list = list(dl_folder.glob("*"))
         if len(file_list) >= 3:
             for file_path in dl_folder.glob("*"):
@@ -201,8 +230,9 @@ class BuildInfo:
                         artifact_info.update({"name": file_name, "path": f'{remote_path}/{file_name}'})
                     else:
                         ref = node.get("ref")
-                        pkg = f":{node.get('package_id')}:{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg}::{file_name}"})
+                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                        artifact_info.update({"id": f"{ref}{pkg}::{file_name}",
+                                              "requestedBy": requested_by})
 
                     artifacts.append(artifact_info)
 
@@ -242,8 +272,9 @@ class BuildInfo:
                             artifact_info.update({"name": artifact, "path": f'{remote_path}/{artifact}'})
                         else:
                             ref = node.get("ref")
-                            pkg = f":{node.get('package_id')}:{node.get('prev')}" if artifact_type == "package" else ""
-                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
+                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}",
+                                                  "requestedBy": requested_by})
 
                         artifacts.append(artifact_info)
                     else:
@@ -252,8 +283,8 @@ class BuildInfo:
                     break
 
         if not artifacts:
-            raise ConanException(f"There are no artifacts for the {node.get('ref')} {artifact_type}. " \
-                                 "Probably the package was not uploaded before creating the Build Info." \
+            raise ConanException(f"There are no artifacts for the {node.get('ref')} {artifact_type}. "
+                                 "Probably the package was not uploaded before creating the Build Info."
                                  "Please upload the package to the server and try again.")
         return artifacts
 
