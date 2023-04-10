@@ -207,44 +207,37 @@ class BuildInfo:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
             remote_path = get_remote_path(node.get('ref'), node.get("package_id"), node.get("prev"))
 
-        # FIXME: refactor the impplementation
+        def _get_local_artifacts():
+            local_artifacts = []
+            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+            dl_folder = Path(artifacts_folder).parents[0] / "d"
+            file_list = list(dl_folder.glob("*"))
+            if len(file_list) >= 3:
+                for file_path in dl_folder.glob("*"):
+                    if file_path.is_file():
+                        file_name = file_path.name
+                        md5, sha1, sha256 = get_hashes(file_path)
+                        artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
+                                         "sha256": sha256,
+                                         "sha1": sha1,
+                                         "md5": md5}
+                        if not is_dependency:
+                            artifact_info.update({"name": file_name, "path": f'{remote_path}/{file_name}'})
+                        else:
+                            ref = node.get("ref")
+                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                            artifact_info.update({"id": f"{ref}{pkg}::{file_name}"})
 
-        if is_dependency:
-            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+                        local_artifacts.append(artifact_info)
+            return local_artifacts
 
-        artifacts = []
-        artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
-        dl_folder = Path(artifacts_folder).parents[0] / "d"
-
-        file_list = list(dl_folder.glob("*"))
-        if len(file_list) >= 3:
-            for file_path in dl_folder.glob("*"):
-                if file_path.is_file():
-                    file_name = file_path.name
-                    md5, sha1, sha256 = get_hashes(file_path)
-                    artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
-                                     "sha256": sha256,
-                                     "sha1": sha1,
-                                     "md5": md5}
-                    if not is_dependency:
-                        artifact_info.update({"name": file_name, "path": f'{remote_path}/{file_name}'})
-                    else:
-                        ref = node.get("ref")
-                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg}::{file_name}",
-                                              "requestedBy": requested_by})
-
-                    artifacts.append(artifact_info)
-
-        if not artifacts:
-            # we don't have the artifacts in the local cache
-            # it's possible that the packages came from an install without a build
-            # so let's ask Artifactory about the checksums of the packages
-            # we can use the Conan API to get the enabled remotes and iterate through them
-            # but it may be better to use a specific repo when creating the build info ?
+        def _get_remote_artifacts():
             assert self._url and self._repositories, "Missing information in the Conan local cache, " \
                                                      "please provide the --url and --repository arguments " \
                                                      "to retrieve the information from Artifactory."
+
+            remote_artifacts = []
+
             for repository in self._repositories:
                 # change from the conan API to the correct API to get files info and ignore if
                 # this can lead to problems, probably is better to pass manually a list of URLs
@@ -273,19 +266,37 @@ class BuildInfo:
                         else:
                             ref = node.get("ref")
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}",
-                                                  "requestedBy": requested_by})
+                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
 
-                        artifacts.append(artifact_info)
+                        remote_artifacts.append(artifact_info)
                     else:
                         break
-                if artifacts:
+                if remote_artifacts:
                     break
+
+            return remote_artifacts
+
+        artifacts = _get_local_artifacts()
+
+        if not artifacts:
+            # we don't have the artifacts in the local cache
+            # it's possible that the packages came from an install without a build
+            # so let's ask Artifactory about the checksums of the packages
+            # we can use the Conan API to get the enabled remotes and iterate through them
+            # but it may be better to use a specific repo when creating the build info ?
+            artifacts = _get_remote_artifacts()
 
         if not artifacts:
             raise ConanException(f"There are no artifacts for the {node.get('ref')} {artifact_type}. "
                                  "Probably the package was not uploaded before creating the Build Info."
                                  "Please upload the package to the server and try again.")
+
+        # complete the information for the artifacts:
+        if is_dependency:
+            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+            for artifact in artifacts:
+                artifact.update({"requestedBy": requested_by})
+
         return artifacts
 
     def get_modules(self):
@@ -300,9 +311,10 @@ class BuildInfo:
             if ref and ref != "conanfile":
                 transitive_reqs = transitive_requires(nodes, node.get("id"))
                 unique_reqs = unique_requires(transitive_reqs)
+
                 # only add the nodes that were marked as built
                 if node.get("binary") == "Build":
-                    requires = node.get("requires")
+
                     # recipe module
                     module = {
                         "type": "conan",
@@ -312,12 +324,14 @@ class BuildInfo:
 
                     all_dependencies = []
                     for require_id in unique_reqs:
-                        all_dependencies.extend(
-                            self.get_artifacts(get_node_by_id(nodes, require_id), "recipe", is_dependency=True))
+                        deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
+                                                            is_dependency=True)
+                        all_dependencies.extend(deps_artifacts)
 
                     module.update({"dependencies": all_dependencies})
 
                     ret.append(module)
+
                     # package module
                     if node.get("package_id") and node.get("prev"):
                         module = {
@@ -328,8 +342,9 @@ class BuildInfo:
                         # get the dependencies and its artifacts
                         all_dependencies = []
                         for require_id in unique_reqs:
-                            all_dependencies.extend(
-                                self.get_artifacts(get_node_by_id(nodes, require_id), "package", is_dependency=True))
+                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
+                                                                is_dependency=True)
+                            all_dependencies.extend(deps_artifacts)
 
                         module.update({"dependencies": all_dependencies})
 
