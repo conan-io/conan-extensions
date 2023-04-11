@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
+from conan.api.model import Remote
 from conan.cli.command import conan_command
 
 
@@ -20,7 +21,9 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
     command bumping all dependencies of a recipe
     """
     parser.add_argument("path", help="Path to the recipe whose dependencies will be bumped", default=".")
-    parser.add_argument("--remote", "-r", help="Name of the remote providing new versions", default="*")
+    parser.add_argument("-r", "--remote", default=None, action="append",
+                        help="Remote names. Accepts wildcards ('*' means all the remotes available)")
+    parser.add_argument("-c", "--cache", action='store_true', help="Search in the local cache")
     args = parser.parse_args(*args)
     recipe_file = os.path.join(args.path, "conanfile.py")
 
@@ -31,16 +34,24 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
     with open(recipe_file) as f:
         recipe_lines = f.readlines()
 
-    remote = conan_api.remotes.list(args.remote)[0]
+    remotes: list[Optional[Remote]] = []
+    if args.cache or not args.remote:
+        remotes.append(None)
+    if args.remote:
+        remotes.extend(conan_api.remotes.list(args.remote))
 
     changes: list[dict[str, Any]] = []
 
     @functools.cache
     def latest_ref(name: str) -> Optional[str]:
-        refs = conan_api.search.recipes(name, remote=remote)
-        if not refs:
+        all_refs = []
+        for remote in remotes:
+            refs = conan_api.search.recipes(name, remote=remote)
+            if refs:
+                all_refs.extend(refs)
+        if not all_refs:
             return None
-        return str(max(refs))
+        return str(max(all_refs))
 
     for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):

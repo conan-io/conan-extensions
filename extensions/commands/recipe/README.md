@@ -11,7 +11,8 @@ For the recipe passed as parameter, it searches for new version of each requirem
 
 **Parameters**
 - **path** _Optional_: Path to the recipe file (by default: current working directory)
-- **remote** _Optional_: Remote repository to check for new versions of dependencies(by default: default conan remote).
+- **remote** _Optional_: Remote repository to check for new versions of dependencies(by default: None).
+- **cache** _Optional_: Search in the local cache(by default: True if no remote is passed).
 
 ```
 $ conan recipe:bump-deps conan-center-index/recipes/qt/6.x.x/
