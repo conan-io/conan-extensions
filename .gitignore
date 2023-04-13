@@ -130,3 +130,5 @@ dmypy.json
 .DS_Store
 tests/credentials.py
 tmp/*
+tmp2/*
+.idea/*
