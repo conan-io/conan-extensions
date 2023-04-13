@@ -129,6 +129,5 @@ dmypy.json
 .pyre/
 .DS_Store
 tests/credentials.py
-tmp/*
-tmp2/*
+tmp*/*
 .idea/*
