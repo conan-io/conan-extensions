@@ -44,6 +44,7 @@ def conan_test():
         os.environ.update(old_env)
 
 
+@pytest.mark.requires_credentials
 def test_build_info_create():
     repo = os.path.join(os.path.dirname(__file__), "..")
 
