@@ -1,9 +1,9 @@
 import datetime
 import json
 import os
-from pathlib import Path
 import re
 import hashlib
+from pathlib import Path
 
 import requests
 
@@ -41,15 +41,14 @@ def response_to_str(response):
         return response.content
 
 
-def api_request(type, request_url, user=None, password=None, apikey=None, json_data=None):
-
+def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
     if apikey:
         headers.update({"X-JFrog-Art-Api": apikey})
 
-    requests_method = getattr(requests, type)
+    requests_method = getattr(requests, method)
     if user and password:
         response = requests_method(request_url, auth=(
             user, password), data=json_data, headers=headers)
@@ -78,7 +77,7 @@ def get_remote_path(rrev, package_id=None, prev=None):
 
 
 def get_hashes(file_path):
-    BUF_SIZE = 65536
+    buf_size = 65536
 
     md5 = hashlib.md5()
     sha1 = hashlib.sha1()
@@ -86,7 +85,7 @@ def get_hashes(file_path):
 
     with open(file_path, 'rb') as f:
         while True:
-            data = f.read(BUF_SIZE)
+            data = f.read(buf_size)
             if not data:
                 break
             md5.update(data)
@@ -95,66 +94,22 @@ def get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
-def get_artifacts(cache_folder, remote_path):
-    artifacts = []
-    dl_folder = Path(cache_folder).parents[0] / "d"
-    # TODO: throw error if d is empty? Force that the artifacts where uploaded before getting the BuildInfo?
-    for file_path in dl_folder.glob("*"):
-        if file_path.is_file():
-            file_name = file_path.name
-            md5, sha1, sha256 = get_hashes(file_path)
-            artifacts.append({"name": file_name,
-                              "type": os.path.splitext(file_name)[1].lstrip('.'),
-                              "path": f'{remote_path}/{file_name}',
-                              "sha256": sha256,
-                              "sha1": sha1,
-                              "md5": md5})
-    if not artifacts:
-        raise ConanException("Artifacts are missing in the cache. Probably the package " \
-                             "was not uploaded before creating the Build Info. Please upload " \
-                             "the package to the server and try again.")
-    return artifacts
-
-
-def get_modules(json):
-    ret = []
-    try:
-        nodes = json["graph"]["nodes"]
-    except KeyError:
-        raise ConanException("JSON does not contain graph information")
-
+def get_node_by_ref(nodes, ref):
     for node in nodes:
-        ref = node.get("ref")
-        if ref and ref != "conanfile":
-            remote_path = get_remote_path(ref)
-            module = {
-                "type": "conan",
-                "id": str(ref),
-                "artifacts": get_artifacts(node.get("recipe_folder"), remote_path)
-            }
-            ret.append(module)
-        if node.get("package_id") and node.get("prev"):
-            remote_path = get_remote_path(ref, node.get("package_id"), node.get("prev"))
-            module = {
-                "type": "conan",
-                "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
-                "artifacts": get_artifacts(node.get("package_folder"), remote_path)
-            }
-            ret.append(module)
-    return ret
+        if node.get("ref") == ref:
+            return node
 
 
-def create_build_info(data, build_name, build_number):
+def get_node_by_id(nodes, id):
+    for node in nodes:
+        if node.get("id") == int(id):
+            return node
 
-    properties = {
-        "name": build_name,
-        "number": build_number
-    }
 
+def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
     local_tz_offset = now.astimezone().strftime('%z')
-    formatted_time = now.strftime(
-        '%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
+    formatted_time = now.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
 
     # Apparently if the timestamp has the Z the BuildInfo is not correctly identified in Artifactory
     # if local_tz_offset == "+0000":
@@ -162,18 +117,253 @@ def create_build_info(data, build_name, build_number):
 
     # from here: https://github.com/jfrog/build-info-go/blob/9b6f2ec13eedc41ad0f66882e630c2882f90cc76/buildinfo-schema.json#L63
     if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}(Z|[+-]\d{4})$', formatted_time):
-        raise ValueError(
-            "Time format does not match BuildInfo required format.")
+        raise ValueError("Time format does not match BuildInfo required format.")
 
-    ret = {"version": "1.0.1",
-           "name": properties.get("name"),
-           "number": properties.get("number"),
-           "agent": {},
-           "started": formatted_time,
-           "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"},
-           "modules": data}
+    return formatted_time
 
-    return json.dumps(ret, indent=4)
+
+def transitive_requires(nodes, node_id, include_root=False, invert_order=False):
+    requires_mapping = {node['id']: node['requires'] for node in nodes}
+
+    def dfs_paths(node, visited, path, result):
+        visited.add(node)
+        path.append(node)
+        if not requires_mapping[node]:
+            result.append(path.copy())
+        else:
+            for required_id_str in requires_mapping[node].keys():
+                required_id = int(required_id_str)
+                if required_id not in visited:
+                    dfs_paths(required_id, visited, path, result)
+        visited.remove(node)
+        path.pop()
+
+        return result
+
+    visited = set()
+    paths = list(dfs_paths(node_id, visited, [], []))
+    paths = paths if include_root else [path[1:] for path in paths]
+    paths = [path[::-1] for path in paths] if invert_order else paths
+    return paths
+
+
+def sublists_from_id(list_of_lists, target_id):
+    result = []
+    for sublist in list_of_lists:
+        if target_id in sublist:
+            index = sublist.index(target_id)
+            new_sublist = sublist[(index + 1):]
+            result.append(new_sublist)
+    return result
+
+
+def get_requested_by(nodes, node_id, artifact_type):
+    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
+    ret = []
+    for nodes_ids in sublists:
+        ref_list = []
+        for node_id in nodes_ids:
+            node = get_node_by_id(nodes, node_id)
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            ref_list.append(f"{node.get('ref')}{pkg}")
+        ret.append(ref_list)
+    return ret
+
+
+def unique_requires(transitive_reqs):
+    unique_deps = set()
+    for dependencies in transitive_reqs:
+        unique_deps.update(dependencies)
+    return sorted(list(unique_deps))
+
+
+class BuildInfo:
+
+    def __init__(self, graph, name, number, repositories=None, url=None, user=None, password=None, apikey=None):
+        self._graph = graph
+        self._name = name
+        self._number = number
+        self._repositories = repositories
+        self._url = url
+        self._user = user
+        self._password = password
+        self._apikey = apikey
+        self._cached_artifact_info = {}
+
+    def get_artifacts(self, node, artifact_type, is_dependency=False):
+        """
+        Function to get artifact information, those artifacts can be added as artifacts of a
+        module or as artifacts from dependencies and depending on that the format is
+        different. For artifacts of modules they have the keys 'name' and 'path'. If they come
+        from a dependency they have an 'id' instead of 'name' and they don't have 'path'.
+        """
+
+        assert artifact_type in ["recipe", "package"]
+
+        if artifact_type == "recipe":
+            artifacts_names = ["conan_sources.tgz", "conan_export.tgz", "conanfile.py", "conanmanifest.txt"]
+            remote_path = get_remote_path(node.get('ref'))
+        else:
+            artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
+            remote_path = get_remote_path(node.get('ref'), node.get("package_id"), node.get("prev"))
+
+        def _get_local_artifacts():
+            local_artifacts = []
+            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+            dl_folder = Path(artifacts_folder).parents[0] / "d"
+            file_list = list(dl_folder.glob("*"))
+            if len(file_list) >= 3:
+                for file_path in dl_folder.glob("*"):
+                    if file_path.is_file():
+                        file_name = file_path.name
+                        md5, sha1, sha256 = get_hashes(file_path)
+                        artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
+                                         "sha256": sha256,
+                                         "sha1": sha1,
+                                         "md5": md5}
+                        if not is_dependency:
+                            artifact_info.update({"name": file_name, "path": f'{remote_path}/{file_name}'})
+                        else:
+                            ref = node.get("ref")
+                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                            artifact_info.update({"id": f"{ref}{pkg}::{file_name}"})
+
+                        local_artifacts.append(artifact_info)
+            return local_artifacts
+
+        def _get_remote_artifacts():
+            assert self._url and self._repositories, "Missing information in the Conan local cache, " \
+                                                     "please provide the --url and --repository arguments " \
+                                                     "to retrieve the information from Artifactory."
+
+            remote_artifacts = []
+
+            for repository in self._repositories:
+                # change from the conan API to the correct API to get files info and ignore if
+                # this can lead to problems, probably is better to pass manually a list of URLs
+                for artifact in artifacts_names:
+                    request_url = f"{self._url}/api/storage/{repository}/{remote_path}/{artifact}"
+                    if not self._cached_artifact_info.get(request_url):
+                        checksums = None
+                        try:
+                            response = api_request("get", request_url, self._user, self._password, self._apikey)
+                            response_data = json.loads(response)
+                            checksums = response_data.get("checksums")
+                            self._cached_artifact_info[request_url] = checksums
+                        except Exception:
+                            pass
+                    else:
+                        checksums = self._cached_artifact_info.get(request_url)
+
+                    if checksums:
+                        artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
+                                         "sha256": checksums.get("sha256"),
+                                         "sha1": checksums.get("sha1"),
+                                         "md5": checksums.get("md5")}
+
+                        if not is_dependency:
+                            artifact_info.update({"name": artifact, "path": f'{remote_path}/{artifact}'})
+                        else:
+                            ref = node.get("ref")
+                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
+
+                        remote_artifacts.append(artifact_info)
+                    else:
+                        break
+                if remote_artifacts:
+                    break
+
+            return remote_artifacts
+
+        artifacts = _get_local_artifacts()
+
+        if not artifacts:
+            # we don't have the artifacts in the local cache
+            # it's possible that the packages came from an install without a build
+            # so let's ask Artifactory about the checksums of the packages
+            # we can use the Conan API to get the enabled remotes and iterate through them
+            # but it may be better to use a specific repo when creating the build info ?
+            artifacts = _get_remote_artifacts()
+
+        if not artifacts:
+            raise ConanException(f"There are no artifacts for the {node.get('ref')} {artifact_type}. "
+                                 "Probably the package was not uploaded before creating the Build Info."
+                                 "Please upload the package to the server and try again.")
+
+        # complete the information for the artifacts:
+        if is_dependency:
+            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+            for artifact in artifacts:
+                artifact.update({"requestedBy": requested_by})
+
+        return artifacts
+
+    def get_modules(self):
+        ret = []
+        try:
+            nodes = self._graph["graph"]["nodes"]
+        except KeyError:
+            raise ConanException("JSON does not contain graph information")
+
+        for node in nodes:
+            ref = node.get("ref")
+            if ref and ref != "conanfile":
+                transitive_reqs = transitive_requires(nodes, node.get("id"))
+                unique_reqs = unique_requires(transitive_reqs)
+
+                # only add the nodes that were marked as built
+                if node.get("binary") == "Build":
+
+                    # recipe module
+                    module = {
+                        "type": "conan",
+                        "id": str(ref),
+                        "artifacts": self.get_artifacts(node, "recipe")
+                    }
+
+                    all_dependencies = []
+                    for require_id in unique_reqs:
+                        deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
+                                                            is_dependency=True)
+                        all_dependencies.extend(deps_artifacts)
+
+                    module.update({"dependencies": all_dependencies})
+
+                    ret.append(module)
+
+                    # package module
+                    if node.get("package_id") and node.get("prev"):
+                        module = {
+                            "type": "conan",
+                            "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                            "artifacts": self.get_artifacts(node, "package")
+                        }
+                        # get the dependencies and its artifacts
+                        all_dependencies = []
+                        for require_id in unique_reqs:
+                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
+                                                                is_dependency=True)
+                            all_dependencies.extend(deps_artifacts)
+
+                        module.update({"dependencies": all_dependencies})
+
+                        ret.append(module)
+
+        return ret
+
+    def header(self):
+        return {"version": "1.0.1",
+                "name": self._name,
+                "number": self._number,
+                "agent": {},
+                "started": get_formatted_time(),
+                "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"}}
+
+    def create(self):
+        bi = self.header()
+        bi.update({"modules": self.get_modules()})
+        return json.dumps(bi, indent=4)
 
 
 @conan_command(group="Custom commands")
@@ -190,16 +380,31 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
-    subparser.add_argument("name", help="Build name property for BuildInfo.")
-    subparser.add_argument("number", help="Build number property for BuildInfo.")
+    subparser.add_argument("build_name", help="Build name property for BuildInfo.")
+    subparser.add_argument("build_number", help="Build number property for BuildInfo.")
+
+    subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
+                                         "This may be not necessary if all the information for the Conan "
+                                         "artifacts is present in the local cache.")
+
+    subparser.add_argument("--repository", help="Repositories to look artifacts for."
+                                                "This may be not necessary if all the information for the Conan "
+                                                "artifacts is present in the local cache."
+                           , action="append")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
     args = parser.parse_args(*args)
 
     with open(args.json, 'r') as f:
         data = json.load(f)
 
-    info = create_build_info(get_modules(data), args.name, args.number)
+    bi = BuildInfo(data, args.build_name, args.build_number, args.repository, args.url, args.user, args.password,
+                   args.apikey)
 
-    cli_out_write(info)
+    cli_out_write(bi.create())
 
 
 @conan_subcommand()
@@ -217,7 +422,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     args = parser.parse_args(*args)
 
     with open(args.build_info) as f:
-        build_info_json = json.load(f)        
+        build_info_json = json.load(f)
 
     request_url = f"{args.url}/api/build"
     response = api_request("put", request_url, args.user, args.password,
@@ -237,10 +442,10 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
-    subparser.add_argument("--dependencies", help="Whether to move/copy the build's dependencies. Default: false.", 
+    subparser.add_argument("--dependencies", help="Whether to copy the build's dependencies or not. Default: false.",
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
-    
+
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
@@ -248,20 +453,20 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     args = parser.parse_args(*args)
 
     promotion_json = {
-        "sourceRepo": args.source_repo, 
+        "sourceRepo": args.source_repo,
         "targetRepo": args.target_repo,
         # Conan promotions must always be copy, and the clean must be handled manually
         # otherwise you can end up deleting recipe artifacts that other packages use
-        "copy": "true", 
+        "copy": "true",
         "dependencies": "true" if args.dependencies else "false",
         "comment": args.comment
     }
 
     request_url = f"{args.url}/api/build/promote/{args.build_name}/{args.build_number}"
 
-    response = api_request("post", request_url, args.user, args.password, args.apikey, 
+    response = api_request("post", request_url, args.user, args.password, args.apikey,
                            json_data=json.dumps(promotion_json))
-    
+
     cli_out_write(response)
 
 
@@ -294,19 +499,19 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     Removes builds stored in Artifactory. Useful for cleaning up old build info data.
     """
 
-    subparser.add_argument("build_name", help="BuildInfo name to promote.")
+    subparser.add_argument("build_name", help="BuildInfo name to delete.")
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
 
     subparser.add_argument("--build-number", help="BuildInfo numbers to promote. You can add " \
-                           "several build-numbers for the same build-name, like: --build-number=1 --build-number=2.",
+                                                  "several build-numbers for the same build-name, like: --build-number=1 --build-number=2.",
                            action='append')
 
     subparser.add_argument("--delete-artifacts", help="Build artifacts are also removed " \
-                           "provided they have the corresponding build.name and build.number properties attached to them. " \
-                           "Default false.",
-                           action='store_true', default=False,)
+                                                      "provided they have the corresponding build.name and build.number properties attached to them. " \
+                                                      "Default false.",
+                           action='store_true', default=False, )
     subparser.add_argument("--delete-all", help="The whole build is removed. Default false.",
-                           action='store_true', default=False,)
+                           action='store_true', default=False, )
 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -339,9 +544,9 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_number", help="The current build number.")
 
     subparser.add_argument("--build-info", help="JSON file for the Build Info. You can add multiple files " \
-                           "like --build-info=release.json --build-info=debug.json",
+                                                "like --build-info=release.json --build-info=debug.json",
                            action="append")
-    
+
     args = parser.parse_args(*args)
 
     all_modules = []
@@ -354,6 +559,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                 if not any(d['id'] == module.get('id') for d in all_modules):
                     all_modules.append(module)
 
-    build_info_result = create_build_info(all_modules, args.build_name, args.build_number)
-
-    cli_out_write(build_info_result)
+    bi = BuildInfo(None, args.build_name, args.build_number)
+    bi_json = bi.header()
+    bi_json.update({"modules": all_modules})
+    cli_out_write(json.dumps(bi_json, indent=4))
