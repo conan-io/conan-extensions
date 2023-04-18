@@ -33,7 +33,7 @@ optional arguments:
                         -vtrace
 ```
 
-#### [conan art:build-info](cmd_property.py)
+#### [conan art:property](cmd_property.py)
 
 ```
 $ conan art:property --help  
