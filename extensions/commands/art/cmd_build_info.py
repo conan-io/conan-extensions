@@ -201,7 +201,7 @@ class BuildInfo:
         assert artifact_type in ["recipe", "package"]
 
         if artifact_type == "recipe":
-            artifacts_names = ["conan_sources.tgz", "conanfile.py", "conanmanifest.txt"]
+            artifacts_names = ["conan_sources.tgz", "conan_export.tgz", "conanfile.py", "conanmanifest.txt"]
             remote_path = get_remote_path(node.get('ref'))
         else:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
