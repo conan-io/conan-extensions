@@ -194,8 +194,8 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_aggregated {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
     # even deleting the builds, the folders will stay there, so manually cleaning
-    run('conan remove * -c -r extensions-prod')
-    run('conan remove * -c -r extensions-stg')
+    run('conan remove "*" -c -r extensions-prod')
+    run('conan remove "*" -c -r extensions-stg')
 
 
 @pytest.mark.requires_credentials
