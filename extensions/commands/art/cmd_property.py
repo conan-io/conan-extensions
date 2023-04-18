@@ -92,7 +92,7 @@ def add_default_arguments(subparser):
 @conan_command(group="Custom commands")
 def property(conan_api: ConanAPI, parser, *args):
     """
-    Sets artifacts properties in Artifactory.
+    Manages artifacts properties in Artifactory.
     """
 
 
