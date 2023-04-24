@@ -68,7 +68,9 @@ def api_request(method, request_url, user=None, password=None, apikey=None, json
 
 def get_remote_path(rrev, package_id=None, prev=None):
     ref = RecipeReference.loads(rrev)
-    rev_path = f"_/{ref.name}/{ref.version}/_/{ref.revision}"
+    user = ref.user or "_"
+    channel = ref.channel or "_"
+    rev_path = f"{user}/{ref.name}/{ref.version}/{channel}/{ref.revision}"
     if not package_id:
         return f"{rev_path}/export"
     else:
@@ -365,6 +367,28 @@ class BuildInfo:
         return json.dumps(bi, indent=4)
 
 
+def manifest_from_build_info(build_info, repository, with_dependencies=True):
+    manifest = {"files": []}
+    for module in build_info.get("modules"):
+        for artifact in module.get("artifacts"):
+            manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
+        if with_dependencies:
+            for dependency in module.get("dependencies"):
+                full_reference = dependency.get("id").split("::")[0]
+                filename = dependency.get("id").split("::")[1]
+                rrev = full_reference.split(":")[0]
+                pkgid = None
+                prev = None
+                package = full_reference.rsplit(":")
+                if package:
+                    pkgid = package[0].split("#")[0]
+                    prev = package[0].split("#")[1]
+                full_path = repository + "/" + get_remote_path(rrev, pkgid, prev) + "/" + filename
+                manifest["files"].append({"path": full_path, "checksum": artifact.get("sha256")})
+    return manifest
+
+
+
 @conan_command(group="Custom commands")
 def build_info(conan_api: ConanAPI, parser, *args):
     """
@@ -565,3 +589,31 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     bi_json = bi.header()
     bi_json.update({"modules": all_modules})
     cli_out_write(json.dumps(bi_json, indent=4))
+
+
+@conan_subcommand()
+def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Creates an Artifactory Release Bundle from the information of the Build Info
+    """
+
+    subparser.add_argument("json", help="BuildInfo JSON.")
+
+    subparser.add_argument("repository", help="Repository where artifacts are located.")
+
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory. "
+                                       "This may be not necessary if all the information for the Conan "
+                                       "artifacts is present in the local cache.")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    with open(args.json, 'r') as f:
+        data = json.load(f)
+
+    manifest = manifest_from_build_info(data, args.repository, with_dependencies=True)
+
+    print(manifest)
