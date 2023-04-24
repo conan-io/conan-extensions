@@ -13,7 +13,7 @@ import requests
 import yaml
 
 
-@conan_command(group="Extension")
+@conan_command(group="Conan Center Index")
 def upgrade_qt_recipe(conan_api: ConanAPI, parser, *args):
     """
     command creating a new version of the qt recipe
