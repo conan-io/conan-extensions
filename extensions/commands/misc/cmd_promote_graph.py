@@ -34,7 +34,7 @@ def _download_parallel(parallel, conan_api, refs, prefs, remote):
 
 
 @conan_command(group="Custom Commands")
-def promote_dependency_graph(conan_api, parser, *args):
+def promote_graph(conan_api, parser, *args):
     """
     Copies one dependency graph from one remote to another
     """
@@ -91,6 +91,7 @@ def promote_dependency_graph(conan_api, parser, *args):
 
     if deps_graph.root is None:
         ConanOutput().info("Empty graph")
+        return
     for dep in deps_graph.root.conanfile.dependencies.values():
         pref_repr_notime = dep.ref.repr_notime()
         ConanOutput().info(f"Adding {pref_repr_notime} to download list")
