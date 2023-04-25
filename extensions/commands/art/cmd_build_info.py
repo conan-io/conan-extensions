@@ -41,12 +41,15 @@ def response_to_str(response):
         return response.content
 
 
-def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None):
+def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None,
+                sign_key_name=None):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
     if apikey:
         headers.update({"X-JFrog-Art-Api": apikey})
+    if sign_key_name:
+        headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
     requests_method = getattr(requests, method)
     if user and password:
@@ -379,12 +382,12 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
                 rrev = full_reference.split(":")[0]
                 pkgid = None
                 prev = None
-                package = full_reference.rsplit(":")
-                if package:
-                    pkgid = package[0].split("#")[0]
-                    prev = package[0].split("#")[1]
+                if ":" in full_reference:
+                    pkgid = full_reference.split(":")[1].split("#")[0]
+                    prev = full_reference.split(":")[1].split("#")[1]
                 full_path = repository + "/" + get_remote_path(rrev, pkgid, prev) + "/" + filename
-                manifest["files"].append({"path": full_path, "checksum": artifact.get("sha256")})
+                if not any(d['path'] == full_path for d in manifest["files"]):
+                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
     return manifest
 
 
@@ -601,9 +604,14 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("repository", help="Repository where artifacts are located.")
 
+    subparser.add_argument("bundle_name", help="The created bundle name.")
+    subparser.add_argument("bundle_version", help="The created bundle version.")
+
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory. "
                                        "This may be not necessary if all the information for the Conan "
                                        "artifacts is present in the local cache.")
+
+    subparser.add_argument("sign_key_name", help="Signing Key name.")
 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -616,4 +624,13 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     manifest = manifest_from_build_info(data, args.repository, with_dependencies=True)
 
-    print(manifest)
+    bundle_json = {
+        "payload": manifest
+    }
+
+    request_url = f"{args.url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
+
+    response = api_request("post", request_url, args.user, args.password, args.apikey,
+                           json_data=json.dumps(bundle_json), sign_key_name=args.sign_key_name)
+
+    cli_out_write(response)
