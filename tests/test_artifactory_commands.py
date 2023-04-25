@@ -3,24 +3,16 @@ import tempfile
 
 from tools import run
 
-try:
-    # to test locally with an artifactory instance that already has
-    # extensions-stg and extensions-prod repos, define this dict of credentials
-    # in credentials.py (the file is gitignored)
-
-    # creds_env = {
-    #     "CONAN_LOGIN_USERNAME_EXTENSIONS_PROD": "......",
-    #     "CONAN_PASSWORD_EXTENSIONS_PROD": "......",
-    #     "CONAN_LOGIN_USERNAME_EXTENSIONS_STG": "......",
-    #     "CONAN_PASSWORD_EXTENSIONS_STG": "......",
-    #     "ART_URL": "https://url/artifactory",
-    # }
-
-    from credentials import creds_env
-except ImportError:
-    creds_env = {}
-
 import pytest
+
+# to test locally with an Artifactory instance that already has
+# extensions-stg and extensions-prod repos, define these environment variables
+
+#     "CONAN_LOGIN_USERNAME_EXTENSIONS_PROD": "......",
+#     "CONAN_PASSWORD_EXTENSIONS_PROD": "......",
+#     "CONAN_LOGIN_USERNAME_EXTENSIONS_STG": "......",
+#     "CONAN_PASSWORD_EXTENSIONS_STG": "......",
+#     "ART_URL": "https://url/artifactory",
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +20,6 @@ def conan_test():
     old_env = dict(os.environ)
     env_vars = {"CONAN_HOME": tempfile.mkdtemp(suffix='conans')}
     os.environ.update(env_vars)
-    os.environ.update(creds_env)
     current = tempfile.mkdtemp(suffix="conans")
     cwd = os.getcwd()
     os.chdir(current)
@@ -62,11 +53,11 @@ def test_build_info_create_no_deps():
 
     run("conan upload mypkg/1.0 -c -r extensions-stg")
 
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} > {build_name}_release.json')
-    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} > {build_name}_debug.json')
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --repository=extensions-stg > {build_name}_release.json')
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} --repository=extensions-stg > {build_name}_debug.json')
 
-    run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run(f'conan art:build-info upload {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:build-info upload {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
@@ -76,7 +67,7 @@ def test_build_info_create_no_deps():
     # with the build info in Artifactory
     run(f'conan art:build-info append {build_name}_aggregated {build_number} --build-info={build_name}_release.json --build-info={build_name}_debug.json > {build_name}_aggregated.json')
     run(f'conan art:build-info upload {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:property build-info-add {build_name}_aggregated.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run(f'conan art:build-info get {build_name}_release {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:build-info get {build_name}_debug {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
@@ -159,15 +150,15 @@ def test_build_info_create_deps():
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --repository=extensions-stg > {build_name}_release.json')
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --repository=extensions-stg > {build_name}_debug.json')
 
-    run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run(f'conan art:build-info upload {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:build-info upload {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run(f'conan art:build-info append {build_name}_aggregated {build_number} --build-info={build_name}_release.json --build-info={build_name}_debug.json > {build_name}_aggregated.json')
     run(f'conan art:build-info upload {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:property build-info-add {build_name}_aggregated.json {os.getenv("ART_URL")} extensions-stg --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:property build-info-add {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run(f'conan art:build-info get {build_name}_release {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:build-info get {build_name}_debug {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
@@ -188,6 +179,9 @@ def test_build_info_create_deps():
     # run(f'conan remove "*" -c')
 
     # run(f'conan install --requires=mypkg/1.0')
+
+    # Promotions using Release Bundles do work with depdendencies, but they are not implemented in the testing Artifactory
+    # conan art:build-info create-bundle ${build_name}_aggregated.json develop full_bundle 1.0 ${ART_URL} test_key_pair --user=${CONAN_LOGIN_USERNAME_DEVELOP} --password="${CONAN_PASSWORD_DEVELOP}"
 
     run(f'conan art:build-info delete {build_name}_release {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_debug {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
