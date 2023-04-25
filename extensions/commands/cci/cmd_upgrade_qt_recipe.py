@@ -3,6 +3,7 @@ import configparser
 import os
 import sys
 import xml.etree.ElementTree
+from typing import List
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -61,7 +62,7 @@ def update_config_yml(version: Version) -> None:
         config_file.writelines(lines)
 
 
-def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[str, list[str]]:
+def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[str, List[str]]:
     sources_hash = None
     mirrors = []
     if version.major == 5:
@@ -98,7 +99,7 @@ def recipe_folder(version: Version) -> str:
     return f"{version.major}.x.x"
 
 
-def update_conandata_yml(version: Version, sources_hash: str, mirrors: list[str]) -> None:
+def update_conandata_yml(version: Version, sources_hash: str, mirrors: List[str]) -> None:
 
     conan_data_yml_path = f"{recipe_folder(version)}/conandata.yml"
 
@@ -194,7 +195,7 @@ def insertion_line(version):
     return submodules_node.end_lineno
 
 
-def get_new_modules(version: Version) -> list[str]:
+def get_new_modules(version: Version) -> List[str]:
     config = configparser.ConfigParser()
     config.read(f"{recipe_folder(version)}/qtmodules{version}.conf")
     new_modules = []
@@ -218,7 +219,7 @@ def get_new_modules(version: Version) -> list[str]:
     return new_modules
 
 
-def get_existing_modules(version: Version) -> list[str]:
+def get_existing_modules(version: Version) -> List[str]:
     with open(f"{recipe_folder(version)}/conanfile.py") as f:
         recipe = f.read()
     _locals = locals()
