@@ -3,7 +3,7 @@ import configparser
 import os
 import sys
 import xml.etree.ElementTree
-from typing import List
+from typing import List, Tuple
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -62,7 +62,7 @@ def update_config_yml(version: Version) -> None:
         config_file.writelines(lines)
 
 
-def get_hash_and_mirrors(version: Version, session: requests.Session) -> tuple[str, List[str]]:
+def get_hash_and_mirrors(version: Version, session: requests.Session) -> Tuple[str, List[str]]:
     sources_hash = None
     mirrors = []
     if version.major == 5:
