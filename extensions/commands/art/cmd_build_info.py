@@ -41,12 +41,15 @@ def response_to_str(response):
         return response.content
 
 
-def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None):
+def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None,
+                sign_key_name=None):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
     if apikey:
         headers.update({"X-JFrog-Art-Api": apikey})
+    if sign_key_name:
+        headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
     requests_method = getattr(requests, method)
     if user and password:
@@ -68,7 +71,9 @@ def api_request(method, request_url, user=None, password=None, apikey=None, json
 
 def get_remote_path(rrev, package_id=None, prev=None):
     ref = RecipeReference.loads(rrev)
-    rev_path = f"_/{ref.name}/{ref.version}/_/{ref.revision}"
+    user = ref.user or "_"
+    channel = ref.channel or "_"
+    rev_path = f"{user}/{ref.name}/{ref.version}/{channel}/{ref.revision}"
     if not package_id:
         return f"{rev_path}/export"
     else:
@@ -179,16 +184,18 @@ def unique_requires(transitive_reqs):
 
 class BuildInfo:
 
-    def __init__(self, graph, name, number, repositories=None, url=None, user=None, password=None, apikey=None):
+    def __init__(self, graph, name, number, repository, with_dependencies=False, 
+                 url=None, user=None, password=None, apikey=None):
         self._graph = graph
         self._name = name
         self._number = number
-        self._repositories = repositories
+        self._repository = repository
         self._url = url
         self._user = user
         self._password = password
         self._apikey = apikey
         self._cached_artifact_info = {}
+        self._with_dependencies = with_dependencies
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -221,8 +228,9 @@ class BuildInfo:
                                          "sha256": sha256,
                                          "sha1": sha1,
                                          "md5": md5}
+
                         if not is_dependency:
-                            artifact_info.update({"name": file_name, "path": f'{remote_path}/{file_name}'})
+                            artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
                         else:
                             ref = node.get("ref")
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
@@ -232,47 +240,41 @@ class BuildInfo:
             return local_artifacts
 
         def _get_remote_artifacts():
-            assert self._url and self._repositories, "Missing information in the Conan local cache, " \
-                                                     "please provide the --url and --repository arguments " \
-                                                     "to retrieve the information from Artifactory."
+            assert self._url and self._repository, "Missing information in the Conan local cache, " \
+                                                   "please provide the --url and --repository arguments " \
+                                                   "to retrieve the information from Artifactory."
 
             remote_artifacts = []
 
-            for repository in self._repositories:
-                # change from the conan API to the correct API to get files info and ignore if
-                # this can lead to problems, probably is better to pass manually a list of URLs
-                for artifact in artifacts_names:
-                    request_url = f"{self._url}/api/storage/{repository}/{remote_path}/{artifact}"
-                    if not self._cached_artifact_info.get(request_url):
-                        checksums = None
-                        try:
-                            response = api_request("get", request_url, self._user, self._password, self._apikey)
-                            response_data = json.loads(response)
-                            checksums = response_data.get("checksums")
-                            self._cached_artifact_info[request_url] = checksums
-                        except Exception:
-                            pass
+            for artifact in artifacts_names:
+                request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
+                if not self._cached_artifact_info.get(request_url):
+                    checksums = None
+                    try:
+                        response = api_request("get", request_url, self._user, self._password, self._apikey)
+                        response_data = json.loads(response)
+                        checksums = response_data.get("checksums")
+                        self._cached_artifact_info[request_url] = checksums
+                    except Exception:
+                        pass
+                else:
+                    checksums = self._cached_artifact_info.get(request_url)
+
+                if checksums:
+                    artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
+                                     "sha256": checksums.get("sha256"),
+                                     "sha1": checksums.get("sha1"),
+                                     "md5": checksums.get("md5")}
+
+                    artifact_path = f'{self._repository}/{remote_path}/{artifact}'
+                    if not is_dependency:
+                        artifact_info.update({"name": artifact, "path": artifact_path})
                     else:
-                        checksums = self._cached_artifact_info.get(request_url)
+                        ref = node.get("ref")
+                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                        artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
 
-                    if checksums:
-                        artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
-                                         "sha256": checksums.get("sha256"),
-                                         "sha1": checksums.get("sha1"),
-                                         "md5": checksums.get("md5")}
-
-                        if not is_dependency:
-                            artifact_info.update({"name": artifact, "path": f'{remote_path}/{artifact}'})
-                        else:
-                            ref = node.get("ref")
-                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                            artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
-
-                        remote_artifacts.append(artifact_info)
-                    else:
-                        break
-                if remote_artifacts:
-                    break
+                    remote_artifacts.append(artifact_info)
 
             return remote_artifacts
 
@@ -322,13 +324,14 @@ class BuildInfo:
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
 
-                    all_dependencies = []
-                    for require_id in unique_reqs:
-                        deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
-                                                            is_dependency=True)
-                        all_dependencies.extend(deps_artifacts)
+                    if self._with_dependencies:
+                        all_dependencies = []
+                        for require_id in unique_reqs:
+                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
+                                                                is_dependency=True)
+                            all_dependencies.extend(deps_artifacts)
 
-                    module.update({"dependencies": all_dependencies})
+                        module.update({"dependencies": all_dependencies})
 
                     ret.append(module)
 
@@ -340,13 +343,14 @@ class BuildInfo:
                             "artifacts": self.get_artifacts(node, "package")
                         }
                         # get the dependencies and its artifacts
-                        all_dependencies = []
-                        for require_id in unique_reqs:
-                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
-                                                                is_dependency=True)
-                            all_dependencies.extend(deps_artifacts)
+                        if self._with_dependencies:
+                            all_dependencies = []
+                            for require_id in unique_reqs:
+                                deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
+                                                                    is_dependency=True)
+                                all_dependencies.extend(deps_artifacts)
 
-                        module.update({"dependencies": all_dependencies})
+                            module.update({"dependencies": all_dependencies})
 
                         ret.append(module)
 
@@ -366,6 +370,28 @@ class BuildInfo:
         return json.dumps(bi, indent=4)
 
 
+def manifest_from_build_info(build_info, repository, with_dependencies=True):
+    manifest = {"files": []}
+    for module in build_info.get("modules"):
+        for artifact in module.get("artifacts"):
+            manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
+        if with_dependencies:
+            for dependency in module.get("dependencies"):
+                full_reference = dependency.get("id").split("::")[0]
+                filename = dependency.get("id").split("::")[1]
+                rrev = full_reference.split(":")[0]
+                pkgid = None
+                prev = None
+                if ":" in full_reference:
+                    pkgid = full_reference.split(":")[1].split("#")[0]
+                    prev = full_reference.split(":")[1].split("#")[1]
+                full_path = repository + "/" + get_remote_path(rrev, pkgid, prev) + "/" + filename
+                if not any(d['path'] == full_path for d in manifest["files"]):
+                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
+    return manifest
+
+
+
 @conan_command(group="Custom commands")
 def build_info(conan_api: ConanAPI, parser, *args):
     """
@@ -382,27 +408,28 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
+    subparser.add_argument("repository", help="Repository to look artifacts for.")
 
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
                                          "This may be not necessary if all the information for the Conan "
                                          "artifacts is present in the local cache.")
 
-    subparser.add_argument("--repository", help="Repositories to look artifacts for."
-                                                "This may be not necessary if all the information for the Conan "
-                                                "artifacts is present in the local cache."
-                           , action="append")
 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
+
+    subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
+                           action='store_true', default=False)
 
     args = parser.parse_args(*args)
 
     with open(args.json, 'r') as f:
         data = json.load(f)
 
-    bi = BuildInfo(data, args.build_name, args.build_number, args.repository, args.url, args.user, args.password,
-                   args.apikey)
+    bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
+                   with_dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
+                   apikey=args.apikey)
 
     cli_out_write(bi.create())
 
@@ -559,7 +586,49 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                 if not any(d['id'] == module.get('id') for d in all_modules):
                     all_modules.append(module)
 
-    bi = BuildInfo(None, args.build_name, args.build_number)
+    bi = BuildInfo(None, args.build_name, args.build_number, None)
     bi_json = bi.header()
     bi_json.update({"modules": all_modules})
     cli_out_write(json.dumps(bi_json, indent=4))
+
+
+@conan_subcommand()
+def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Creates an Artifactory Release Bundle from the information of the Build Info
+    """
+
+    subparser.add_argument("json", help="BuildInfo JSON.")
+
+    subparser.add_argument("repository", help="Repository where artifacts are located.")
+
+    subparser.add_argument("bundle_name", help="The created bundle name.")
+    subparser.add_argument("bundle_version", help="The created bundle version.")
+
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory. "
+                                       "This may be not necessary if all the information for the Conan "
+                                       "artifacts is present in the local cache.")
+
+    subparser.add_argument("sign_key_name", help="Signing Key name.")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    args = parser.parse_args(*args)
+
+    with open(args.json, 'r') as f:
+        data = json.load(f)
+
+    manifest = manifest_from_build_info(data, args.repository, with_dependencies=True)
+
+    bundle_json = {
+        "payload": manifest
+    }
+
+    request_url = f"{args.url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
+
+    response = api_request("post", request_url, args.user, args.password, args.apikey,
+                           json_data=json.dumps(bundle_json), sign_key_name=args.sign_key_name)
+
+    cli_out_write(response)
