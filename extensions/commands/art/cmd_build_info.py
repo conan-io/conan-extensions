@@ -428,7 +428,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
         data = json.load(f)
 
     bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
-                   dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
+                   with_dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
                    apikey=args.apikey)
 
     cli_out_write(bi.create())
