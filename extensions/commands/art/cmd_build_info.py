@@ -184,7 +184,7 @@ def unique_requires(transitive_reqs):
 
 class BuildInfo:
 
-    def __init__(self, graph, name, number, dependencies=False, repository=None, 
+    def __init__(self, graph, name, number, repository, with_dependencies=False, 
                  url=None, user=None, password=None, apikey=None, modules=None):
         self._graph = graph
         self._name = name
@@ -195,7 +195,7 @@ class BuildInfo:
         self._password = password
         self._apikey = apikey
         self._cached_artifact_info = {}
-        self._dependencies = dependencies
+        self._with_dependencies = with_dependencies
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -324,7 +324,7 @@ class BuildInfo:
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
 
-                    if self._dependencies:
+                    if self._with_dependencies:
                         all_dependencies = []
                         for require_id in unique_reqs:
                             deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
@@ -343,7 +343,7 @@ class BuildInfo:
                             "artifacts": self.get_artifacts(node, "package")
                         }
                         # get the dependencies and its artifacts
-                        if self._dependencies:
+                        if self._with_dependencies:
                             all_dependencies = []
                             for require_id in unique_reqs:
                                 deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
@@ -408,14 +408,12 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
+    subparser.add_argument("repository", help="Repository to look artifacts for.")
 
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
                                          "This may be not necessary if all the information for the Conan "
                                          "artifacts is present in the local cache.")
 
-    subparser.add_argument("--repository", help="Repository to look artifacts for."
-                                                "This may be not necessary if all the information for the Conan "
-                                                "artifacts is present in the local cache.")
 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -429,8 +427,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     with open(args.json, 'r') as f:
         data = json.load(f)
 
-    bi = BuildInfo(data, args.build_name, args.build_number, dependencies=args.with_dependencies,
-                   repository=args.repository, url=args.url, user=args.user, password=args.password,
+    bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
+                   dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
                    apikey=args.apikey)
 
     cli_out_write(bi.create())

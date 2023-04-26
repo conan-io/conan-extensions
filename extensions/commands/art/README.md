@@ -73,15 +73,15 @@ Using the generated JSON files you can create a BuildInfo JSON. You have to pass
 name and number and also the url and credentials for the Artifactory repository:
 
 ```
-conan art:build-info create create_release.json mybuildname_release 1 --url=<url> --user=<user> --password=<pass> --repository=<repo> > mybuildname_release.json
-conan art:build-info create create_debug.json mybuildname_debug 1 --url=<url> --user=<user> --password=<pass> --repository=<repo> > mybuildname_debug.json
+conan art:build-info create create_release.json mybuildname_release 1 <repo> --url=<url> --user=<user> --password=<pass> --with-dependencies > mybuildname_release.json
+conan art:build-info create create_debug.json mybuildname_debug 1 <repo> --url=<url> --user=<user> --password=<pass> --with-dependencies > mybuildname_debug.json
 ```
 
 You have to set the properties for the uploaded artifacts so they are linked to the BuildInfo in Artifactory:
 
 ```
-conan art:property build-info-add mybuildname_release.json <url> <repo> --user=<user> --password=<pass>
-conan art:property build-info-add mybuildname_debug.json <url> <repo> --user=<user> --password=<pass>
+conan art:property build-info-add mybuildname_release.json <url> --user=<user> --password=<pass>
+conan art:property build-info-add mybuildname_debug.json <url> --user=<user> --password=<pass>
 ```
 
 Finally, you can upload the BuildInfo's
