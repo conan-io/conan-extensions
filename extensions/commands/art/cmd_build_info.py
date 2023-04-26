@@ -586,7 +586,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                 if not any(d['id'] == module.get('id') for d in all_modules):
                     all_modules.append(module)
 
-    bi = BuildInfo(None, args.build_name, args.build_number)
+    bi = BuildInfo(None, args.build_name, args.build_number, None)
     bi_json = bi.header()
     bi_json.update({"modules": all_modules})
     cli_out_write(json.dumps(bi_json, indent=4))
