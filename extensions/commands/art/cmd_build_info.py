@@ -185,7 +185,7 @@ def unique_requires(transitive_reqs):
 class BuildInfo:
 
     def __init__(self, graph, name, number, repository, with_dependencies=False, 
-                 url=None, user=None, password=None, apikey=None, modules=None):
+                 url=None, user=None, password=None, apikey=None):
         self._graph = graph
         self._name = name
         self._number = number

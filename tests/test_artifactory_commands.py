@@ -53,8 +53,8 @@ def test_build_info_create_no_deps():
 
     run("conan upload mypkg/1.0 -c -r extensions-stg")
 
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --repository=extensions-stg > {build_name}_release.json')
-    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} --repository=extensions-stg > {build_name}_debug.json')
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json')
 
     run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
@@ -147,8 +147,8 @@ def test_build_info_create_deps():
 
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
 
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}_release.json')
-    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}_debug.json')
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_release.json')
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
 
     run(f'conan art:property build-info-add {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan art:property build-info-add {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
@@ -212,11 +212,11 @@ def test_fail_if_not_uploaded():
 
     run("conan create . --format json -tf='' > create.json")
 
-    out = run(f'conan art:build-info create create.json {build_name} {build_number}', error=True)
+    out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg', error=True)
 
     assert "Missing information in the Conan local cache, please provide " \
            "the --url and --repository arguments to retrieve the information from" in out
 
-    out = run(f'conan art:build-info create create.json {build_name} {build_number} --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --repository=extensions-stg > {build_name}.json', error=True)
+    out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}.json', error=True)
 
     assert "There are no artifacts for the mypkg/1.0#" in out
