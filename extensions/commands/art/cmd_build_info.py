@@ -234,7 +234,7 @@ class BuildInfo:
                         else:
                             ref = node.get("ref")
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                            artifact_info.update({"id": f"{ref}{pkg}::{file_name}"})
+                            artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
 
                         local_artifacts.append(artifact_info)
             return local_artifacts
@@ -272,7 +272,7 @@ class BuildInfo:
                     else:
                         ref = node.get("ref")
                         pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg}::{artifact}"})
+                        artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
 
                     remote_artifacts.append(artifact_info)
 
@@ -377,8 +377,8 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
             manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
         if with_dependencies:
             for dependency in module.get("dependencies"):
-                full_reference = dependency.get("id").split("::")[0]
-                filename = dependency.get("id").split("::")[1]
+                full_reference = dependency.get("id").split("::")[0].strip()
+                filename = dependency.get("id").split("::")[1].strip()
                 rrev = full_reference.split(":")[0]
                 pkgid = None
                 prev = None
