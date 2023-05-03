@@ -313,7 +313,7 @@ class BuildInfo:
                     # recipe module
                     module = {
                         "type": "conan",
-                        "id": (str(ref),
+                        "id": str(ref),
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
 
@@ -332,7 +332,7 @@ class BuildInfo:
                     if node.get("package_id") and node.get("prev"):
                         module = {
                             "type": "conan",
-                            "id": f'{(str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                            "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
                             "artifacts": self.get_artifacts(node, "package")
                         }
                         # get the dependencies and its artifacts
