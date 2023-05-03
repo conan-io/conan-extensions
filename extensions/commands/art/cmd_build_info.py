@@ -99,17 +99,23 @@ def get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
-def get_node_by_ref(nodes, ref):
-    for node in nodes:
-        if node.get("ref") == ref:
-            return node
-
-
 def get_node_by_id(nodes, id):
     for node in nodes:
         if node.get("id") == int(id):
             return node
 
+# FIXME: adding _ for empty user/channel
+# to check Xray compatibility, but try to 
+# add fix in Conan reference parsing in Xray
+# in the future
+def ref_with_user_channel(ref):
+    ref_name = ref.split("#")[0]
+    rrev = ref.split("#")[1]
+    if len(ref_name.split('@')) == 1:
+        return f"{ref_name}@_/_#{rrev}"
+    elif '/' not in ref_name.split('@')[1]:
+        return f"{ref_name.split('@')[0]}@{ref_name.split('@')[1]}/_#{rrev}"   
+    return f"{ref_name}#{rrev}"
 
 def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -232,7 +238,7 @@ class BuildInfo:
                         if not is_dependency:
                             artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
                         else:
-                            ref = node.get("ref")
+                            ref = ref_with_user_channel(node.get("ref"))
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
                             artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
 
@@ -270,7 +276,7 @@ class BuildInfo:
                     if not is_dependency:
                         artifact_info.update({"name": artifact, "path": artifact_path})
                     else:
-                        ref = node.get("ref")
+                        ref = ref_with_user_channel(node.get("ref"))
                         pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
                         artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
 
@@ -320,7 +326,7 @@ class BuildInfo:
                     # recipe module
                     module = {
                         "type": "conan",
-                        "id": str(ref),
+                        "id": ref_with_user_channel(str(ref)),
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
 
@@ -339,7 +345,7 @@ class BuildInfo:
                     if node.get("package_id") and node.get("prev"):
                         module = {
                             "type": "conan",
-                            "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                            "id": f'{ref_with_user_channel(str(ref))}:{node.get("package_id")}#{node.get("prev")}',
                             "artifacts": self.get_artifacts(node, "package")
                         }
                         # get the dependencies and its artifacts
