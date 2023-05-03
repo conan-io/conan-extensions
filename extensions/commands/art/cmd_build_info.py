@@ -471,16 +471,8 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
             except:
                 pass
 
-            if artifact_properties.get("build.name") and build_name not in artifact_properties.get("build.name"):
-                artifact_properties["build.name"].append(build_name)
-            else:
-                artifact_properties["build.name"] = build_name
-
-            if artifact_properties.get("build.number") and build_number not in artifact_properties.get("build.number"):
-                artifact_properties["build.number"].append(build_number)
-            else:
-                artifact_properties["build.number"] = build_number
-        
+            artifact_properties.setdefault("build.name", []).append(build_name)
+            artifact_properties.setdefault("build.number", []).append(build_number)        
 
             request_url = f"{args.url}/api/metadata/{artifact_path}"
             api_request("patch", request_url, args.user, args.password,
