@@ -88,6 +88,6 @@ In this case we generated two BuilInfo's, for Release and Debug, we can merge th
 create a new aggregated BuildInfo that we also will upload and set properties to:
 
 ```
-conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_release.json --build-info=mybuildname_debug.json > mybuildname_aggregated.json
+conan art:build-info append mybuildname_aggregated 1 <url> --build-info=mybuildname_release,1 --build-info=mybuildname_debug,1 --user=<user> --password=<pass> > mybuildname_aggregated.json
 conan art:build-info upload mybuildname_aggregated.json <url> --user=<user> --password="<pass>"
 ```
