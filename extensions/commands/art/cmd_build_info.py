@@ -592,21 +592,34 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_name", help="The current build name.")
     subparser.add_argument("build_number", help="The current build number.")
 
-    subparser.add_argument("--build-info", help="JSON file for the Build Info. You can add multiple files " \
-                                                "like --build-info=release.json --build-info=debug.json",
+    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+
+    subparser.add_argument("--user", help="user name for the repository")
+    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--apikey", help="apikey for the repository")
+
+    subparser.add_argument("--build-info", help="Name and number for the Build Info already published in Artifactory. You can add multiple Builds " \
+                                                "like --build-info=build_name,build_number --build-info=build_name,build_number",
                            action="append")
 
     args = parser.parse_args(*args)
 
+    for build_info in args.build_info:
+        if not "," in build_info:
+            raise ConanException("Please, provide the build name and number to append in the format: --build-info=build_name,build_number")
+
     all_modules = []
 
-    for build_info_json in args.build_info:
-        with open(build_info_json, 'r') as f:
-            data = json.load(f)
-            for module in data.get("modules"):
-                # avoid repeating shared recipe modules between builds
-                if not any(d['id'] == module.get('id') for d in all_modules):
-                    all_modules.append(module)
+    for build_info in args.build_info:
+        name, number = build_info.split(",")
+        request_url = f"{args.url}/api/build/{name}/{number}"
+        response = api_request("get", request_url, args.user, args.password, args.apikey)
+        json_data = json.loads(response)
+        build_info = json_data.get("buildInfo")
+        for module in build_info.get("modules"):
+           # avoid repeating shared recipe modules between builds
+           if not any(d['id'] == module.get('id') for d in all_modules):
+               all_modules.append(module)
 
     bi = BuildInfo(None, args.build_name, args.build_number, None)
     bi_json = bi.header()
