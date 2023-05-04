@@ -444,6 +444,35 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     with open(args.build_info) as f:
         build_info_json = json.load(f)
 
+    # FIXME: this code is repeated in the art:property command,
+    # we have to fix that custom commands can share modules between them
+
+    # first, set the properties build.name and build.number 
+    # for the artifacts in the BuildInfo
+
+    build_name = build_info_json.get("name")
+    build_number = build_info_json.get("number")
+
+    for module in build_info_json.get('modules'):
+        for artifact in module.get('artifacts'):
+            artifact_properties = {}
+            artifact_path = artifact.get('path')
+            try:
+                request_url = f"{args.url}/api/storage/{artifact_path}?properties"
+                props_response = api_request("get", request_url, args.user, args.password, args.apikey)
+                artifact_properties = json.loads(props_response).get("properties")
+            except:
+                pass
+
+            artifact_properties.setdefault("build.name", []).append(build_name)
+            artifact_properties.setdefault("build.number", []).append(build_number)        
+
+            request_url = f"{args.url}/api/metadata/{artifact_path}"
+            api_request("patch", request_url, args.user, args.password,
+                        args.apikey, json_data=json.dumps({"props": artifact_properties}))
+
+
+    # now upload the BuildInfo
     request_url = f"{args.url}/api/build"
     response = api_request("put", request_url, args.user, args.password,
                            args.apikey, json_data=json.dumps(build_info_json))

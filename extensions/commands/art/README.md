@@ -77,13 +77,6 @@ conan art:build-info create create_release.json mybuildname_release 1 <repo> --u
 conan art:build-info create create_debug.json mybuildname_debug 1 <repo> --url=<url> --user=<user> --password=<pass> --with-dependencies > mybuildname_debug.json
 ```
 
-You have to set the properties for the uploaded artifacts so they are linked to the BuildInfo in Artifactory:
-
-```
-conan art:property build-info-add mybuildname_release.json <url> --user=<user> --password=<pass>
-conan art:property build-info-add mybuildname_debug.json <url> --user=<user> --password=<pass>
-```
-
 Finally, you can upload the BuildInfo's
 
 ```
@@ -97,5 +90,4 @@ create a new aggregated BuildInfo that we also will upload and set properties to
 ```
 conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_release.json --build-info=mybuildname_debug.json > mybuildname_aggregated.json
 conan art:build-info upload mybuildname_aggregated.json <url> --user=<user> --password="<pass>"
-conan art:property build-info-add mybuildname_aggregated.json <url> <repo> --user=<user> --password="<pass>"
 ```
