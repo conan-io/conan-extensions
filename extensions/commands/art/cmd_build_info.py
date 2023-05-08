@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write
+from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
@@ -416,14 +416,18 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
+    out = ConanOutput("art:build-info")
 
+    out.title("Loading JSON data from conan create/install")
     with open(args.json, 'r') as f:
         data = json.load(f)
 
+    out.title("Converting Conan graph JSON into BuildInfo")
     bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
                    with_dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
                    apikey=args.apikey)
 
+    out.title("Verifying remote artifacts and generating BuildInfo")
     cli_out_write(bi.create())
 
 
@@ -435,6 +439,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
+    subparser.add_argument("--project", help="Project Key", default=None)
 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -472,8 +477,13 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
                         args.apikey, json_data=json.dumps({"props": artifact_properties}))
 
 
+    out = ConanOutput("art:build-info")
+
+    out.title("Uploading BuildInfo to Artifactory server")
     # now upload the BuildInfo
     request_url = f"{args.url}/api/build"
+    if args.project is not None:
+        request_url = f"{request_url}?project={args.project}"
     response = api_request("put", request_url, args.user, args.password,
                            args.apikey, json_data=json.dumps(build_info_json))
     cli_out_write(response)
