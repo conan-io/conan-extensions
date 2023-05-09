@@ -62,7 +62,14 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
                         ConanOutput().warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
                         continue
                     oldref = arg.value
-                    name = oldref.split("/")[0]
+                    parts = oldref.split("/")
+                    version = parts[1]
+                    if version.startswith("[") or version.endswith("]"):
+                        ConanOutput().info(f"Won't bump {oldref} because it uses a version range")
+                        continue
+                    if version == "<host_version>"
+                        continue
+                    name = parts[0]
                     newref = latest_ref(name)
                     if not newref:
                         ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
