@@ -6,7 +6,7 @@ These are commands to manage certain Artifactory features:
 
 - ``conan art:build-info``. Manages JFROG BuildInfo
 
-- ``conan art:build-info``. Manages artifacts properties in Artifactory
+- ``conan art:property``. Manages artifacts properties in Artifactory
 
 
 #### [conan art:build-info](cmd_build_info.py)
