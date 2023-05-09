@@ -67,7 +67,7 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
                     if version.startswith("[") or version.endswith("]"):
                         ConanOutput().info(f"Won't bump {oldref} because it uses a version range")
                         continue
-                    if version == "<host_version>"
+                    if version == "<host_version>":
                         continue
                     name = parts[0]
                     newref = latest_ref(name)
