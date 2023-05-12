@@ -212,3 +212,15 @@ def test_fail_if_not_uploaded():
     out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}.json', error=True)
 
     assert "There are no artifacts for the mypkg/1.0#" in out
+
+
+def test_remote():
+    """
+    empty
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+
+    run(f"conan config install {repo}")
+    out = run(f'conan art:remote add remote1 {os.getenv("ART_URL")} --user {os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")} --password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+    print(out)
