@@ -214,6 +214,7 @@ def test_fail_if_not_uploaded():
     assert "There are no artifacts for the mypkg/1.0#" in out
 
 
+@pytest.mark.requires_credentials
 def test_remote():
     """
     empty
