@@ -54,9 +54,9 @@ def api_request(type, request_url, user=None, password=None, apikey=None, json_d
         response = requests_method(request_url)
 
     if response.status_code == 401:
-        raise Exception(response_to_str(response))
+        raise ConanException(response_to_str(response))
     elif response.status_code not in [200, 204]:
-        raise Exception(response_to_str(response))
+        raise ConanException(response_to_str(response))
 
     return response_to_str(response)
 
@@ -66,27 +66,22 @@ def read_remotes():
     remotes = []
     if os.path.exists(path):
         with open(path) as remotes_file:
-            remotes_data = json.loads(remotes_file.read())
+            remotes_data = json.load(remotes_file)
             remotes = remotes_data["remotes"]
     return remotes
 
 
-def write_remotes(new_remotes):
+def write_remotes(remotes):
     path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
-    with open(path, "a+") as remotes_file:
-        remotes_data = remotes_file.read()
-        remotes = remotes_data["remotes"]
-        for r in new_remotes:
-            assert_new_remote(r["name"], remotes)
-            remotes_data["remotes"].append(r)
-        remotes_file.write(json.dumps(remotes_data))
+    with open(path, "w") as remotes_file:
+        json.dump({"remotes": remotes}, remotes_file, indent=2)
 
 
 def assert_new_remote(remote_name, remotes):
     for r in remotes:
         if remote_name == r["name"]:
             raise ConanException(f"Remote '{remote_name}' ({r['url']}) already exist. "
-                                 f"You can remove it using 'conan art:remote remove {remote_name}'")
+                                 f"You can remove it using `conan art:remote remove {remote_name}`")
 
 
 def assert_existing_remote(remote_name, remotes):
@@ -139,7 +134,8 @@ def remote_add(conan_api: ConanAPI, parser, subparser, *args):
                   "url": artifactory_url,
                   "user": user,
                   "password": token}
-    write_remotes([new_remote])
+    remotes.append(new_remote)
+    write_remotes(remotes)
     cli_out_write(f"Remote '{name}' ({artifactory_url}) added successfully")
 
 
@@ -176,6 +172,6 @@ def remote_list(conan_api: ConanAPI, parser, subparser, *args):
             cli_out_write(f"{r['name']}:")
             cli_out_write(f"url: {r['url']}", indentation=2)
             cli_out_write(f"user: {r['user']}", indentation=2)
-            cli_out_write(f"password: {'*' * len(r['password'])}", indentation=2)
+            cli_out_write(f"password: *******", indentation=2)
     else:
         cli_out_write("No remotes configured. Use `conan art:remote add` command to add one.")
