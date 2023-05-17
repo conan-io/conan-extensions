@@ -1,14 +1,16 @@
 import json
+import os.path
 from pathlib import Path
 
 import requests
 
 from conan.api.conan_api import ConanAPI
+from conan.api.output import cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
-from conans.model.recipe_ref import RecipeReference
-from conans.model.package_ref import PkgReference
 from conan.errors import ConanException
 
+
+REMOTES_FILE = "remotes.json"
 
 def response_to_str(response):
     content = response.content
@@ -61,6 +63,35 @@ def api_request(type, request_url, user=None, password=None, apikey=None, json_d
 
     return response_to_str(response)
 
+def read_remotes():
+    path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
+    remotes = []
+    if os.path.exists(path):
+        with open(path) as remotes_file:
+            remotes_data = remotes_file.read()
+            remotes = remotes_data["remotes"]
+    return remotes
+
+def write_remotes(new_remotes):
+    path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
+    with open(path, "a+") as remotes_file:
+        remotes_data = remotes_file.read()
+        remotes = remotes_data["remotes"]
+        for r in new_remotes:
+            assert_new_remote(r["name"], remotes)
+            remotes_data["remotes"].append(r)
+        remotes_file.write(remotes_data)
+
+def assert_new_remote(remote_name, remotes):
+    for r in remotes:
+        if remote_name == r["name"]:
+            raise ConanException(f"Remote '{remote_name}' ({r['url']}) already exist. "
+                                 f"You can remove it using 'conan art:remote remove {remote_name}'")
+
+def assert_existing_remote(remote_name, remotes):
+    remote_names = [r["name"] for r in remotes]
+    if remote_name not in remote_names:
+            raise ConanException(f"Remote '{remote_name}' does not exist.")
 
 def add_default_arguments(subparser):
     subparser.add_argument("name", help="Name of the remote to add")
@@ -77,7 +108,7 @@ def remote(conan_api: ConanAPI, parser, *args):
 @conan_subcommand()
 def remote_add(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Add Artifactory server with crendentials to configuration.
+    Add Artifactory remote and its credentials.
     """
     add_default_arguments(subparser)
     subparser.add_argument("artifactory_url", help="URL of the artifactory server")
@@ -96,30 +127,53 @@ def remote_add(conan_api: ConanAPI, parser, subparser, *args):
     user = args.user.strip()
     password = args.password.strip()
 
-    #read json file
-    #check remote name already exist --> raise error
+    remotes = read_remotes()
+    assert_new_remote(name, remotes)
 
     token = api_request("get", f"{artifactory_url}/api/security/encryptedPassword", user, password)
+    #TODO: manage error with auth
 
-    #manage error with auth
-    #save to json file
+    new_remote = {"name": name,
+                  "url": artifactory_url,
+                  "user": user,
+                  "password": token}
+    write_remotes([new_remote])
+    cli_out_write(f"Remote '{name}' ({artifactory_url}) added successfully")
 
-    remote_registry = {"name": name, "artifactory_url": artifactory_url, "user": user, "password": token}
-    print(remote_registry)
 
 @conan_subcommand()
 def remote_remove(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Remove Artifactory server from configuration.
+    Remove Artifactory remotes.
     """
     add_default_arguments(subparser)
     args = parser.parse_args(*args)
 
-    remote = args.remote
+    name = args.name.strip()
+    remotes = read_remotes()
+    assert_existing_remote(name, remotes)
+    artifactory_url = None
+    keep_remotes = []
+    for r in remotes:
+        if name != r["name"]:
+            keep_remotes.append(r)
+        else:
+            artifactory_url = r["url"]
+    write_remotes(keep_remotes)
+    cli_out_write(f"Remote '{name}' ({artifactory_url}) removed successfully")
 
-    #read from json file
-    #manage error reading
-    #check remote provided exist in file
-    #remove remote
-    #savefile
-    #manage error saving the file
+
+@conan_subcommand()
+def remote_list(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    List Artifactory remotes.
+    """
+    remotes = read_remotes()
+    if remotes:
+        for r in remotes:
+            cli_out_write(f"{r['name']}:")
+            cli_out_write(f"url: {r['url']}", indentation=2)
+            cli_out_write(f"user: {r['user']}", indentation=2)
+            cli_out_write(f"password: {'*' * len(r['password'])}", indentation=2)
+    else:
+        cli_out_write("No remotes configured. Use `conan art:remote add` command to add one.")

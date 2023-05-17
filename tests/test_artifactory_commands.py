@@ -215,13 +215,72 @@ def test_fail_if_not_uploaded():
 
 
 @pytest.mark.requires_credentials
-def test_remote():
+def test_remote_complete():
     """
-    empty
+    Test remote add, list, remove commands
     """
 
     repo = os.path.join(os.path.dirname(__file__), "..")
-
     run(f"conan config install {repo}")
-    out = run(f'conan art:remote add remote1 {os.getenv("ART_URL")} --user {os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")} --password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
-    print(out)
+    remote_url = os.getenv("ART_URL")
+    remote_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+
+    out_add = run(f'conan art:remote add remote1 {remote_url} --user {remote_user} '
+                  f'--password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+
+    assert f"Remote 'remote1' ({remote_url}) added successfully" in out_add
+    assert os.path.exists(os.path.join(os.path.dirname(__file__), "remotes.json"))
+
+    out_list = run('conan art:remote list')
+
+    assert "remote1:" in out_list
+    assert f"url: {remote_url}" in out_list
+    assert f"user: {remote_user}" in out_list
+    assert "password: ***" in out_list
+
+    out_remove = run('conan art:remote remove remote1')
+
+    assert f"Remote 'remote1' ({remote_url}) removed successfully" in out_remove
+
+
+@pytest.mark.requires_credentials
+def test_remote_add_error():
+    """
+    Test remote add error when adding a remote with same name
+    """
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    remote_url = os.getenv("ART_URL")
+    remote_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+
+    run(f'conan art:remote add remote1 {remote_url} --user {remote_user} '
+        f'--password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+    out_add = run(f'conan art:remote add remote1 other_url --user other_user --password other_pass')
+
+    assert f"Remote 'remote1' ({remote_url}) already exist." in out_add
+
+
+def test_remote_remove_error():
+    """
+    Test remote remove errors when there is no remote with the provided name
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+
+    out = run("conan art:remote remove remote1", error=True)
+
+    assert "Remote 'remote1' does not exist." in out
+
+
+def test_remote_list_empty():
+    """
+    Test remote list output when no remotes are configured
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+
+    out = run("conan art:remote list")
+
+    assert "No remotes configured. Use `conan art:remote add` command to add one." in out
