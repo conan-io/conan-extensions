@@ -1,7 +1,5 @@
 import json
 import os.path
-from pathlib import Path
-
 import requests
 
 from conan.api.conan_api import ConanAPI
@@ -9,8 +7,8 @@ from conan.api.output import cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
-
 REMOTES_FILE = "remotes.json"
+
 
 def response_to_str(response):
     content = response.content
@@ -39,7 +37,6 @@ def response_to_str(response):
 
 
 def api_request(type, request_url, user=None, password=None, apikey=None, json_data=None):
-
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
@@ -63,14 +60,16 @@ def api_request(type, request_url, user=None, password=None, apikey=None, json_d
 
     return response_to_str(response)
 
+
 def read_remotes():
     path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
     remotes = []
     if os.path.exists(path):
         with open(path) as remotes_file:
-            remotes_data = remotes_file.read()
+            remotes_data = json.loads(remotes_file.read())
             remotes = remotes_data["remotes"]
     return remotes
+
 
 def write_remotes(new_remotes):
     path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
@@ -80,7 +79,8 @@ def write_remotes(new_remotes):
         for r in new_remotes:
             assert_new_remote(r["name"], remotes)
             remotes_data["remotes"].append(r)
-        remotes_file.write(remotes_data)
+        remotes_file.write(json.dumps(remotes_data))
+
 
 def assert_new_remote(remote_name, remotes):
     for r in remotes:
@@ -88,10 +88,12 @@ def assert_new_remote(remote_name, remotes):
             raise ConanException(f"Remote '{remote_name}' ({r['url']}) already exist. "
                                  f"You can remove it using 'conan art:remote remove {remote_name}'")
 
+
 def assert_existing_remote(remote_name, remotes):
     remote_names = [r["name"] for r in remotes]
     if remote_name not in remote_names:
-            raise ConanException(f"Remote '{remote_name}' does not exist.")
+        raise ConanException(f"Remote '{remote_name}' does not exist.")
+
 
 def add_default_arguments(subparser):
     subparser.add_argument("name", help="Name of the remote to add")
@@ -131,7 +133,7 @@ def remote_add(conan_api: ConanAPI, parser, subparser, *args):
     assert_new_remote(name, remotes)
 
     token = api_request("get", f"{artifactory_url}/api/security/encryptedPassword", user, password)
-    #TODO: manage error with auth
+    # TODO: manage error with auth
 
     new_remote = {"name": name,
                   "url": artifactory_url,
