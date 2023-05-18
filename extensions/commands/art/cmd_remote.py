@@ -1,4 +1,5 @@
 import base64
+import getpass
 import json
 import os.path
 import requests
@@ -118,15 +119,17 @@ def remote_add(conan_api: ConanAPI, parser, subparser, *args):
 
     args = parser.parse_args(*args)
 
-    artifactory_url = args.artifactory_url.rstrip("/")
-
-    if not args.user or not args.password:
-        raise ConanException(f"User and password are required to authenticate ({artifactory_url}).")
+    if not args.user:
+        user = input("User: ")
+    else:
+        user = args.user.strip()
+    if not args.password:
+        password = getpass.getpass()
+    else:
+        password = args.password.strip()
 
     name = args.name.strip()
     artifactory_url = args.artifactory_url.rstrip("/")
-    user = args.user.strip()
-    password = args.password.strip()
 
     remotes = read_remotes()
     assert_new_remote(name, remotes)
