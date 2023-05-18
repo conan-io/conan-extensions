@@ -1,13 +1,14 @@
+import base64
 import json
 import os.path
 import requests
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write
+from conan.api.output import ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
-REMOTES_FILE = "remotes.json"
+REMOTES_FILE = "art-remote.conf"
 
 
 def response_to_str(response):
@@ -66,7 +67,9 @@ def read_remotes():
     remotes = []
     if os.path.exists(path):
         with open(path) as remotes_file:
-            remotes_data = json.load(remotes_file)
+            data_encoded = remotes_file.read()
+            data = base64.b64decode(data_encoded).decode('utf-8')
+            remotes_data = json.loads(data)
             remotes = remotes_data["remotes"]
     return remotes
 
@@ -74,7 +77,8 @@ def read_remotes():
 def write_remotes(remotes):
     path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
     with open(path, "w") as remotes_file:
-        json.dump({"remotes": remotes}, remotes_file, indent=2)
+        data = json.dumps({"remotes": remotes})
+        remotes_file.write(base64.b64encode(data.encode('utf-8')).decode('utf-8'))
 
 
 def assert_new_remote(remote_name, remotes):
@@ -136,7 +140,7 @@ def remote_add(conan_api: ConanAPI, parser, subparser, *args):
                   "password": token}
     remotes.append(new_remote)
     write_remotes(remotes)
-    cli_out_write(f"Remote '{name}' ({artifactory_url}) added successfully")
+    ConanOutput().success(f"Remote '{name}' ({artifactory_url}) added successfully")
 
 
 @conan_subcommand()
@@ -158,7 +162,7 @@ def remote_remove(conan_api: ConanAPI, parser, subparser, *args):
         else:
             artifactory_url = r["url"]
     write_remotes(keep_remotes)
-    cli_out_write(f"Remote '{name}' ({artifactory_url}) removed successfully")
+    ConanOutput().success(f"Remote '{name}' ({artifactory_url}) removed successfully")
 
 
 @conan_subcommand()
@@ -169,9 +173,9 @@ def remote_list(conan_api: ConanAPI, parser, subparser, *args):
     remotes = read_remotes()
     if remotes:
         for r in remotes:
-            cli_out_write(f"{r['name']}:")
-            cli_out_write(f"url: {r['url']}", indentation=2)
-            cli_out_write(f"user: {r['user']}", indentation=2)
-            cli_out_write(f"password: *******", indentation=2)
+            ConanOutput().info(f"{r['name']}:")
+            ConanOutput().info(f"  url: {r['url']}")
+            ConanOutput().info(f"  user: {r['user']}")
+            ConanOutput().info(f"  password: *******")
     else:
-        cli_out_write("No remotes configured. Use `conan art:remote add` command to add one.")
+        ConanOutput().info("No remotes configured. Use `conan art:remote add` command to add one.")
