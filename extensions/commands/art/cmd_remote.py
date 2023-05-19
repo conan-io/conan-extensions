@@ -96,7 +96,7 @@ def assert_existing_remote(remote_name, remotes):
 
 
 def add_default_arguments(subparser):
-    subparser.add_argument("name", help="Name of the remote to add")
+    subparser.add_argument("name", help="Name of the remote")
     return subparser
 
 
