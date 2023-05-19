@@ -1,0 +1,641 @@
+{
+    "seen_refs": {
+        "zlib/1.2.13": [
+            "openssl/3.1.0",
+            "boost/1.81.0",
+            "libpng/1.6.39",
+            "libcurl/8.0.1",
+            "protobuf/3.21.9",
+            "libxml2/2.10.4",
+            "freetype/2.13.0",
+            "pcre/8.45",
+            "wayland/1.21.0",
+            "grpc/1.50.1",
+            "pcre2/10.42",
+            "libtiff/4.5.0",
+            "poco/1.12.4",
+            "xkbcommon/1.5.0",
+            "fontconfig/2.14.2",
+            "openexr/3.1.7",
+            "cyrus-sasl/2.1.27",
+            "glib/2.76.2",
+            "libunwind/1.6.2",
+            "libmysqlclient/8.0.31",
+            "civetweb/1.16",
+            "minizip/1.2.13",
+            "libevent/2.1.12",
+            "pulseaudio/14.2",
+            "assimp/5.2.2",
+            "libzip/1.9.2",
+            "websocketpp/0.8.2",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0",
+            "doxygen/1.9.4",
+            "date/3.0.1"
+        ],
+        "bzip2/1.0.8": [
+            "boost/1.81.0",
+            "freetype/2.13.0",
+            "pcre/8.45",
+            "pcre2/10.42",
+            "poco/1.12.4",
+            "fontconfig/2.14.2",
+            "glib/2.76.2",
+            "minizip/1.2.13",
+            "assimp/5.2.2",
+            "libzip/1.9.2",
+            "websocketpp/0.8.2",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0"
+        ],
+        "libbacktrace/cci.20210118": [
+            "boost/1.81.0",
+            "websocketpp/0.8.2"
+        ],
+        "libiconv/1.17": [
+            "boost/1.81.0",
+            "libxml2/2.10.4",
+            "wayland/1.21.0",
+            "xkbcommon/1.5.0",
+            "glib/2.76.2",
+            "odbc/2.3.11",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "websocketpp/0.8.2",
+            "apr-util/1.6.1",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0"
+        ],
+        "b2/4.9.6": [
+            "boost/1.81.0",
+            "websocketpp/0.8.2"
+        ],
+        "fmt/9.1.0": [
+            "spdlog/1.11.0"
+        ],
+        "meson/1.0.0": [
+            "pkgconf/1.9.3",
+            "wayland-protocols/1.31",
+            "harfbuzz/7.1.0"
+        ],
+        "ninja/1.11.1": [
+            "pkgconf/1.9.3",
+            "wayland/1.21.0",
+            "wayland-protocols/1.31",
+            "meson/1.1.0",
+            "xkbcommon/1.5.0",
+            "fontconfig/2.14.2",
+            "glib/2.76.2",
+            "harfbuzz/7.1.0",
+            "harfbuzz/7.1.0"
+        ],
+        "libtool/2.4.7": [
+            "libcurl/8.0.1",
+            "libuuid/1.0.3",
+            "odbc/2.3.11",
+            "libalsa/1.2.7.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "apr/1.7.0",
+            "apr-util/1.6.1",
+            "doxygen/1.9.4",
+            "date/3.0.1"
+        ],
+        "automake/1.16.5": [
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "date/3.0.1",
+            "date/3.0.1",
+            "patchelf/0.13",
+            "patchelf/0.13"
+        ],
+        "autoconf/2.71": [
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "automake/1.16.5",
+            "automake/1.16.5",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "glib/2.76.2",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "harfbuzz/7.1.0",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "libelf/0.8.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13"
+        ],
+        "m4/1.4.19": [
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "libcurl/8.0.1",
+            "autoconf/2.71",
+            "autoconf/2.71",
+            "automake/1.16.5",
+            "automake/1.16.5",
+            "automake/1.16.5",
+            "automake/1.16.5",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libuuid/1.0.3",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "libtool/2.4.7",
+            "xkbcommon/1.5.0",
+            "xkbcommon/1.5.0",
+            "xkbcommon/1.5.0",
+            "flex/2.6.4",
+            "flex/2.6.4",
+            "bison/3.8.2",
+            "bison/3.8.2",
+            "bison/3.8.2",
+            "glib/2.76.2",
+            "glib/2.76.2",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "libalsa/1.2.7.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr/1.7.0",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "apr-util/1.6.1",
+            "harfbuzz/7.1.0",
+            "harfbuzz/7.1.0",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "date/3.0.1",
+            "libelf/0.8.13",
+            "libelf/0.8.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13",
+            "patchelf/0.13"
+        ],
+        "gnu-config/cci.20210814": [
+            "libcurl/8.0.1",
+            "libuuid/1.0.3",
+            "libtool/2.4.7",
+            "cyrus-sasl/2.1.27",
+            "glib/2.76.2",
+            "odbc/2.3.11",
+            "odbc/2.3.11",
+            "libalsa/1.2.7.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "pulseaudio/14.2",
+            "apr/1.7.0",
+            "apr-util/1.6.1",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0",
+            "libmp3lame/3.100",
+            "doxygen/1.9.4",
+            "date/3.0.1",
+            "libelf/0.8.13",
+            "patchelf/0.13"
+        ],
+        "libpng/1.6.39": [
+            "freetype/2.13.0",
+            "fontconfig/2.14.2",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0"
+        ],
+        "brotli/1.0.9": [
+            "freetype/2.13.0",
+            "fontconfig/2.14.2",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0"
+        ],
+        "libffi/3.4.4": [
+            "wayland/1.21.0",
+            "glib/2.76.2",
+            "harfbuzz/7.1.0"
+        ],
+        "libxml2/2.10.4": [
+            "wayland/1.21.0",
+            "xkbcommon/1.5.0"
+        ],
+        "expat/2.5.0": [
+            "wayland/1.21.0",
+            "poco/1.12.4",
+            "fontconfig/2.14.2",
+            "apr-util/1.6.1"
+        ],
+        "meson/1.1.0": [
+            "wayland/1.21.0",
+            "xkbcommon/1.5.0",
+            "glib/2.76.2",
+            "harfbuzz/7.1.0"
+        ],
+        "abseil/20220623.0": [
+            "grpc/1.50.1"
+        ],
+        "c-ares/1.19.0": [
+            "grpc/1.50.1"
+        ],
+        "openssl/3.1.0": [
+            "grpc/1.50.1",
+            "cyrus-sasl/2.1.27",
+            "civetweb/1.16",
+            "libevent/2.1.12",
+            "pulseaudio/14.2",
+            "libzip/1.9.2",
+            "websocketpp/0.8.2",
+            "ffmpeg/5.1"
+        ],
+        "re2/20230301": [
+            "grpc/1.50.1"
+        ],
+        "protobuf/3.21.9": [
+            "grpc/1.50.1"
+        ],
+        "googleapis/cci.20221108": [
+            "grpc/1.50.1"
+        ],
+        "cmake/3.26.3": [
+            "grpc/1.50.1",
+            "benchmark/1.8.0",
+            "cryptopp/8.7.0"
+        ],
+        "grpc-proto/cci.20220627": [
+            "grpc/1.50.1"
+        ],
+        "libdeflate/1.18": [
+            "libtiff/4.5.0"
+        ],
+        "xz_utils/5.4.2": [
+            "libtiff/4.5.0",
+            "libzip/1.9.2",
+            "ffmpeg/5.1"
+        ],
+        "libjpeg/9e": [
+            "libtiff/4.5.0",
+            "jasper/4.0.0"
+        ],
+        "jbig/20160605": [
+            "libtiff/4.5.0"
+        ],
+        "zstd/1.5.5": [
+            "libtiff/4.5.0",
+            "poco/1.12.4",
+            "libmysqlclient/8.0.31",
+            "libzip/1.9.2"
+        ],
+        "libwebp/1.3.0": [
+            "libtiff/4.5.0",
+            "ffmpeg/5.1"
+        ],
+        "pcre2/10.42": [
+            "poco/1.12.4",
+            "glib/2.76.2",
+            "harfbuzz/7.1.0"
+        ],
+        "sqlite3/3.40.1": [
+            "poco/1.12.4"
+        ],
+        "openssl/1.1.1t": [
+            "poco/1.12.4",
+            "libmysqlclient/8.0.31"
+        ],
+        "libpq/14.5": [
+            "poco/1.12.4"
+        ],
+        "libmysqlclient/8.0.31": [
+            "poco/1.12.4"
+        ],
+        "lz4/1.9.4": [
+            "poco/1.12.4",
+            "libmysqlclient/8.0.31",
+            "librdkafka/2.0.2"
+        ],
+        "xkeyboard-config/system": [
+            "xkbcommon/1.5.0"
+        ],
+        "xorg/system": [
+            "xkbcommon/1.5.0",
+            "pulseaudio/14.2"
+        ],
+        "bison/3.8.2": [
+            "xkbcommon/1.5.0",
+            "doxygen/1.9.4"
+        ],
+        "flex/2.6.4": [
+            "xkbcommon/1.5.0",
+            "bison/3.8.2",
+            "doxygen/1.9.4",
+            "doxygen/1.9.4"
+        ],
+        "ogg/1.3.5": [
+            "vorbis/1.3.7",
+            "pulseaudio/14.2",
+            "ffmpeg/5.1",
+            "flac/1.4.2"
+        ],
+        "freetype/2.13.0": [
+            "fontconfig/2.14.2",
+            "ffmpeg/5.1",
+            "harfbuzz/7.1.0"
+        ],
+        "gperf/3.1": [
+            "fontconfig/2.14.2"
+        ],
+        "meson/1.0.1": [
+            "fontconfig/2.14.2"
+        ],
+        "imath/3.1.6": [
+            "openexr/3.1.7"
+        ],
+        "opengl/system": [
+            "glfw/3.3.8",
+            "glu/system"
+        ],
+        "libelf/0.8.13": [
+            "glib/2.76.2",
+            "harfbuzz/7.1.0"
+        ],
+        "libgettext/0.21": [
+            "glib/2.76.2",
+            "harfbuzz/7.1.0"
+        ],
+        "xz_utils/5.4.0": [
+            "libunwind/1.6.2"
+        ],
+        "xtl/0.7.5": [
+            "xtensor/0.24.3"
+        ],
+        "nlohmann_json/3.11.2": [
+            "xtensor/0.24.3"
+        ],
+        "xsimd/10.0.0": [
+            "xtensor/0.24.3"
+        ],
+        "openssl/1.1.1s": [
+            "jwt-cpp/0.6.0"
+        ],
+        "libsndfile/1.2.0": [
+            "pulseaudio/14.2"
+        ],
+        "vorbis/1.3.7": [
+            "pulseaudio/14.2",
+            "ffmpeg/5.1"
+        ],
+        "flac/1.4.2": [
+            "pulseaudio/14.2"
+        ],
+        "opus/1.3.1": [
+            "pulseaudio/14.2",
+            "ffmpeg/5.1"
+        ],
+        "mpg123/1.31.2": [
+            "pulseaudio/14.2"
+        ],
+        "libmp3lame/3.100": [
+            "pulseaudio/14.2",
+            "ffmpeg/5.1"
+        ],
+        "libcap/2.66": [
+            "pulseaudio/14.2"
+        ],
+        "libalsa/1.2.7.2": [
+            "pulseaudio/14.2"
+        ],
+        "gettext/0.21": [
+            "pulseaudio/14.2"
+        ],
+        "ms-gsl/3.1.0": [
+            "stduuid/1.2.3"
+        ],
+        "zeromq/4.3.4": [
+            "cppzmq/4.9.0"
+        ],
+        "libsodium/1.0.18": [
+            "cppzmq/4.9.0",
+            "zeromq/4.3.4"
+        ],
+        "minizip/1.2.13": [
+            "assimp/5.2.2"
+        ],
+        "utfcpp/3.2.3": [
+            "assimp/5.2.2"
+        ],
+        "pugixml/1.13": [
+            "assimp/5.2.2"
+        ],
+        "kuba-zip/0.2.6": [
+            "assimp/5.2.2"
+        ],
+        "poly2tri/cci.20130502": [
+            "assimp/5.2.2"
+        ],
+        "rapidjson/cci.20220822": [
+            "assimp/5.2.2"
+        ],
+        "draco/1.5.5": [
+            "assimp/5.2.2"
+        ],
+        "clipper/4.10.0": [
+            "assimp/5.2.2"
+        ],
+        "stb/cci.20220909": [
+            "assimp/5.2.2"
+        ],
+        "openddl-parser/0.5.0": [
+            "assimp/5.2.2"
+        ],
+        "boost/1.81.0": [
+            "websocketpp/0.8.2"
+        ],
+        "apr/1.7.0": [
+            "apr-util/1.6.1"
+        ],
+        "openjpeg/2.5.0": [
+            "ffmpeg/5.1"
+        ],
+        "openh264/2.3.1": [
+            "ffmpeg/5.1"
+        ],
+        "libx264/cci.20220602": [
+            "ffmpeg/5.1"
+        ],
+        "libx265/3.4": [
+            "ffmpeg/5.1"
+        ],
+        "libvpx/1.11.0": [
+            "ffmpeg/5.1"
+        ],
+        "yasm/1.3.0": [
+            "ffmpeg/5.1",
+            "libvpx/1.11.0"
+        ],
+        "libfdk_aac/2.0.2": [
+            "ffmpeg/5.1"
+        ],
+        "glib/2.76.0": [
+            "harfbuzz/7.1.0"
+        ],
+        "xapian-core/1.4.19": [
+            "doxygen/1.9.4"
+        ],
+        "libuuid/1.0.3": [
+            "doxygen/1.9.4"
+        ],
+        "vulkan-headers/1.3.239.0": [
+            "vulkan-loader/1.3.239.0"
+        ],
+        "libcurl/8.0.1": [
+            "date/3.0.1"
+        ],
+        "libtool/2.4.6": [
+            "patchelf/0.13"
+        ]
+    }
+}
