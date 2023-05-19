@@ -112,7 +112,7 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     Add Artifactory server and its credentials.
     """
     add_default_arguments(subparser)
-    subparser.add_argument("artifactory_url", help="URL of the artifactory server")
+    subparser.add_argument("url", help="URL of the artifactory server")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
 
@@ -128,21 +128,21 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
         password = args.password.strip()
 
     name = args.name.strip()
-    artifactory_url = args.artifactory_url.rstrip("/")
+    url = args.url.rstrip("/")
 
     servers = read_servers()
     assert_new_server(name, servers)
 
-    token = api_request("get", f"{artifactory_url}/api/security/encryptedPassword", user, password)
+    token = api_request("get", f"{url}/api/security/encryptedPassword", user, password)
     # TODO: manage error with auth
 
     new_server = {"name": name,
-                  "url": artifactory_url,
+                  "url": url,
                   "user": user,
                   "password": token}
     servers.append(new_server)
     write_servers(servers)
-    ConanOutput().success(f"Server '{name}' ({artifactory_url}) added successfully")
+    ConanOutput().success(f"Server '{name}' ({url}) added successfully")
 
 
 @conan_subcommand()
@@ -156,15 +156,15 @@ def server_remove(conan_api: ConanAPI, parser, subparser, *args):
     name = args.name.strip()
     servers = read_servers()
     assert_existing_server(name, servers)
-    artifactory_url = None
+    url = None
     keep_servers = []
     for s in servers:
         if name != s["name"]:
             keep_servers.append(s)
         else:
-            artifactory_url = s["url"]
+            url = s["url"]
     write_servers(keep_servers)
-    ConanOutput().success(f"Server '{name}' ({artifactory_url}) removed successfully")
+    ConanOutput().success(f"Server '{name}' ({url}) removed successfully")
 
 
 def output_server_list_cli(servers):
