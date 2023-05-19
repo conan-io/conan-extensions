@@ -5,7 +5,7 @@ import os.path
 import requests
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import ConanOutput
+from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
@@ -33,7 +33,6 @@ def response_to_str(response):
             content = "{}: {}".format(response.status_code, response.reason)
 
         return content
-
     except Exception:
         return response.content
 
@@ -168,12 +167,7 @@ def remote_remove(conan_api: ConanAPI, parser, subparser, *args):
     ConanOutput().success(f"Remote '{name}' ({artifactory_url}) removed successfully")
 
 
-@conan_subcommand()
-def remote_list(conan_api: ConanAPI, parser, subparser, *args):
-    """
-    List Artifactory remotes.
-    """
-    remotes = read_remotes()
+def output_remote_list_cli(remotes):
     if remotes:
         for r in remotes:
             ConanOutput().info(f"{r['name']}:")
@@ -182,3 +176,20 @@ def remote_list(conan_api: ConanAPI, parser, subparser, *args):
             ConanOutput().info(f"  password: *******")
     else:
         ConanOutput().info("No remotes configured. Use `conan art:remote add` command to add one.")
+
+
+def output_remote_list_json(servers):
+    result = []
+    for s in servers:
+        s["password"] = "*******"
+        result.append(s)
+    cli_out_write(json.dumps({"remotes": result}, indent=4))
+
+
+@conan_subcommand(formatters={"cli": output_remote_list_cli,
+                              "json": output_remote_list_json})
+def remote_list(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    List Artifactory remotes.
+    """
+    return read_remotes()
