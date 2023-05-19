@@ -167,7 +167,7 @@ def server_remove(conan_api: ConanAPI, parser, subparser, *args):
     ConanOutput().success(f"Server '{name}' ({url}) removed successfully")
 
 
-def output_server_list_cli(servers):
+def output_server_list_text(servers):
     if servers:
         for s in servers:
             ConanOutput().info(f"{s['name']}:")
@@ -186,7 +186,7 @@ def output_server_list_json(servers):
     cli_out_write(json.dumps({"servers": result}, indent=4))
 
 
-@conan_subcommand(formatters={"cli": output_server_list_cli,
+@conan_subcommand(formatters={"text": output_server_list_text,
                               "json": output_server_list_json})
 def server_list(conan_api: ConanAPI, parser, subparser, *args):
     """
