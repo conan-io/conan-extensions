@@ -381,47 +381,47 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
     return manifest
 
 
-def read_remotes():
-    # FIXME: this code is repeated at art:remote command, feature to reuse code importing from other modules is needed
+def read_servers():
+    # FIXME: this code is repeated at art:server command, feature to reuse code importing from other modules is needed
     path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
-    remotes = []
+    servers = []
     if os.path.exists(path):
-        with open(path) as remotes_file:
-            data_encoded = remotes_file.read()
+        with open(path) as servers_file:
+            data_encoded = servers_file.read()
             data = base64.b64decode(data_encoded).decode('utf-8')
-            remotes_data = json.loads(data)
-            remotes = remotes_data["remotes"]
-    return remotes
+            servers_data = json.loads(data)
+            servers = servers_data["servers"]
+    return servers
 
 
-def get_remote(remote):
-    remotes = read_remotes()
-    remote_names = [r["name"] for r in remotes]
-    if remote not in remote_names:
-        raise ConanException(f"The remote specified ({remote}) is not configured. "
-                             f"Use `conan art:remote add {remote}` to configure it.")
-    for r in remotes:
-        if r["name"] == remote:
-            return remote
+def get_server(server):
+    servers = read_servers()
+    server_names = [s["name"] for s in servers]
+    if server not in server_names:
+        raise ConanException(f"The remote specified ({server}) is not configured. "
+                             f"Use `conan art:remote add {server}` to configure it.")
+    for s in servers:
+        if s["name"] == server:
+            return server
 
 
-def assert_remote_or_url_user_password(args):
-    if args.remote and args.url:
-        raise ConanException("--remote and --url (with --user & --password) flags cannot be used together.")
-    if not args.remote and not args.url:
-        raise ConanException("Specify --remote or --url (with --user & --password) flags to contact Artifactory.")
+def assert_server_or_url_user_password(args):
+    if args.server and args.url:
+        raise ConanException("--server and --url (with --user & --password) flags cannot be used together.")
+    if not args.server and not args.url:
+        raise ConanException("Specify --server or --url (with --user & --password) flags to contact Artifactory.")
     if args.url:
         if not args.user or not args.password:
             raise ConanException("Specify --user and --password to use with the --url flag to contact Artifactory.")
-    assert args.remote or (args.url and args.user and args.password)
+    assert args.server or (args.url and args.user and args.password)
 
 
 def get_url_user_password(args):
-    if args.remote:
-        remote = get_remote(args.remote)
-        url = remote["url"]
-        user = remote["user"]
-        password = remote["password"]
+    if args.server:
+        server = get_server(args.server)
+        url = server["url"]
+        user = server["user"]
+        password = server["password"]
     else:
         url = args.url
         user = args.user
@@ -447,7 +447,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
     subparser.add_argument("repository", help="Repository to look artifacts for.")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
                                          "This may be not necessary if all the information for the Conan "
                                          "artifacts is present in the local cache.")
@@ -458,7 +458,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
@@ -479,13 +479,13 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
@@ -540,13 +540,13 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
@@ -576,14 +576,14 @@ def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_name", help="BuildInfo name to get.")
     subparser.add_argument("build_number", help="BuildInfo number to get.")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for Artifactory")
     subparser.add_argument("--password", help="password for the user name for Artifactory")
 
     args = parser.parse_args(*args)
 
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
     url, user, password = get_url_user_password(args)
 
     request_url = f"{url}/api/build/{args.build_name}/{args.build_number}"
@@ -611,13 +611,13 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("--delete-all", help="The whole build is removed. Default false.",
                            action='store_true', default=False, )
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
@@ -644,7 +644,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_name", help="The current build name.")
     subparser.add_argument("build_number", help="The current build number.")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -654,7 +654,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                            action="append")
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
@@ -696,13 +696,13 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("sign_key_name", help="Signing Key name.")
 
-    subparser.add_argument("--remote", help="Remote name of the Artifactory to get the build info from")
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
 
     args = parser.parse_args(*args)
-    assert_remote_or_url_user_password(args)
+    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
