@@ -225,7 +225,7 @@ def test_server_complete():
     server_url = os.getenv("ART_URL")
     server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
 
-    out_add = run(f'conan art:server add server1 {server_url} --user {server_user} --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    out_add = run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     assert f"Remote 'server1' ({server_url}) added successfully" in out_add
     assert os.path.exists(os.path.join(os.path.dirname(__file__), ".art-servers"))
@@ -252,8 +252,8 @@ def test_server_add_error():
     server_url = os.getenv("ART_URL")
     server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
 
-    run(f'conan art:server add server1 {server_url} --user {server_user} --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    out_add = run(f'conan art:server add server1 other_url --user other_user --password other_pass')
+    run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    out_add = run(f'conan art:server add server1 other_url --user="other_user" --password="other_pass"')
 
     assert f"Remote 'server1' ({server_url}) already exist." in out_add
 
