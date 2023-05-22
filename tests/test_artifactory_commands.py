@@ -43,7 +43,7 @@ def test_build_info_create_no_deps():
     build_number = "1"
 
     run(f"conan config install {repo}")
-    run(f'conan art:server add artifactory --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
     run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
@@ -58,7 +58,7 @@ def test_build_info_create_no_deps():
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json')
 
     run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
-    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # aggregate the release and debug build infos into an aggregated one
     # we also have to set the properties so that the paths to the artifacts are linked
