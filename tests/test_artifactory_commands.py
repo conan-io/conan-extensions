@@ -270,7 +270,7 @@ def test_server_remove_error():
 
     out = run("conan art:server remove server1", error=True)
 
-    assert "Remote 'server1' does not exist." in out
+    assert "Server 'server1' does not exist." in out
 
 
 def test_server_list_empty():
