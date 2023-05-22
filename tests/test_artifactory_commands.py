@@ -227,7 +227,7 @@ def test_server_complete():
 
     out_add = run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    assert f"Remote 'server1' ({server_url}) added successfully" in out_add
+    assert f"Server 'server1' ({server_url}) added successfully" in out_add
     assert os.path.exists(os.path.join(os.path.dirname(__file__), ".art-servers"))
 
     out_list = run('conan art:server list')
@@ -239,7 +239,7 @@ def test_server_complete():
 
     out_remove = run('conan art:server remove server1')
 
-    assert f"Remote 'server1' ({server_url}) removed successfully" in out_remove
+    assert f"Server 'server1' ({server_url}) removed successfully" in out_remove
 
 
 @pytest.mark.requires_credentials
@@ -259,7 +259,7 @@ def test_server_add_error():
     run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     out_add = run(f'conan art:server add server1 other_url --user="other_user" --password="other_pass"', error=True)
 
-    assert f"Remote 'server1' ({server_url}) already exist." in out_add
+    assert f"Server 'server1' ({server_url}) already exist." in out_add
 
 
 def test_server_remove_error():
