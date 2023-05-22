@@ -458,7 +458,6 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
-    assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
