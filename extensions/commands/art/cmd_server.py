@@ -170,20 +170,17 @@ def server_remove(conan_api: ConanAPI, parser, subparser, *args):
 def output_server_list_text(servers):
     if servers:
         for s in servers:
-            ConanOutput().info(f"{s['name']}:")
-            ConanOutput().info(f"  url: {s['url']}")
-            ConanOutput().info(f"  user: {s['user']}")
-            ConanOutput().info(f"  password: *******")
+            cli_out_write(f"{s['name']}:")
+            cli_out_write(f"url: {s['url']}", indentation=2)
+            cli_out_write(f"user: {s['user']}", indentation=2)
+            cli_out_write(f"password: *******", indentation=2)
     else:
-        ConanOutput().info("No servers configured. Use `conan art:server add` command to add one.")
+        cli_out_write("No servers configured. Use `conan art:server add` command to add one.")
 
 
 def output_server_list_json(servers):
-    result = []
-    for s in servers:
-        s["password"] = "*******"
-        result.append(s)
-    cli_out_write(json.dumps({"servers": result}, indent=4))
+    [s.pop("password") for s in servers]
+    cli_out_write(json.dumps({"servers": servers}, indent=4))
 
 
 @conan_subcommand(formatters={"text": output_server_list_text,
