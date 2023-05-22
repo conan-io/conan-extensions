@@ -212,3 +212,75 @@ def test_fail_if_not_uploaded():
     out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}.json', error=True)
 
     assert "There are no artifacts for the mypkg/1.0#" in out
+
+
+@pytest.mark.requires_credentials
+def test_server_complete():
+    """
+    Test server add, list, remove commands
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    server_url = os.getenv("ART_URL")
+    server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+
+    out_add = run(f'conan art:server add server1 {server_url} --user {server_user} '
+                  f'--password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+
+    assert f"Remote 'server1' ({server_url}) added successfully" in out_add
+    assert os.path.exists(os.path.join(os.path.dirname(__file__), ".art-servers"))
+
+    out_list = run('conan art:server list')
+
+    assert "server1:" in out_list
+    assert f"url: {server_url}" in out_list
+    assert f"user: {server_user}" in out_list
+    assert "password: ***" in out_list
+
+    out_remove = run('conan art:server remove server1')
+
+    assert f"Remote 'server1' ({server_url}) removed successfully" in out_remove
+
+
+@pytest.mark.requires_credentials
+def test_server_add_error():
+    """
+    Test server add error when adding a server with same name
+    """
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    server_url = os.getenv("ART_URL")
+    server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+
+    run(f'conan art:server add server1 {server_url} --user {server_user} '
+        f'--password {os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+    out_add = run(f'conan art:server add server1 other_url --user other_user --password other_pass')
+
+    assert f"Remote 'server1' ({server_url}) already exist." in out_add
+
+
+def test_server_remove_error():
+    """
+    Test server remove errors when there is no server with the provided name
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+
+    out = run("conan art:server remove server1", error=True)
+
+    assert "Server 'server1' does not exist." in out
+
+
+def test_server_list_empty():
+    """
+    Test server list output when no servers are configured
+    """
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+
+    out = run("conan art:server list")
+
+    assert "No servers configured. Use `conan art:server add` command to add one." in out
