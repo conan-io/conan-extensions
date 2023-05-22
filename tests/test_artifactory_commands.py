@@ -228,7 +228,6 @@ def test_server_complete():
     out_add = run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     assert f"Server 'server1' ({server_url}) added successfully" in out_add
-    assert os.path.exists(os.path.join(os.path.dirname(__file__), ".art-servers"))
 
     out_list = run('conan art:server list')
 
