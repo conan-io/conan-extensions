@@ -249,11 +249,15 @@ def test_server_add_error():
     """
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
+    try:
+        run("conan art:server remove server1")  # Make sure the server is not configured
+    except:
+        pass
     server_url = os.getenv("ART_URL")
     server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
 
     run(f'conan art:server add server1 {server_url} --user="{server_user}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    out_add = run(f'conan art:server add server1 other_url --user="other_user" --password="other_pass"')
+    out_add = run(f'conan art:server add server1 other_url --user="other_user" --password="other_pass"', error=True)
 
     assert f"Remote 'server1' ({server_url}) already exist." in out_add
 
