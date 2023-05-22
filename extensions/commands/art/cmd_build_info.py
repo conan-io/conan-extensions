@@ -15,7 +15,7 @@ from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 
-REMOTES_FILE = "art-remote.conf"
+SERVERS_FILENAME = ".art-servers"
 
 
 def response_to_str(response):
@@ -383,7 +383,7 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
 
 def read_servers():
     # FIXME: this code is repeated at art:server command, feature to reuse code importing from other modules is needed
-    path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
+    path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
     servers = []
     if os.path.exists(path):
         with open(path) as servers_file:
@@ -398,8 +398,8 @@ def get_server(server):
     servers = read_servers()
     server_names = [s["name"] for s in servers]
     if server not in server_names:
-        raise ConanException(f"The remote specified ({server}) is not configured. "
-                             f"Use `conan art:remote add {server}` to configure it.")
+        raise ConanException(f"The server specified ({server}) is not configured. "
+                             f"Use `conan art:server add {server}` to configure it.")
     for s in servers:
         if s["name"] == server:
             return server
