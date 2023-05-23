@@ -88,14 +88,14 @@ def read_servers():
     return servers
 
 
-def get_server(server):
+def get_server(server_name):
     servers = read_servers()
     server_names = [s["name"] for s in servers]
-    if server not in server_names:
-        raise ConanException(f"The server specified ({server}) is not configured. "
-                             f"Use `conan art:server add {server}` to configure it.")
-    for s in servers:
-        if s["name"] == server:
+    if server_name not in server_names:
+        raise ConanException(f"The server specified ({server_name}) is not configured. "
+                             f"Use `conan art:server add {server_name}` to configure it.")
+    for server in servers:
+        if server["name"] == server_name:
             return server
 
 
