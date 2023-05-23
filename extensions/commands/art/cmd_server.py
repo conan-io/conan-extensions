@@ -9,7 +9,7 @@ from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
-REMOTES_FILE = ".art-servers"
+SERVERS_FILENAME = ".art-servers"
 
 
 def response_to_str(response):
@@ -63,7 +63,7 @@ def api_request(type, request_url, user=None, password=None, apikey=None, json_d
 
 
 def read_servers():
-    path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
+    path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
     servers = []
     if os.path.exists(path):
         with open(path) as servers_file:
@@ -75,7 +75,7 @@ def read_servers():
 
 
 def write_servers(servers):
-    path = os.path.join(os.path.dirname(__file__), REMOTES_FILE)
+    path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
     with open(path, "w") as servers_file:
         data = json.dumps({"servers": servers})
         servers_file.write(base64.b64encode(data.encode('utf-8')).decode('utf-8'))
