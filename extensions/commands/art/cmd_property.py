@@ -1,7 +1,6 @@
 import base64
 import json
 import os
-from pathlib import Path
 
 import requests
 
@@ -112,10 +111,11 @@ def assert_server_or_url_user_password(args):
 
 def get_url_user_password(args):
     if args.server:
-        server = get_server(args.server)
-        url = server["url"]
-        user = server["user"]
-        password = server["password"]
+        server_name = args.server.strip()
+        server = get_server(server_name)
+        url = server.get("url")
+        user = server.get("user")
+        password = server.get("password")
     else:
         url = args.url
         user = args.user
