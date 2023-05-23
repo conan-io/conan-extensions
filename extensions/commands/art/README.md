@@ -4,10 +4,31 @@
 
 These are commands to manage certain Artifactory features:
 
+- ``conan art:server``. Manages Artifactory server urls and credentials
+
 - ``conan art:build-info``. Manages JFROG BuildInfo
 
 - ``conan art:property``. Manages artifacts properties in Artifactory
 
+#### [conan art:server](cmd_server.py)
+
+```
+$ conan art:server --help
+usage: conan server [-h] [-v [V]] {add,list,remove} ...
+
+Manages Artifactory server and credentials.
+
+positional arguments:
+  {add,list,remove}  sub-command help
+    add              Add Artifactory server and its credentials.
+    list             List Artifactory servers.
+    remove           Remove Artifactory servers.
+
+options:
+  -h, --help         show this help message and exit
+  -v [V]             Level of detail of the output. Valid options from less verbose to more verbose: -vquiet,
+                     -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug, -vvv or -vtrace
+```
 
 #### [conan art:build-info](cmd_build_info.py)
 
