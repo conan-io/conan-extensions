@@ -15,8 +15,6 @@ from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 
-from cmd_server import read_servers
-
 SERVERS_FILENAME = ".art-servers"
 
 
@@ -383,17 +381,17 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
     return manifest
 
 
-# def read_servers():
-#     # FIXME: this code is repeated at art:server command, feature to reuse code importing from other modules is needed
-#     path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
-#     servers = []
-#     if os.path.exists(path):
-#         with open(path) as servers_file:
-#             data_encoded = servers_file.read()
-#             data = base64.b64decode(data_encoded).decode('utf-8')
-#             servers_data = json.loads(data)
-#             servers = servers_data["servers"]
-#     return servers
+def read_servers():
+    # FIXME: this code is repeated at art:server command, feature to reuse code importing from other modules is needed
+    path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
+    servers = []
+    if os.path.exists(path):
+        with open(path) as servers_file:
+            data_encoded = servers_file.read()
+            data = base64.b64decode(data_encoded).decode('utf-8')
+            servers_data = json.loads(data)
+            servers = servers_data["servers"]
+    return servers
 
 
 def get_server(server_name):
