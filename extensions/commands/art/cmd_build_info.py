@@ -13,6 +13,7 @@ from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
+from conan.tools.scm import Version
 
 
 def response_to_str(response):
@@ -334,11 +335,19 @@ def build_info(conan_api: ConanAPI, parser, *args):
     """
 
 
+def check_min_required_conan_version(min_ver):
+    if conan_version < Version(min_ver):
+        raise ConanException("This custom command is only compatible with " \
+                             f"Conan versions>={min_ver}. Please update Conan.")
+
+
 @conan_subcommand()
 def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates BuildInfo from a Conan graph json from a conan install or create.
     """
+
+    check_min_required_conan_version("2.0.6")
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
