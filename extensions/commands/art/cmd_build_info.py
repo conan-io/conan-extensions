@@ -405,11 +405,15 @@ def get_url_user_password(args):
     return url, user, password
 
 
-def _add_default_arguments(subparser):
-    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
-    subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
+def _add_default_arguments(subparser, is_bi_create=False):
+    url_help = "Artifactory url, like: https://<address>/artifactory."
+    if is_bi_create:
+        url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
+                    "local cache."
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from.")
+    subparser.add_argument("--url", help=url_help)
+    subparser.add_argument("--user", help="User name for the repository.")
+    subparser.add_argument("--password", help="Password for the user name.")
     return subparser
 
 
@@ -425,16 +429,12 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates BuildInfo from a Conan graph json from a conan install or create.
     """
-    _add_default_arguments(subparser)
+    _add_default_arguments(subparser, is_bi_create=True)
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
     subparser.add_argument("repository", help="Repository to look artifacts for.")
-
-    subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
-                                         "This may be not necessary if all the information for the Conan "
-                                         "artifacts is present in the local cache.")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
