@@ -99,11 +99,6 @@ def get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
-def get_node_by_id(nodes, id):
-    for node in nodes:
-        if node.get("id") == int(id):
-            return node
-
 def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
     local_tz_offset = now.astimezone().strftime('%z')
@@ -119,60 +114,6 @@ def get_formatted_time():
 
     return formatted_time
 
-
-def transitive_requires(nodes, node_id, include_root=False, invert_order=False):
-    requires_mapping = {node['id']: node['requires'] for node in nodes}
-
-    def dfs_paths(node, visited, path, result):
-        visited.add(node)
-        path.append(node)
-        if not requires_mapping[node]:
-            result.append(path.copy())
-        else:
-            for required_id_str in requires_mapping[node].keys():
-                required_id = int(required_id_str)
-                if required_id not in visited:
-                    dfs_paths(required_id, visited, path, result)
-        visited.remove(node)
-        path.pop()
-
-        return result
-
-    visited = set()
-    paths = list(dfs_paths(node_id, visited, [], []))
-    paths = paths if include_root else [path[1:] for path in paths]
-    paths = [path[::-1] for path in paths] if invert_order else paths
-    return paths
-
-
-def sublists_from_id(list_of_lists, target_id):
-    result = []
-    for sublist in list_of_lists:
-        if target_id in sublist:
-            index = sublist.index(target_id)
-            new_sublist = sublist[(index + 1):]
-            result.append(new_sublist)
-    return result
-
-
-def get_requested_by(nodes, node_id, artifact_type):
-    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
-    ret = []
-    for nodes_ids in sublists:
-        ref_list = []
-        for node_id in nodes_ids:
-            node = get_node_by_id(nodes, node_id)
-            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-            ref_list.append(f"{node.get('ref')}{pkg}")
-        ret.append(ref_list)
-    return ret
-
-
-def unique_requires(transitive_reqs):
-    unique_deps = set()
-    for dependencies in transitive_reqs:
-        unique_deps.update(dependencies)
-    return sorted(list(unique_deps))
 
 
 class BuildInfo:
@@ -287,10 +228,12 @@ class BuildInfo:
                                  "Please upload the package to the server and try again.")
 
         # complete the information for the artifacts:
-        if is_dependency:
-            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
-            for artifact in artifacts:
-                artifact.update({"requestedBy": requested_by})
+
+        # FIXME Update to new graph
+        # if is_dependency:
+        #     requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+        #     for artifact in artifacts:
+        #         artifact.update({"requestedBy": requested_by})
 
         return artifacts
 
@@ -301,11 +244,10 @@ class BuildInfo:
         except KeyError:
             raise ConanException("JSON does not contain graph information")
 
-        for node in nodes:
+        for id, node in nodes.items():
             ref = node.get("ref")
             if ref and ref != "conanfile":
-                transitive_reqs = transitive_requires(nodes, node.get("id"))
-                unique_reqs = unique_requires(transitive_reqs)
+                transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
 
                 # only add the nodes that were marked as built
                 if node.get("binary") == "Build":
@@ -319,8 +261,8 @@ class BuildInfo:
 
                     if self._with_dependencies:
                         all_dependencies = []
-                        for require_id in unique_reqs:
-                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
+                        for require_id in transitive_dependencies:
+                            deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
                                                                 is_dependency=True)
                             all_dependencies.extend(deps_artifacts)
 
@@ -339,7 +281,7 @@ class BuildInfo:
                         if self._with_dependencies:
                             all_dependencies = []
                             for require_id in unique_reqs:
-                                deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
+                                deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
                                                                     is_dependency=True)
                                 all_dependencies.extend(deps_artifacts)
 
