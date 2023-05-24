@@ -10,36 +10,10 @@ from conans.model.recipe_ref import RecipeReference
 from conans.model.package_ref import PkgReference
 from conan.errors import ConanException
 
-SERVERS_FILENAME = ".art-servers"
+from art.cmd_build_info import api_request, assert_server_or_url_user_password, get_url_user_password, response_to_str
 
 
-def response_to_str(response):
-    content = response.content
-    try:
-        # A bytes message, decode it as str
-        if isinstance(content, bytes):
-            content = content.decode()
-
-        content_type = response.headers.get("content-type")
-
-        if content_type == "application/json":
-            # Errors from Artifactory looks like:
-            #  {"errors" : [ {"status" : 400, "message" : "Bla bla bla"}]}
-            try:
-                data = json.loads(content)["errors"][0]
-                content = "{}: {}".format(data["status"], data["message"])
-            except Exception:
-                pass
-        elif "text/html" in content_type:
-            content = "{}: {}".format(response.status_code, response.reason)
-
-        return content
-
-    except Exception:
-        return response.content
-
-
-def get_path_from_ref(ref):
+def _get_path_from_ref(ref):
     try:
         package_ref = PkgReference.loads(ref)
         recipe_ref = package_ref.ref
@@ -53,77 +27,7 @@ def get_path_from_ref(ref):
     return f"_/{recipe_ref.name}/{recipe_ref.version}{rrev_path}{pkgid_path}{prev_path}"
 
 
-def api_request(type, request_url, user=None, password=None, json_data=None):
-
-    headers = {}
-    if json_data:
-        headers.update({"Content-Type": "application/json"})
-
-    requests_method = getattr(requests, type)
-    if user and password:
-        response = requests_method(request_url, auth=(
-            user, password), data=json_data, headers=headers)
-    else:
-        response = requests_method(request_url)
-
-    if response.status_code == 401:
-        raise Exception(response_to_str(response))
-    elif response.status_code not in [200, 204]:
-        raise Exception(response_to_str(response))
-
-    return response_to_str(response)
-
-
-def read_servers():
-    # FIXME: this code is repeated at art:server command, feature to reuse code importing from other modules is needed
-    path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
-    servers = []
-    if os.path.exists(path):
-        with open(path) as servers_file:
-            data_encoded = servers_file.read()
-            data = base64.b64decode(data_encoded).decode('utf-8')
-            servers_data = json.loads(data)
-            servers = servers_data["servers"]
-    return servers
-
-
-def get_server(server_name):
-    servers = read_servers()
-    server_names = [s["name"] for s in servers]
-    if server_name not in server_names:
-        raise ConanException(f"The server specified ({server_name}) is not configured. "
-                             f"Use `conan art:server add {server_name}` to configure it.")
-    for server in servers:
-        if server["name"] == server_name:
-            return server
-
-
-def assert_server_or_url_user_password(args):
-    if args.server and args.url:
-        raise ConanException("--server and --url (with --user & --password) flags cannot be used together.")
-    if not args.server and not args.url:
-        raise ConanException("Specify --server or --url (with --user & --password) flags to contact Artifactory.")
-    if args.url:
-        if not args.user or not args.password:
-            raise ConanException("Specify --user and --password to use with the --url flag to contact Artifactory.")
-    assert args.server or (args.url and args.user and args.password)
-
-
-def get_url_user_password(args):
-    if args.server:
-        server_name = args.server.strip()
-        server = get_server(server_name)
-        url = server.get("url")
-        user = server.get("user")
-        password = server.get("password")
-    else:
-        url = args.url
-        user = args.user
-        password = args.password
-    return url, user, password
-
-
-def add_default_arguments(subparser):
+def _add_default_arguments(subparser):
     subparser.add_argument("repository", help="Artifactory repository.")
     subparser.add_argument("reference", help="Conan reference.")
     subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
@@ -149,7 +53,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
     Append properties for artifacts under a Conan reference recursively.
     """
 
-    add_default_arguments(subparser)
+    _add_default_arguments(subparser)
 
     args = parser.parse_args(*args)
 
@@ -164,7 +68,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
     list_folders = "1"
 
     # get artifacts recursively from a starting path
-    root_path = get_path_from_ref(args.reference)
+    root_path = _get_path_from_ref(args.reference)
 
     url, user, password = get_url_user_password(args)
 
@@ -173,7 +77,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
     data = json.loads(api_request("get", request_url, user, password))
 
     # just consider those artifacts that have conan in the name
-    # conan_artifacts = [artifact for artifact in data.get("files") if "conan" in artifact.get('uri')]
+    # conan_artifacts = [artifact for artifact in data.get("files") if "conan" in artifact.get('uri')]
 
     # get properties for all artifacts
     for artifact in data.get("files"):
@@ -204,7 +108,7 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
     Set properties for artifacts under a Conan reference recursively.
     """
 
-    add_default_arguments(subparser)
+    _add_default_arguments(subparser)
 
     subparser.add_argument('--no-recursive', dest='recursive',
                            action='store_false', help='Will not recursively set properties.')
@@ -220,7 +124,7 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
         {"props": {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}})
 
     url, user, password = get_url_user_password(args)
-    request_url = f"{url}/api/metadata/{args.repository}/{get_path_from_ref(args.reference)}?&recursiveProperties={recursive}"
+    request_url = f"{url}/api/metadata/{args.repository}/{_get_path_from_ref(args.reference)}?&recursiveProperties={recursive}"
 
     api_request("patch", request_url, user, password, json_data=json_data)
 

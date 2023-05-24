@@ -62,7 +62,18 @@ def api_request(type, request_url, user=None, password=None, apikey=None, json_d
     return response_to_str(response)
 
 
-def read_servers():
+def get_server(server_name):
+    servers = _read_servers()
+    server_names = [s["name"] for s in servers]
+    if server_name not in server_names:
+        raise ConanException(f"The server specified ({server_name}) is not configured. "
+                             f"Use `conan art:server add {server_name}` to configure it.")
+    for server in servers:
+        if server["name"] == server_name:
+            return server
+
+
+def _read_servers():
     path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
     servers = []
     if os.path.exists(path):
@@ -74,27 +85,27 @@ def read_servers():
     return servers
 
 
-def write_servers(servers):
+def _write_servers(servers):
     path = os.path.join(os.path.dirname(__file__), SERVERS_FILENAME)
     with open(path, "w") as servers_file:
         data = json.dumps({"servers": servers})
         servers_file.write(base64.b64encode(data.encode('utf-8')).decode('utf-8'))
 
 
-def assert_new_server(server_name, servers):
+def _assert_new_server(server_name, servers):
     for s in servers:
         if server_name == s["name"]:
             raise ConanException(f"Server '{server_name}' ({s['url']}) already exist. "
                                  f"You can remove it using `conan art:server remove {server_name}`")
 
 
-def assert_existing_server(server_name, servers):
+def _assert_existing_server(server_name, servers):
     server_names = [s["name"] for s in servers]
     if server_name not in server_names:
         raise ConanException(f"Server '{server_name}' does not exist.")
 
 
-def add_default_arguments(subparser):
+def _add_default_arguments(subparser):
     subparser.add_argument("name", help="Name of the server")
     return subparser
 
@@ -111,7 +122,7 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     """
     Add Artifactory server and its credentials.
     """
-    add_default_arguments(subparser)
+    _add_default_arguments(subparser)
     subparser.add_argument("url", help="URL of the artifactory server")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
@@ -130,8 +141,8 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     name = args.name.strip()
     url = args.url.rstrip("/")
 
-    servers = read_servers()
-    assert_new_server(name, servers)
+    servers = _read_servers()
+    _assert_new_server(name, servers)
 
     token = api_request("get", f"{url}/api/security/encryptedPassword", user, password)
     # TODO: manage error with auth
@@ -141,7 +152,7 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
                   "user": user,
                   "password": token}
     servers.append(new_server)
-    write_servers(servers)
+    _write_servers(servers)
     ConanOutput().success(f"Server '{name}' ({url}) added successfully")
 
 
@@ -150,12 +161,12 @@ def server_remove(conan_api: ConanAPI, parser, subparser, *args):
     """
     Remove Artifactory servers.
     """
-    add_default_arguments(subparser)
+    _add_default_arguments(subparser)
     args = parser.parse_args(*args)
 
     name = args.name.strip()
-    servers = read_servers()
-    assert_existing_server(name, servers)
+    servers = _read_servers()
+    _assert_existing_server(name, servers)
     url = None
     keep_servers = []
     for s in servers:
@@ -163,11 +174,11 @@ def server_remove(conan_api: ConanAPI, parser, subparser, *args):
             keep_servers.append(s)
         else:
             url = s["url"]
-    write_servers(keep_servers)
+    _write_servers(keep_servers)
     ConanOutput().success(f"Server '{name}' ({url}) removed successfully")
 
 
-def output_server_list_text(servers):
+def _output_server_list_text(servers):
     if servers:
         for s in servers:
             cli_out_write(f"{s['name']}:")
@@ -178,15 +189,15 @@ def output_server_list_text(servers):
         cli_out_write("No servers configured. Use `conan art:server add` command to add one.")
 
 
-def output_server_list_json(servers):
+def _output_server_list_json(servers):
     [s.pop("password") for s in servers]
     cli_out_write(json.dumps({"servers": servers}, indent=4))
 
 
-@conan_subcommand(formatters={"text": output_server_list_text,
-                              "json": output_server_list_json})
+@conan_subcommand(formatters={"text": _output_server_list_text,
+                              "json": _output_server_list_json})
 def server_list(conan_api: ConanAPI, parser, subparser, *args):
     """
     List Artifactory servers.
     """
-    return read_servers()
+    return _read_servers()
