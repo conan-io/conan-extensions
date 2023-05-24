@@ -116,6 +116,36 @@ def get_formatted_time():
     return formatted_time
 
 
+def sublists_from_id(list_of_lists, target_id):
+    result = []
+    for sublist in list_of_lists:
+        if target_id in sublist:
+            index = sublist.index(target_id)
+            new_sublist = sublist[(index + 1):]
+            result.append(new_sublist)
+    return result
+
+
+def get_requested_by(nodes, node_id, artifact_type):
+    ret = []
+    for id, node in nodes.items():
+        if node_id in node.get("dependencies"):
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            ref_list.append(f"{node.get('ref')}{pkg}")
+        ret.append(ref_list)
+
+
+    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
+    ret = []
+    for nodes_ids in sublists:
+        ref_list = []
+        for node_id in nodes_ids:
+            node = get_node_by_id(nodes, node_id)
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            ref_list.append(f"{node.get('ref')}{pkg}")
+        ret.append(ref_list)
+    return ret
+
 
 class BuildInfo:
 
