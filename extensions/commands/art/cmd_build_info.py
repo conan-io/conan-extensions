@@ -39,7 +39,6 @@ def response_to_str(response):
             content = "{}: {}".format(response.status_code, response.reason)
 
         return content
-
     except Exception:
         return response.content
 
