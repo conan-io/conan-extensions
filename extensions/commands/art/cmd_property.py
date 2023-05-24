@@ -10,7 +10,7 @@ from conans.model.recipe_ref import RecipeReference
 from conans.model.package_ref import PkgReference
 from conan.errors import ConanException
 
-from art.cmd_build_info import api_request, assert_server_or_url_user_password, get_url_user_password, response_to_str
+from cmd_build_info import api_request, assert_server_or_url_user_password, get_url_user_password
 
 
 def _get_path_from_ref(ref):

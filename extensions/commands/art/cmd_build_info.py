@@ -15,7 +15,7 @@ from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 
-from art.cmd_server import get_server
+from cmd_server import get_server
 
 
 def response_to_str(response):

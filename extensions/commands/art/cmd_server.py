@@ -8,7 +8,7 @@ from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
-from art.cmd_build_info import api_request, response_to_str
+from cmd_build_info import api_request
 
 SERVERS_FILENAME = ".art-servers"
 
