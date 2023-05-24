@@ -2,6 +2,7 @@ import base64
 import getpass
 import json
 import os.path
+import requests
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput, cli_out_write
@@ -16,7 +17,7 @@ def response_to_str(response):
     try:
         # A bytes message, decode it as str
         if isinstance(content, bytes):
-            content = content.decode('utf-8')
+            content = content.decode()
 
         content_type = response.headers.get("content-type")
 
@@ -36,15 +37,12 @@ def response_to_str(response):
         return response.content
 
 
-def api_request(method, request_url, user=None, password=None, json_data=None,
-                sign_key_name=None):
+def api_request(type, request_url, user=None, password=None, json_data=None):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
-    if sign_key_name:
-        headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
-    requests_method = getattr(requests, method)
+    requests_method = getattr(requests, type)
     if user and password:
         response = requests_method(request_url, auth=(
             user, password), data=json_data, headers=headers)
@@ -52,9 +50,9 @@ def api_request(method, request_url, user=None, password=None, json_data=None,
         response = requests_method(request_url)
 
     if response.status_code == 401:
-        raise Exception(response_to_str(response))
+        raise ConanException(response_to_str(response))
     elif response.status_code not in [200, 204]:
-        raise Exception(response_to_str(response))
+        raise ConanException(response_to_str(response))
 
     return response_to_str(response)
 
