@@ -116,31 +116,35 @@ def get_formatted_time():
     return formatted_time
 
 
-def sublists_from_id(list_of_lists, target_id):
-    result = []
-    for sublist in list_of_lists:
-        if target_id in sublist:
-            index = sublist.index(target_id)
-            new_sublist = sublist[(index + 1):]
-            result.append(new_sublist)
-    return result
-
-
 def get_requested_by(nodes, node_id, artifact_type):
-    root_node = nodes.get("1")
-    for id, node in nodes.items():
-        if node_id in node.get("dependencies"):
-            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-            ref_list.append(f"{node.get('ref')}{pkg}")
-        ret.append(ref_list)
 
+    node_id = str(node_id)
+    root_direct = []
+    root_node_id = "1"
+    requested_by_ids = []
 
-    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
+    for id, node in nodes["1"].get("dependencies").items():
+        if node.get("direct") == "True":
+            root_direct.append(id)
+
+    if node_id in root_direct:
+        requested_by_ids.append([root_node_id])
+    else:
+        for direct_id in root_direct:
+            direct_node = nodes.get(direct_id)
+            all_requested_by = []
+            if node_id in direct_node.get("dependencies"):
+                sublist = list(nodes.get(direct_id).get("dependencies").keys())
+                sublist.reverse()
+                all_requested_by = sublist + [direct_id, root_node_id]
+            if all_requested_by:
+                requested_by_ids.append(all_requested_by)
+
     ret = []
-    for nodes_ids in sublists:
+    for nodes_ids in requested_by_ids:
         ref_list = []
         for node_id in nodes_ids:
-            node = get_node_by_id(nodes, node_id)
+            node = nodes.get(node_id)
             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
             ref_list.append(f"{node.get('ref')}{pkg}")
         ret.append(ref_list)
@@ -260,11 +264,10 @@ class BuildInfo:
 
         # complete the information for the artifacts:
 
-        # FIXME Update to new graph
-        # if is_dependency:
-        #     requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
-        #     for artifact in artifacts:
-        #         artifact.update({"requestedBy": requested_by})
+        if is_dependency:
+            requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+            for artifact in artifacts:
+                artifact.update({"requestedBy": requested_by})
 
         return artifacts
 
@@ -277,7 +280,7 @@ class BuildInfo:
 
         for id, node in nodes.items():
             ref = node.get("ref")
-            if ref and ref != "conanfile":
+            if ref:
                 transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
 
                 # only add the nodes that were marked as built
@@ -311,7 +314,7 @@ class BuildInfo:
                         # get the dependencies and its artifacts
                         if self._with_dependencies:
                             all_dependencies = []
-                            for require_id in unique_reqs:
+                            for require_id in transitive_dependencies:
                                 deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
                                                                     is_dependency=True)
                                 all_dependencies.extend(deps_artifacts)
@@ -401,6 +404,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     with open(args.json, 'r') as f:
         data = json.load(f)
 
+    # remove the 'conanfile' node
+    data["graph"]["nodes"].pop("0")
     bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
                    with_dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
                    apikey=args.apikey)
