@@ -127,7 +127,7 @@ def sublists_from_id(list_of_lists, target_id):
 
 
 def get_requested_by(nodes, node_id, artifact_type):
-    ret = []
+    root_node = nodes.get("1")
     for id, node in nodes.items():
         if node_id in node.get("dependencies"):
             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
