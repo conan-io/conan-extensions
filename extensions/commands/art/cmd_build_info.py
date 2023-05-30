@@ -14,6 +14,7 @@ from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
+from conan.tools.scm import Version
 
 from cmd_server import get_server
 
@@ -96,11 +97,6 @@ def get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
-def get_node_by_id(nodes, id):
-    for node in nodes:
-        if node.get("id") == int(id):
-            return node
-
 def get_formatted_time():
     now = datetime.datetime.now(datetime.timezone.utc)
     local_tz_offset = now.astimezone().strftime('%z')
@@ -117,59 +113,39 @@ def get_formatted_time():
     return formatted_time
 
 
-def transitive_requires(nodes, node_id, include_root=False, invert_order=False):
-    requires_mapping = {node['id']: node['requires'] for node in nodes}
-
-    def dfs_paths(node, visited, path, result):
-        visited.add(node)
-        path.append(node)
-        if not requires_mapping[node]:
-            result.append(path.copy())
-        else:
-            for required_id_str in requires_mapping[node].keys():
-                required_id = int(required_id_str)
-                if required_id not in visited:
-                    dfs_paths(required_id, visited, path, result)
-        visited.remove(node)
-        path.pop()
-
-        return result
-
-    visited = set()
-    paths = list(dfs_paths(node_id, visited, [], []))
-    paths = paths if include_root else [path[1:] for path in paths]
-    paths = [path[::-1] for path in paths] if invert_order else paths
-    return paths
-
-
-def sublists_from_id(list_of_lists, target_id):
-    result = []
-    for sublist in list_of_lists:
-        if target_id in sublist:
-            index = sublist.index(target_id)
-            new_sublist = sublist[(index + 1):]
-            result.append(new_sublist)
-    return result
-
-
 def get_requested_by(nodes, node_id, artifact_type):
-    sublists = sublists_from_id(transitive_requires(nodes, 0, invert_order=True), node_id)
+
+    node_id = str(node_id)
+    root_direct = []
+    root_node_id = "1"
+    requested_by_ids = []
+
+    for id, node in nodes["1"].get("dependencies").items():
+        if node.get("direct") == "True":
+            root_direct.append(id)
+
+    if node_id in root_direct:
+        requested_by_ids.append([root_node_id])
+    else:
+        for direct_id in root_direct:
+            direct_node = nodes.get(direct_id)
+            all_requested_by = []
+            if node_id in direct_node.get("dependencies"):
+                sublist = list(nodes.get(direct_id).get("dependencies").keys())
+                sublist.reverse()
+                all_requested_by = sublist + [direct_id, root_node_id]
+            if all_requested_by:
+                requested_by_ids.append(all_requested_by)
+
     ret = []
-    for nodes_ids in sublists:
+    for nodes_ids in requested_by_ids:
         ref_list = []
         for node_id in nodes_ids:
-            node = get_node_by_id(nodes, node_id)
+            node = nodes.get(node_id)
             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
             ref_list.append(f"{node.get('ref')}{pkg}")
         ret.append(ref_list)
     return ret
-
-
-def unique_requires(transitive_reqs):
-    unique_deps = set()
-    for dependencies in transitive_reqs:
-        unique_deps.update(dependencies)
-    return sorted(list(unique_deps))
 
 
 class BuildInfo:
@@ -283,6 +259,7 @@ class BuildInfo:
                                  "Please upload the package to the server and try again.")
 
         # complete the information for the artifacts:
+
         if is_dependency:
             requested_by = get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
             for artifact in artifacts:
@@ -297,11 +274,10 @@ class BuildInfo:
         except KeyError:
             raise ConanException("JSON does not contain graph information")
 
-        for node in nodes:
+        for id, node in nodes.items():
             ref = node.get("ref")
-            if ref and ref != "conanfile":
-                transitive_reqs = transitive_requires(nodes, node.get("id"))
-                unique_reqs = unique_requires(transitive_reqs)
+            if ref:
+                transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
 
                 # only add the nodes that were marked as built
                 if node.get("binary") == "Build":
@@ -315,8 +291,8 @@ class BuildInfo:
 
                     if self._with_dependencies:
                         all_dependencies = []
-                        for require_id in unique_reqs:
-                            deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "recipe",
+                        for require_id in transitive_dependencies:
+                            deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
                                                                 is_dependency=True)
                             all_dependencies.extend(deps_artifacts)
 
@@ -334,8 +310,8 @@ class BuildInfo:
                         # get the dependencies and its artifacts
                         if self._with_dependencies:
                             all_dependencies = []
-                            for require_id in unique_reqs:
-                                deps_artifacts = self.get_artifacts(get_node_by_id(nodes, require_id), "package",
+                            for require_id in transitive_dependencies:
+                                deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
                                                                     is_dependency=True)
                                 all_dependencies.extend(deps_artifacts)
 
@@ -424,12 +400,20 @@ def build_info(conan_api: ConanAPI, parser, *args):
     """
 
 
+def check_min_required_conan_version(min_ver):
+    if conan_version < Version(min_ver):
+        raise ConanException("This custom command is only compatible with " \
+                             f"Conan versions>={min_ver}. Please update Conan.")
+
+
 @conan_subcommand()
 def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates BuildInfo from a Conan graph json from a conan install or create.
     """
     _add_default_arguments(subparser, is_bi_create=True)
+
+    check_min_required_conan_version("2.0.6")
 
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
@@ -446,6 +430,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     with open(args.json, 'r') as f:
         data = json.load(f)
 
+    # remove the 'conanfile' node
+    data["graph"]["nodes"].pop("0")
     bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
                    with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
