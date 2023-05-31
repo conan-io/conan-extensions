@@ -43,6 +43,7 @@ def test_build_info_create_no_deps():
     build_number = "1"
 
     run(f"conan config install {repo}")
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
     run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
@@ -56,20 +57,20 @@ def test_build_info_create_no_deps():
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json')
 
-    run(f'conan art:build-info upload {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info upload {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # aggregate the release and debug build infos into an aggregated one
     # we also have to set the properties so that the paths to the artifacts are linked
     # with the build info in Artifactory
-    run(f'conan art:build-info append {build_name}_aggregated {build_number} {os.getenv("ART_URL")} --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}_aggregated.json')
-    run(f'conan art:build-info upload {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} > {build_name}_aggregated.json')
+    run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    run(f'conan art:build-info get {build_name}_release {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info get {build_name}_debug {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info get {build_name}_aggregated {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
+    run(f'conan art:build-info get {build_name}_debug {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info get {build_name}_aggregated {build_number} --server artifactory')
 
-    run(f'conan art:build-info promote {build_name}_aggregated {build_number} {os.getenv("ART_URL")} extensions-stg extensions-prod --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # The local clean is because later I'm going to do a conan install from prod repo 
     # and I want to make sure that the install succeeds because the package comes from 
@@ -85,9 +86,9 @@ def test_build_info_create_no_deps():
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Debug')
 
-    run(f'conan art:build-info delete {build_name}_release {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
-    run(f'conan art:build-info delete {build_name}_debug {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
-    run(f'conan art:build-info delete {build_name}_aggregated {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_release --server artifactory --build-number={build_number} --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_debug --server artifactory --build-number={build_number} --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_aggregated --url="{os.getenv("ART_URL")}" --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
     # even deleting the builds, the folders will stay there, so manually cleaning
     run('conan remove mypkg* -c -r extensions-prod')
@@ -117,6 +118,7 @@ def test_build_info_create_deps():
     #           +-----+
 
     run(f"conan config install {repo}")
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run("conan remove '*' -c")
 
@@ -143,18 +145,18 @@ def test_build_info_create_deps():
 
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
 
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_release.json')
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
 
-    run(f'conan art:build-info upload {build_name}_release.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info upload {build_name}_debug.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    run(f'conan art:build-info append {build_name}_aggregated {build_number} {os.getenv("ART_URL")} --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}_aggregated.json')
-    run(f'conan art:build-info upload {build_name}_aggregated.json {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} > {build_name}_aggregated.json')
+    run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    run(f'conan art:build-info get {build_name}_release {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info get {build_name}_debug {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    run(f'conan art:build-info get {build_name}_aggregated {build_number} {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
+    run(f'conan art:build-info get {build_name}_debug {build_number} --server artifactory')
+    run(f'conan art:build-info get {build_name}_aggregated {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # FIXME: commenting this part, promote with --dependencies does not work
     # wait until it's fixed or the new BuildInfo promotion is released
@@ -175,9 +177,9 @@ def test_build_info_create_deps():
     # Promotions using Release Bundles do work with depdendencies, but they are not implemented in the testing Artifactory
     # conan art:build-info create-bundle ${build_name}_aggregated.json develop full_bundle 1.0 ${ART_URL} test_key_pair --user=${CONAN_LOGIN_USERNAME_DEVELOP} --password="${CONAN_PASSWORD_DEVELOP}"
 
-    run(f'conan art:build-info delete {build_name}_release {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
-    run(f'conan art:build-info delete {build_name}_debug {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
-    run(f'conan art:build-info delete {build_name}_aggregated {os.getenv("ART_URL")} --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
     # even deleting the builds, the folders will stay there, so manually cleaning
     run('conan remove "*" -c -r extensions-prod')
@@ -209,7 +211,7 @@ def test_fail_if_not_uploaded():
     assert "Missing information in the Conan local cache, please provide " \
            "the --url and --repository arguments to retrieve the information from" in out
 
-    out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}.json', error=True)
+    out = run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" > {build_name}.json', error=True)
 
     assert "There are no artifacts for the mypkg/1.0#" in out
 

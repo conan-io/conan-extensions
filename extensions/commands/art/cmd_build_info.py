@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 import os
@@ -14,6 +15,8 @@ from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
+
+from cmd_server import get_server
 
 
 def response_to_str(response):
@@ -37,18 +40,15 @@ def response_to_str(response):
             content = "{}: {}".format(response.status_code, response.reason)
 
         return content
-
     except Exception:
         return response.content
 
 
-def api_request(method, request_url, user=None, password=None, apikey=None, json_data=None,
+def api_request(method, request_url, user=None, password=None, json_data=None,
                 sign_key_name=None):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
-    if apikey:
-        headers.update({"X-JFrog-Art-Api": apikey})
     if sign_key_name:
         headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
@@ -56,9 +56,6 @@ def api_request(method, request_url, user=None, password=None, apikey=None, json
     if user and password:
         response = requests_method(request_url, auth=(
             user, password), data=json_data, headers=headers)
-    elif apikey:
-        response = requests_method(
-            request_url, data=json_data, headers=headers)
     else:
         response = requests_method(request_url)
 
@@ -154,7 +151,7 @@ def get_requested_by(nodes, node_id, artifact_type):
 class BuildInfo:
 
     def __init__(self, graph, name, number, repository, with_dependencies=False, 
-                 url=None, user=None, password=None, apikey=None):
+                 url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
@@ -162,7 +159,6 @@ class BuildInfo:
         self._url = url
         self._user = user
         self._password = password
-        self._apikey = apikey
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
 
@@ -220,7 +216,7 @@ class BuildInfo:
                 if not self._cached_artifact_info.get(request_url):
                     checksums = None
                     try:
-                        response = api_request("get", request_url, self._user, self._password, self._apikey)
+                        response = api_request("get", request_url, self._user, self._password)
                         response_data = json.loads(response)
                         checksums = response_data.get("checksums")
                         self._cached_artifact_info[request_url] = checksums
@@ -360,6 +356,42 @@ def manifest_from_build_info(build_info, repository, with_dependencies=True):
     return manifest
 
 
+def assert_server_or_url_user_password(args):
+    if args.server and args.url:
+        raise ConanException("--server and --url (with --user & --password) flags cannot be used together.")
+    if not args.server and not args.url:
+        raise ConanException("Specify --server or --url (with --user & --password) flags to contact Artifactory.")
+    if args.url:
+        if not args.user or not args.password:
+            raise ConanException("Specify --user and --password to use with the --url flag to contact Artifactory.")
+    assert args.server or (args.url and args.user and args.password)
+
+
+def get_url_user_password(args):
+    if args.server:
+        server_name = args.server.strip()
+        server = get_server(server_name)
+        url = server.get("url")
+        user = server.get("user")
+        password = server.get("password")
+    else:
+        url = args.url
+        user = args.user
+        password = args.password
+    return url, user, password
+
+
+def _add_default_arguments(subparser, is_bi_create=False):
+    url_help = "Artifactory url, like: https://<address>/artifactory."
+    if is_bi_create:
+        url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
+                    "local cache."
+    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from.")
+    subparser.add_argument("--url", help=url_help)
+    subparser.add_argument("--user", help="User name for the repository.")
+    subparser.add_argument("--password", help="Password for the user name.")
+    return subparser
+
 
 @conan_command(group="Custom commands")
 def build_info(conan_api: ConanAPI, parser, *args):
@@ -379,6 +411,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates BuildInfo from a Conan graph json from a conan install or create.
     """
+    _add_default_arguments(subparser, is_bi_create=True)
 
     check_min_required_conan_version("2.0.6")
 
@@ -387,19 +420,12 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
     subparser.add_argument("repository", help="Repository to look artifacts for.")
 
-    subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory. "
-                                         "This may be not necessary if all the information for the Conan "
-                                         "artifacts is present in the local cache.")
-
-
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
+
+    url, user, password = get_url_user_password(args)
 
     with open(args.json, 'r') as f:
         data = json.load(f)
@@ -407,8 +433,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
     bi = BuildInfo(data, args.build_name, args.build_number, args.repository, 
-                   with_dependencies=args.with_dependencies, url=args.url, user=args.user, password=args.password,
-                   apikey=args.apikey)
+                   with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
 
@@ -418,14 +443,14 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     """
     Uploads BuildInfo json to repository.
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
 
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
     args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
 
     with open(args.build_info) as f:
         build_info_json = json.load(f)
@@ -444,8 +469,8 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
             artifact_properties = {}
             artifact_path = artifact.get('path')
             try:
-                request_url = f"{args.url}/api/storage/{artifact_path}?properties"
-                props_response = api_request("get", request_url, args.user, args.password, args.apikey)
+                request_url = f"{url}/api/storage/{artifact_path}?properties"
+                props_response = api_request("get", request_url, user, password)
                 artifact_properties = json.loads(props_response).get("properties")
             except:
                 pass
@@ -453,15 +478,12 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
             artifact_properties.setdefault("build.name", []).append(build_name)
             artifact_properties.setdefault("build.number", []).append(build_number)        
 
-            request_url = f"{args.url}/api/metadata/{artifact_path}"
-            api_request("patch", request_url, args.user, args.password,
-                        args.apikey, json_data=json.dumps({"props": artifact_properties}))
-
+            request_url = f"{url}/api/metadata/{artifact_path}"
+            api_request("patch", request_url, user, password, json_data=json.dumps({"props": artifact_properties}))
 
     # now upload the BuildInfo
-    request_url = f"{args.url}/api/build"
-    response = api_request("put", request_url, args.user, args.password,
-                           args.apikey, json_data=json.dumps(build_info_json))
+    request_url = f"{url}/api/build"
+    response = api_request("put", request_url, user, password, json_data=json.dumps(build_info_json))
     cli_out_write(response)
 
 
@@ -470,10 +492,10 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     """
     Promote the BuildInfo from the source to the target repository.
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("build_name", help="BuildInfo name to promote.")
     subparser.add_argument("build_number", help="BuildInfo number to promote.")
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("source_repo", help="Source repo for promotion.")
     subparser.add_argument("target_repo", help="Target repo for promotion.")
 
@@ -481,26 +503,24 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
 
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
     args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
 
     promotion_json = {
         "sourceRepo": args.source_repo,
         "targetRepo": args.target_repo,
-        # Conan promotions must always be copy, and the clean must be handled manually
+        # Conan's promotions must always be copy, and the clean must be handled manually
         # otherwise you can end up deleting recipe artifacts that other packages use
         "copy": "true",
         "dependencies": "true" if args.dependencies else "false",
         "comment": args.comment
     }
 
-    request_url = f"{args.url}/api/build/promote/{args.build_name}/{args.build_number}"
+    request_url = f"{url}/api/build/promote/{args.build_name}/{args.build_number}"
 
-    response = api_request("post", request_url, args.user, args.password, args.apikey,
-                           json_data=json.dumps(promotion_json))
+    response = api_request("post", request_url, user, password, json_data=json.dumps(promotion_json))
 
     cli_out_write(response)
 
@@ -510,20 +530,18 @@ def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
     """
     Get Build Info information.
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("build_name", help="BuildInfo name to get.")
     subparser.add_argument("build_number", help="BuildInfo number to get.")
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
-
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
 
     args = parser.parse_args(*args)
 
-    request_url = f"{args.url}/api/build/{args.build_name}/{args.build_number}"
+    assert_server_or_url_user_password(args)
+    url, user, password = get_url_user_password(args)
 
-    response = api_request("get", request_url, args.user, args.password, args.apikey)
+    request_url = f"{url}/api/build/{args.build_name}/{args.build_number}"
+    response = api_request("get", request_url, user, password)
 
     cli_out_write(response)
 
@@ -533,14 +551,13 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     """
     Removes builds stored in Artifactory. Useful for cleaning up old build info data.
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("build_name", help="BuildInfo name to delete.")
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
 
     subparser.add_argument("--build-number", help="BuildInfo numbers to promote. You can add " \
                                                   "several build-numbers for the same build-name, like: --build-number=1 --build-number=2.",
                            action='append')
-
     subparser.add_argument("--delete-artifacts", help="Build artifacts are also removed " \
                                                       "provided they have the corresponding build.name and build.number properties attached to them. " \
                                                       "Default false.",
@@ -548,11 +565,10 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("--delete-all", help="The whole build is removed. Default false.",
                            action='store_true', default=False, )
 
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
     args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
 
     delete_json = {
         "buildName": args.build_name,
@@ -561,10 +577,9 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
         "deleteAll": "true" if args.delete_all else "false",
     }
 
-    request_url = f"{args.url}/api/build/delete"
+    request_url = f"{url}/api/build/delete"
 
-    response = api_request("post", request_url, args.user, args.password, args.apikey,
-                           json_data=json.dumps(delete_json))
+    response = api_request("post", request_url, user, password, json_data=json.dumps(delete_json))
 
     cli_out_write(response)
 
@@ -574,38 +589,38 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     """
     Append published build to the build info.
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("build_name", help="The current build name.")
     subparser.add_argument("build_number", help="The current build number.")
 
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
-
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
-    subparser.add_argument("--build-info", help="Name and number for the Build Info already published in Artifactory. You can add multiple Builds " \
-                                                "like --build-info=build_name,build_number --build-info=build_name,build_number",
+    subparser.add_argument("--build-info", help="Name and number for the Build Info already published in Artifactory. "
+                                                "You can add multiple Builds like --build-info=build_name,build_number"
+                                                " --build-info=build_name,build_number",
                            action="append")
 
     args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
 
     for build_info in args.build_info:
         if not "," in build_info:
-            raise ConanException("Please, provide the build name and number to append in the format: --build-info=build_name,build_number")
+            raise ConanException("Please, provide the build name and number to append in the format: "
+                                 "--build-info=build_name,build_number")
 
     all_modules = []
 
     for build_info in args.build_info:
         name, number = build_info.split(",")
-        request_url = f"{args.url}/api/build/{name}/{number}"
-        response = api_request("get", request_url, args.user, args.password, args.apikey)
+        request_url = f"{url}/api/build/{name}/{number}"
+        response = api_request("get", request_url, user, password)
         json_data = json.loads(response)
         build_info = json_data.get("buildInfo")
         for module in build_info.get("modules"):
-           # avoid repeating shared recipe modules between builds
-           if not any(d['id'] == module.get('id') for d in all_modules):
-               all_modules.append(module)
+            # avoid repeating shared recipe modules between builds
+            if not any(d['id'] == module.get('id') for d in all_modules):
+                all_modules.append(module)
 
     bi = BuildInfo(None, args.build_name, args.build_number, None)
     bi_json = bi.header()
@@ -618,6 +633,7 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates an Artifactory Release Bundle from the information of the Build Info
     """
+    _add_default_arguments(subparser)
 
     subparser.add_argument("json", help="BuildInfo JSON.")
 
@@ -626,17 +642,12 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("bundle_name", help="The created bundle name.")
     subparser.add_argument("bundle_version", help="The created bundle version.")
 
-    subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory. "
-                                       "This may be not necessary if all the information for the Conan "
-                                       "artifacts is present in the local cache.")
-
     subparser.add_argument("sign_key_name", help="Signing Key name.")
 
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--apikey", help="apikey for the repository")
-
     args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
 
     with open(args.json, 'r') as f:
         data = json.load(f)
@@ -647,9 +658,9 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
         "payload": manifest
     }
 
-    request_url = f"{args.url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
+    request_url = f"{url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
 
-    response = api_request("post", request_url, args.user, args.password, args.apikey,
-                           json_data=json.dumps(bundle_json), sign_key_name=args.sign_key_name)
+    response = api_request("post", request_url, user, password, json_data=json.dumps(bundle_json),
+                           sign_key_name=args.sign_key_name)
 
     cli_out_write(response)
