@@ -9,6 +9,9 @@ jobs:
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
       ART_URL: "https://conanv2beta.jfrog.io/artifactory"
+    strategy:
+      matrix:
+        conan-version: ['latest', 'develop']
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
@@ -18,7 +21,14 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest git+https://github.com/conan-io/conan.git@release/2.0
-    - name: Conan latest - Python 3.6
+        pip install pytest
+    - name: Install Conan
+      run: |
+        if [ "${{ matrix.conan-version }}" == "latest" ]; then
+          pip install conan
+        elif [ "${{ matrix.conan-version }}" == "develop" ]; then
+          pip install git+https://github.com/conan-io/conan.git@release/2.0
+        fi
+    - name: Conan - Python 3.6
       run: |
         pytest -v tests
