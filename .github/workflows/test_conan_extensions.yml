@@ -1,7 +1,7 @@
 on: [pull_request, workflow_dispatch]
 
 jobs:
-  conan_stable_linux:
+  conan_linux:
     runs-on: ubuntu-20.04
     env:
       CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.CONAN_USER }}
@@ -18,7 +18,16 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest git+https://github.com/conan-io/conan.git@release/2.0
-    - name: Conan latest - Python 3.6
+        pip install pytest
+    - name: Install Conan latest
+      run: |
+        pip install conan
+    - name: Run tests - Conan latest / Python 3.6
+      run: |
+        pytest -v tests
+    - name: Install Conan develop
+      run: |
+        pip install git+https://github.com/conan-io/conan.git@release/2.0
+    - name: Run tests - Conan develop / Python 3.6
       run: |
         pytest -v tests
