@@ -2,62 +2,32 @@ import base64
 import getpass
 import json
 import os.path
-import requests
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
+from utils import api_request
+
 SERVERS_FILENAME = ".art-servers"
 
 
-def response_to_str(response):
-    content = response.content
-    try:
-        # A bytes message, decode it as str
-        if isinstance(content, bytes):
-            content = content.decode()
-
-        content_type = response.headers.get("content-type")
-
-        if content_type == "application/json":
-            # Errors from Artifactory looks like:
-            #  {"errors" : [ {"status" : 400, "message" : "Bla bla bla"}]}
-            try:
-                data = json.loads(content)["errors"][0]
-                content = "{}: {}".format(data["status"], data["message"])
-            except Exception:
-                pass
-        elif "text/html" in content_type:
-            content = "{}: {}".format(response.status_code, response.reason)
-
-        return content
-    except Exception:
-        return response.content
-
-
-def api_request(type, request_url, user=None, password=None, json_data=None):
-    headers = {}
-    if json_data:
-        headers.update({"Content-Type": "application/json"})
-
-    requests_method = getattr(requests, type)
-    if user and password:
-        response = requests_method(request_url, auth=(
-            user, password), data=json_data, headers=headers)
+def get_url_user_password(args):
+    if args.server:
+        server_name = args.server.strip()
+        server = _get_server(server_name)
+        url = server.get("url")
+        user = server.get("user")
+        password = server.get("password")
     else:
-        response = requests_method(request_url)
-
-    if response.status_code == 401:
-        raise ConanException(response_to_str(response))
-    elif response.status_code not in [200, 204]:
-        raise ConanException(response_to_str(response))
-
-    return response_to_str(response)
+        url = args.url
+        user = args.user
+        password = args.password
+    return url, user, password
 
 
-def get_server(server_name):
+def _get_server(server_name):
     servers = _read_servers()
     server_names = [s["name"] for s in servers]
     if server_name not in server_names:
@@ -105,7 +75,7 @@ def _add_default_arguments(subparser):
     return subparser
 
 
-@conan_command(group="Custom commands")
+@conan_command(group="Artifactory commands")
 def server(conan_api: ConanAPI, parser, *args):
     """
     Manages Artifactory server and credentials.

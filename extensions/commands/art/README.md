@@ -96,7 +96,7 @@ Then upload the created package to your repository:
 conan upload ... -c -r ...
 ```
 
-Using the generated JSON files you can create a BuildInfo JSON. To do this, you need to provide the build
+Using the generated JSON files you can create a Build Info JSON file. To do this, you need to provide the build
 name and number. You will also need to indicate the artifactory server to use:
 
 ```

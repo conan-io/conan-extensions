@@ -1,8 +1,4 @@
-import base64
 import json
-import os
-
-import requests
 
 from conan.api.conan_api import ConanAPI
 from conan.cli.command import conan_command, conan_subcommand
@@ -10,7 +6,27 @@ from conans.model.recipe_ref import RecipeReference
 from conans.model.package_ref import PkgReference
 from conan.errors import ConanException
 
-from cmd_build_info import api_request, assert_server_or_url_user_password, get_url_user_password
+from utils import api_request, assert_server_or_url_user_password
+from cmd_server import get_url_user_password
+
+
+def set_properties(properties, path, url, user, password, recursive):
+    json_data = json.dumps({"props": properties})
+    recursive = "1" if recursive else "0"
+    request_url = f"{url}/api/metadata/{path}?&recursiveProperties={recursive}"
+    api_request("patch", request_url, user, password, json_data=json_data)
+
+
+def get_properties(path, url, user, password):
+    properties = {}
+    request_url = f"{url}/api/storage/{path}?properties"
+
+    try:
+        props_response = api_request("get", request_url, user, password)
+        properties = json.loads(props_response).get("properties")
+    except:
+        pass
+    return properties
 
 
 def _get_path_from_ref(ref):
@@ -40,10 +56,10 @@ def _add_default_arguments(subparser):
     return subparser
 
 
-@conan_command(group="Custom commands")
+@conan_command(group="Artifactory commands")
 def property(conan_api: ConanAPI, parser, *args):
     """
-    Manages artifacts properties in Artifactory.
+    Manages Conan packages properties in Artifactory.
     """
 
 
@@ -76,36 +92,29 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
 
     data = json.loads(api_request("get", request_url, user, password))
 
+
     # just consider those artifacts that have conan in the name
     # conan_artifacts = [artifact for artifact in data.get("files") if "conan" in artifact.get('uri')]
 
     # get properties for all artifacts
     for artifact in data.get("files"):
         uri = artifact.get('uri')
+        path = f"{args.repository}/{root_path}{uri}"
 
-        request_url = f"{url}/api/storage/{args.repository}/{root_path}{uri}?properties"
-
-        artifact_properties = {}
-
-        try:
-            props_response = api_request("get", request_url, user, password)
-            artifact_properties = json.loads(props_response).get("properties")
-        except:
-            pass
+        artifact_properties = get_properties(path, url, user, password)
 
         for property in args.property:
             key, val = property.split('=')[0], property.split('=')[1]
             artifact_properties.setdefault(key, []).append(val)
 
         if artifact_properties:
-            request_url = f"{url}/api/metadata/{args.repository}/{root_path}{uri}?&recursiveProperties=0"
-            api_request("patch", request_url, user, password, json_data=json.dumps({"props": artifact_properties}))
+            set_properties(artifact_properties, path, url, user, password, False)
 
 
 @conan_subcommand()
 def property_set(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Set properties for artifacts under a Conan reference recursively.
+    Set properties for artifacts under a Conan reference.
     """
 
     _add_default_arguments(subparser)
@@ -118,64 +127,11 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
     if not args.property:
         raise ConanException("Please, add at least one property with the --property argument.")
 
+    # json_data = json.dumps(
+    #     {"props": {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}})
+    properties = {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}
+    path = f"{args.repository}/{_get_path_from_ref(args.reference)}"
+    url, user, password = get_url_user_password(args)
     recursive = "1" if args.recursive else "0"
 
-    json_data = json.dumps(
-        {"props": {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}})
-
-    url, user, password = get_url_user_password(args)
-    request_url = f"{url}/api/metadata/{args.repository}/{_get_path_from_ref(args.reference)}?&recursiveProperties={recursive}"
-
-    api_request("patch", request_url, user, password, json_data=json_data)
-
-
-@conan_subcommand()
-def property_build_info_add(conan_api: ConanAPI, parser, subparser, *args):
-    """
-    Load a Build Info JSON and add the build.number and build.name properties to all the artifacts present in the JSON. 
-    You can also add arbitrary properties with the --property argument.
-    """
-
-    subparser.add_argument("json", help="Build Info JSON.")
-
-    subparser.add_argument("--property", action='append',
-                           help='Property to add, like --property="key1=value1" --property="key2=value2". \
-                                 If the property already exists, the values are appended.')
-
-    subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
-    subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
-
-    args = parser.parse_args(*args)
-    assert_server_or_url_user_password(args)
-
-    with open(args.json, 'r') as f:
-        data = json.load(f)
-
-    build_name = data.get("name")
-    build_number = data.get("number")
-
-    url, user, password = get_url_user_password(args)
-
-    for module in data.get('modules'):
-        for artifact in module.get('artifacts'):
-            artifact_properties = {}
-            artifact_path = artifact.get('path')
-            try:
-                request_url = f"{url}/api/storage/{artifact_path}?properties"
-                props_response = api_request("get", request_url, user, password)
-                artifact_properties = json.loads(props_response).get("properties")
-            except:
-                pass
-
-            artifact_properties.setdefault("build.name", []).append(build_name)
-            artifact_properties.setdefault("build.number", []).append(build_number)
-
-            if args.property:
-                for property in args.property:
-                    key, val = property.split('=')[0], property.split('=')[1]
-                    artifact_properties.setdefault(key, []).append(val)
-
-            request_url = f"{url}/api/metadata/{artifact_path}"
-            api_request("patch", request_url, user, password, json_data=json.dumps({"props": artifact_properties}))
+    set_properties(properties, path, url, user, password, recursive)
