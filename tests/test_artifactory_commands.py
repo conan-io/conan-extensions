@@ -73,11 +73,11 @@ def test_build_info_create_no_deps():
 
     # Check the build infos are uploaded
     out = run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_release"' in out
     out = run(f'conan art:build-info get {build_name}_debug {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_debug"' in out
     out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --server artifactory')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_aggregated"' in out
 
     run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
@@ -163,11 +163,11 @@ def test_build_info_create_deps():
 
     # Check all build infos exist
     run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_release"' in out
     run(f'conan art:build-info get {build_name}_debug {build_number} --server artifactory')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_debug"' in out
     run(f'conan art:build-info get {build_name}_aggregated {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    assert "kk" in out
+    assert '"name" : "mybuildinfo_aggregated"' in out
 
     # FIXME: commenting this part, promote with --dependencies does not work
     # wait until it's fixed or the new BuildInfo promotion is released
