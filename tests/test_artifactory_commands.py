@@ -24,12 +24,9 @@ def conan_test():
     cwd = os.getcwd()
     os.chdir(current)
     run("conan profile detect")
-    run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
-    run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
-    # Make sure artifactory repos are empty before starting the test
-    run("conan remove mypkg* -c -r extensions-stg")
-    run("conan remove mypkg* -c -r extensions-prod")
     run("conan remove '*' -c")
+    run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
+    run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
@@ -44,6 +41,10 @@ def conan_test():
 
 @pytest.mark.requires_credentials
 def test_build_info_create_no_deps():
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
     build_name = "mybuildinfo"
     build_number = "1"
 
@@ -120,6 +121,11 @@ def test_build_info_create_deps():
     #           +--+--+
     #           |mypkg|
     #           +-----+
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
     build_name = "mybuildinfo"
     build_number = "1"
 
@@ -203,6 +209,10 @@ def test_fail_if_not_uploaded():
     creating the Build Infos. If those artifacts are not in the cache, we raise.
     """
 
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
     build_name = "mybuildinfo"
     build_number = "1"
 
@@ -225,6 +235,10 @@ def test_server_complete():
     """
     Test server add, list, remove commands
     """
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
 
     server_url = os.getenv("ART_URL")
     server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
@@ -250,6 +264,11 @@ def test_server_add_error():
     """
     Test server add error when adding a server with same name
     """
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
     try:
         run("conan art:server remove server1")  # Make sure the server is not configured
     except:
