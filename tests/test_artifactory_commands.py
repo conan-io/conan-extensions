@@ -56,16 +56,14 @@ def test_build_info_create_no_deps():
 
     # Create release pacakges & build info and upload them
     run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
-    
     run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
     run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
 
     # Create debug packages & build info and upload them
     run("conan create . --format json -tf='' -s build_type=Debug > create_debug.json")
-    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json')
-
     run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json')
     run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Aggregate the release and debug build infos into a new one to later do the promotion
@@ -150,13 +148,13 @@ def test_build_info_create_deps():
     run("conan new cmake_lib -d name=mypkg -d version=1.0 -d requires=liba/1.0 -d requires=libb/1.0 --force")
 
     run("conan create . --format json -tf='' -s build_type=Release --build=missing > create_release.json")
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
     run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
     
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
-    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
     run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Aggregate build infos and upload the new one
