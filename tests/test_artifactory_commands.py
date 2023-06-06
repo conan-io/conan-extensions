@@ -226,8 +226,6 @@ def test_server_complete():
     Test server add, list, remove commands
     """
 
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
     server_url = os.getenv("ART_URL")
     server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
 
@@ -252,8 +250,6 @@ def test_server_add_error():
     """
     Test server add error when adding a server with same name
     """
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
     try:
         run("conan art:server remove server1")  # Make sure the server is not configured
     except:
@@ -271,10 +267,6 @@ def test_server_remove_error():
     """
     Test server remove errors when there is no server with the provided name
     """
-
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
-
     out = run("conan art:server remove server1", error=True)
 
     assert "Server 'server1' does not exist." in out
@@ -284,10 +276,6 @@ def test_server_list_empty():
     """
     Test server list output when no servers are configured
     """
-
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
-
     out = run("conan art:server list")
 
     assert "No servers configured. Use `conan art:server add` command to add one." in out
