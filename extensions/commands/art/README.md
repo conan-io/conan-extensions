@@ -111,10 +111,18 @@ conan art:build-info upload mybuildname_release.json --server my_artifactory
 conan art:build-info upload mybuildname_debug.json <url> --server my_artifactory
 ```
 
-In this case we generated two BuildInfo's, for Release and Debug, we can merge those to
-create a new aggregated BuildInfo that we also will upload and set properties to:
+In this case we generated two BuildInfo's, for Release and Debug, but we can also merge those to
+create a new BuildInfo that aggregates that information:
 
 ```
 conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_release,1 --build-info=mybuildname_debug,1 --server my_artifactory > mybuildname_aggregated.json
 conan art:build-info upload mybuildname_aggregated.json --server my_artifactory"
 ```
+
+This is handy in order to make promotions of packages from one repository to another in Artifactory:
+
+```
+conan art:build-info promote mybuildname_aggregated 1 origin-repo destination-repo --server my_artifactory}
+```
+
+Now, both release and debug binaries from that pacakge ae available in the destination repository with just one command.
