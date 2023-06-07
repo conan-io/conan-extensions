@@ -18,6 +18,12 @@ from cmd_property import get_properties, set_properties
 from cmd_server import get_url_user_password
 
 
+def get_buildinfo(build_name, build_number, url, user, password):
+    request_url = f"{url}/api/build/{build_name}/{build_number}"
+    build_info = api_request("get", request_url, user, password)
+    return build_info
+
+
 def _get_remote_path(rrev, package_id=None, prev=None):
     ref = RecipeReference.loads(rrev)
     user = ref.user or "_"
@@ -456,10 +462,9 @@ def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
     assert_server_or_url_user_password(args)
     url, user, password = get_url_user_password(args)
 
-    request_url = f"{url}/api/build/{args.build_name}/{args.build_number}"
-    response = api_request("get", request_url, user, password)
+    bi_json = get_buildinfo(args.build_name, args.build_number, url, user, password)
 
-    cli_out_write(response)
+    cli_out_write(bi_json)
 
 
 @conan_subcommand()
@@ -529,10 +534,9 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
     for build_info in args.build_info:
         name, number = build_info.split(",")
-        request_url = f"{url}/api/build/{name}/{number}"
-        response = api_request("get", request_url, user, password)
-        json_data = json.loads(response)
-        build_info = json_data.get("buildInfo")
+        bi_json = get_buildinfo(name, number, url, user, password)
+        bi_data = json.loads(bi_json)
+        build_info = bi_data.get("buildInfo")
         for module in build_info.get("modules"):
             # avoid repeating shared recipe modules between builds
             if not any(d['id'] == module.get('id') for d in all_modules):
