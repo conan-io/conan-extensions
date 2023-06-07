@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write
+from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
@@ -356,6 +356,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
+    out = ConanOutput("art:build-info")
 
     url, user, password = get_url_user_password(args)
 
@@ -367,6 +368,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
                     with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
+    out.title("Verifying remote artifacts and generating BuildInfo")
     cli_out_write(bi.create())
 
 
@@ -378,6 +380,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     _add_default_arguments(subparser)
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
+    subparser.add_argument("--project", help="Project Key", default=None)
 
     args = parser.parse_args(*args)
     assert_server_or_url_user_password(args)
@@ -403,8 +406,13 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
             set_properties(artifact_properties, artifact_path, url, user, password, False)
 
+    out = ConanOutput("art:build-info")
+
+    out.title("Uploading BuildInfo to Artifactory server")
     # now upload the BuildInfo
     request_url = f"{url}/api/build"
+    if args.project is not None:
+        request_url = f"{request_url}?project={args.project}"
     response = api_request("put", request_url, user, password, json_data=json.dumps(build_info_json))
     cli_out_write(response)
 
