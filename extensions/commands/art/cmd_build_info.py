@@ -18,8 +18,10 @@ from cmd_property import get_properties, set_properties
 from cmd_server import get_url_user_password
 
 
-def get_buildinfo(build_name, build_number, url, user, password):
+def get_buildinfo(build_name, build_number, url, user, password, project=None):
     request_url = f"{url}/api/build/{build_name}/{build_number}"
+    if project is not None:
+        request_url = f"{request_url}?project={project}"
     build_info = api_request("get", request_url, user, password)
     return build_info
 
@@ -319,11 +321,14 @@ def _check_min_required_conan_version(min_ver):
                              f"Conan versions>={min_ver}. Please update Conan.")
 
 
-def _add_default_arguments(subparser, is_bi_create=False):
+def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=False):
     url_help = "Artifactory url, like: https://<address>/artifactory."
-    if is_bi_create:
+    if is_bi_create :
         url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
                     "local cache."
+    if not (is_bi_create_bundle or is_bi_create_bundle):
+        subparser.add_argument("--project", help="Project key for the Build Info in Artifactory", default=None)
+
     subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from.")
     subparser.add_argument("--url", help=url_help)
     subparser.add_argument("--user", help="User name for the repository.")
@@ -380,7 +385,6 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     _add_default_arguments(subparser)
 
     subparser.add_argument("build_info", help="BuildInfo json file.")
-    subparser.add_argument("--project", help="Project Key", default=None)
 
     args = parser.parse_args(*args)
     assert_server_or_url_user_password(args)
@@ -449,7 +453,8 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     }
 
     request_url = f"{url}/api/build/promote/{args.build_name}/{args.build_number}"
-
+    if args.project is not None:
+        request_url = f"{request_url}?project={args.project}"
     response = api_request("post", request_url, user, password, json_data=json.dumps(promotion_json))
 
     cli_out_write(response)
@@ -470,7 +475,7 @@ def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
     assert_server_or_url_user_password(args)
     url, user, password = get_url_user_password(args)
 
-    bi_json = get_buildinfo(args.build_name, args.build_number, url, user, password)
+    bi_json = get_buildinfo(args.build_name, args.build_number, url, user, password, args.project)
 
     cli_out_write(bi_json)
 
@@ -507,7 +512,8 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     }
 
     request_url = f"{url}/api/build/delete"
-
+    if args.project is not None:
+        request_url = f"{request_url}?project={args.project}"
     response = api_request("post", request_url, user, password, json_data=json.dumps(delete_json))
 
     cli_out_write(response)
@@ -542,7 +548,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
     for build_info in args.build_info:
         name, number = build_info.split(",")
-        bi_json = get_buildinfo(name, number, url, user, password)
+        bi_json = get_buildinfo(name, number, url, user, password, args.project)
         bi_data = json.loads(bi_json)
         build_info = bi_data.get("buildInfo")
         for module in build_info.get("modules"):
@@ -561,7 +567,7 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates an Artifactory Release Bundle from the information of the Build Info
     """
-    _add_default_arguments(subparser)
+    _add_default_arguments(subparser, is_bi_create_bundle=True)
 
     subparser.add_argument("json", help="BuildInfo JSON.")
 
