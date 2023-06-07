@@ -162,11 +162,11 @@ def test_build_info_create_deps():
     run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Check all build infos exist
-    run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
+    out = run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
     assert '"name" : "mybuildinfo_release"' in out
-    run(f'conan art:build-info get {build_name}_debug {build_number} --server artifactory')
+    out = run(f'conan art:build-info get {build_name}_debug {build_number} --server artifactory')
     assert '"name" : "mybuildinfo_debug"' in out
-    run(f'conan art:build-info get {build_name}_aggregated {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     assert '"name" : "mybuildinfo_aggregated"' in out
 
     # FIXME: commenting this part, promote with --dependencies does not work
