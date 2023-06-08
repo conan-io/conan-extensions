@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from tools import run, create_artifactory_project, delete_artifactory_project
+from tools import run
 
 import pytest
 
