@@ -505,10 +505,10 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
         "deleteArtifacts": "true" if args.delete_artifacts else "false",
         "deleteAll": "true" if args.delete_all else "false",
     }
+    if args.project:
+        delete_json["project"] = args.project
 
     request_url = f"{url}/api/build/delete"
-    if args.project is not None:
-        request_url = f"{request_url}?project={args.project}"
     response = api_request("post", request_url, user, password, json_data=json.dumps(delete_json))
 
     cli_out_write(response)
