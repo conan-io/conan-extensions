@@ -227,6 +227,9 @@ def test_build_info_project():
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r extensions-prod")
 
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
     build_name = "mybuildinfoproject"
     build_number = "1"
     project = "extensions-testing"
