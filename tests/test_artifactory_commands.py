@@ -221,6 +221,7 @@ def test_fail_if_not_uploaded():
 @pytest.mark.requires_credentials
 def test_build_info_project():
     """
+    Test that build info is correctly manages using a project in Artifactory
     """
     # Make sure artifactory repos are empty before starting the test
     run("conan remove mypkg* -c -r extensions-stg")
