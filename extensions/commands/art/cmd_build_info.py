@@ -505,6 +505,8 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
         "deleteArtifacts": "true" if args.delete_artifacts else "false",
         "deleteAll": "true" if args.delete_all else "false",
     }
+    # Deleting BIs from projets is not documented in the artifactory api: https://jfrog.com/help/r/jfrog-rest-apis/delete-builds
+    # the usual url parameter ?project={args.project} does not work here
     if args.project:
         delete_json["project"] = args.project
 
