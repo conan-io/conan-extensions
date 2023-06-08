@@ -234,41 +234,29 @@ def test_build_info_project():
     build_number = "1"
     project = "extensions-testing"
 
-    # Create artifactory project to run the test
-    url = os.getenv("ART_URL")
-    user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
-    password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
-    # create_artifactory_project(url, user, password, project, project)
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
-    try:
-        run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+    run("conan create . --format json -tf='' > create.json")
 
-        run("conan create . --format json -tf='' > create.json")
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg', error=True)
+    run("conan upload 'mypkg/1.0' -c -r extensions-stg")
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}.json')
+    run(f'conan art:build-info upload {build_name}.json --server artifactory --project {project}')
 
-        run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg', error=True)
-        run("conan upload 'mypkg/1.0' -c -r extensions-stg")
-        run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}.json')
-        run(f'conan art:build-info upload {build_name}.json --server artifactory --project {project}')
+    out = run(f'conan art:build-info get {build_name} {build_number} --project {project} --server artifactory')
+    assert '"name" : "mybuildinfoproject"' in out
+    run(f'conan art:build-info get {build_name} {build_number} --server artifactory', error=True)
 
-        out = run(f'conan art:build-info get {build_name} {build_number} --project {project} --server artifactory')
-        assert '"name" : "mybuildinfoproject"' in out
-        out = run(f'conan art:build-info get {build_name} {build_number}  --server artifactory')
-        assert "kk" in out
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name},{build_number} --project {project} > {build_name}_aggregated.json')
+    run(f'conan art:build-info upload {build_name}_aggregated.json --server artifactory --project {project}')
 
-        run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name},{build_number} --project {project} > {build_name}_aggregated.json')
-        run(f'conan art:build-info upload {build_name}_aggregated.json --server artifactory --project {project}')
+    run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --server artifactory --project {project} --comment "Promoting using build-info in project"')
 
-        run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --server artifactory --project {project} --comment "Promoting using build-info in project"')
+    run('conan remove mypkg* -c')
+    run('conan remove mypkg* -c -r extensions-stg')
+    run('conan install --requires=mypkg/1.0 -r extensions-prod')
 
-        run('conan remove mypkg* -c')
-        run('conan remove mypkg* -c -r extensions-stg')
-        run('conan install --requires=mypkg/1.0 -r extensions-prod')
-
-        run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --server artifactory --project {project} --delete-all --delete-artifacts')
-    finally:
-        pass
-        # Delete Artifactory project
-        #delete_artifactory_project(url, user, password, project)
+    run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --server artifactory --project {project} --delete-all --delete-artifacts')
 
 
 @pytest.mark.requires_credentials

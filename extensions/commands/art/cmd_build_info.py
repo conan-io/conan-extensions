@@ -317,7 +317,7 @@ def _manifest_from_build_info(build_info, repository, with_dependencies=True):
 
 def _check_min_required_conan_version(min_ver):
     if conan_version < Version(min_ver):
-        raise ConanException("This custom command is only compatible with " \
+        raise ConanException("This custom command is only compatible with "
                              f"Conan versions>={min_ver}. Please update Conan.")
 
 
