@@ -9,12 +9,12 @@ def deploy(graph, output_folder, **kwargs):
         if d.package_folder is None:
             continue
         # look for .dlls and .exes in the bin folder
-        for dir in ["bin", "lib"]:
-            bindir = os.path.join(d.package_folder, dir)
-            if not os.path.isdir(bindir):
+        for dir in [d.cpp_info.bindir, d.cpp_info.libdir]:
+            search_dir = os.path.join(d.package_folder, dir)
+            if not os.path.isdir(search_dir):
                 continue
-            for f in os.listdir(bindir):
-                src = os.path.join(bindir, f)
+            for f in os.listdir(search_dir):
+                src = os.path.join(search_dir, f)
                 if f.endswith(".dll") or f.endswith(".exe") or f.endswith(".dylib") or os.access(src, os.X_OK):
                     dst = os.path.join(output_folder, f)
                     shutil.copy2(src, dst)
