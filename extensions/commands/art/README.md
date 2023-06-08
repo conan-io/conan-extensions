@@ -4,10 +4,31 @@
 
 These are commands to manage certain Artifactory features:
 
+- ``conan art:server``. Manages Artifactory server urls and credentials
+
 - ``conan art:build-info``. Manages JFROG BuildInfo
 
-- ``conan art:build-info``. Manages artifacts properties in Artifactory
+- ``conan art:property``. Manages artifacts properties in Artifactory
 
+#### [conan art:server](cmd_server.py)
+
+```
+$ conan art:server --help
+usage: conan server [-h] [-v [V]] {add,list,remove} ...
+
+Manages Artifactory server and credentials.
+
+positional arguments:
+  {add,list,remove}  sub-command help
+    add              Add Artifactory server and its credentials.
+    list             List Artifactory servers.
+    remove           Remove Artifactory servers.
+
+options:
+  -h, --help         show this help message and exit
+  -v [V]             Level of detail of the output. Valid options from less verbose to more verbose: -vquiet,
+                     -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug, -vvv or -vtrace
+```
 
 #### [conan art:build-info](cmd_build_info.py)
 
@@ -56,7 +77,13 @@ optional arguments:
 
 ### Combining art:build-info and art:property to manage BuildInfo's in Artifactory
 
-First, get a JSON output from a package build. This could come from a ``conan install`` or a ``conan create``
+Firstly, configure your Artifactory server with the url and credentials you want to use (this will come handy in the next commands):
+
+```
+conan art:server add my_artifactory --user=<user> --password=<pass>
+```
+
+Now, get a JSON output from a package build. This could come from a ``conan install`` or a ``conan create``:
 
 ```
 conan create . --format json -s build_type=Release > create_release.json
@@ -69,25 +96,33 @@ Then upload the created package to your repository:
 conan upload ... -c -r ...
 ```
 
-Using the generated JSON files you can create a BuildInfo JSON. You have to pass the build
-name and number and also the url and credentials for the Artifactory repository:
+Using the generated JSON files you can create a Build Info JSON file. To do this, you need to provide the build
+name and number. You will also need to indicate the artifactory server to use:
 
 ```
-conan art:build-info create create_release.json mybuildname_release 1 <repo> --url=<url> --user=<user> --password=<pass> --with-dependencies > mybuildname_release.json
-conan art:build-info create create_debug.json mybuildname_debug 1 <repo> --url=<url> --user=<user> --password=<pass> --with-dependencies > mybuildname_debug.json
+conan art:build-info create create_release.json mybuildname_release 1 <repo> --server my_artifactory --with-dependencies > mybuildname_release.json
+conan art:build-info create create_debug.json mybuildname_debug 1 <repo> --server my_artifactory --with-dependencies > mybuildname_debug.json
 ```
 
-Finally, you can upload the BuildInfo's
+Finally, you can upload the BuildInfo's:
 
 ```
-conan art:build-info upload mybuildname_release.json <url> --user=<user> --password=<pass>
-conan art:build-info upload mybuildname_debug.json <url> --user=<user> --password=<pass>
+conan art:build-info upload mybuildname_release.json --server my_artifactory
+conan art:build-info upload mybuildname_debug.json <url> --server my_artifactory
 ```
 
-In this case we generated two BuilInfo's, for Release and Debug, we can merge those to
-create a new aggregated BuildInfo that we also will upload and set properties to:
+In this case we generated two BuildInfo's, for Release and Debug, but we can also merge those to
+create a new BuildInfo that aggregates that information:
 
 ```
-conan art:build-info append mybuildname_aggregated 1 <url> --build-info=mybuildname_release,1 --build-info=mybuildname_debug,1 --user=<user> --password=<pass> > mybuildname_aggregated.json
-conan art:build-info upload mybuildname_aggregated.json <url> --user=<user> --password="<pass>"
+conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_release,1 --build-info=mybuildname_debug,1 --server my_artifactory > mybuildname_aggregated.json
+conan art:build-info upload mybuildname_aggregated.json --server my_artifactory"
 ```
+
+This is handy in order to make promotions of packages from one repository to another in Artifactory:
+
+```
+conan art:build-info promote mybuildname_aggregated 1 origin-repo destination-repo --server my_artifactory}
+```
+
+Now, both release and debug binaries from that pacakge ae available in the destination repository with just one command.
