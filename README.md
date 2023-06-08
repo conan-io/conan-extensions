@@ -33,11 +33,11 @@ Commands useful in Conan Center Index or its forks
 
 Commands useful for managing BuildInfos and properties in Artifactory
 
-### [Deploy](extensions/deploy)
+### [Deployers](extensions/deployers)
 
 These are the current custom deployers. Recall they are experimental and can experience breaking changes, use them as a base to create your own under your control for stability.
 
-#### [Runtime Zipper](extensions/deploy/runtime_zip_deploy.py)
+#### [Runtime Zipper](extensions/deployers/runtime_zip_deploy.py)
 
 Makes a ZIP with all the executables
 
