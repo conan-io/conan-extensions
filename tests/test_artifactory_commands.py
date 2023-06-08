@@ -229,13 +229,13 @@ def test_build_info_project():
 
     build_name = "mybuildinfoproject"
     build_number = "1"
-    project = "myproject"
+    project = "extensions-testing"
 
     # Create artifactory project to run the test
     url = os.getenv("ART_URL")
     user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
     password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
-    create_artifactory_project(url, user, password, project, project)
+    # create_artifactory_project(url, user, password, project, project)
 
     try:
         run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
@@ -263,8 +263,9 @@ def test_build_info_project():
 
         run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --server artifactory --project {project} --delete-all --delete-artifacts')
     finally:
+        pass
         # Delete Artifactory project
-        delete_artifactory_project(url, user, password, project)
+        #delete_artifactory_project(url, user, password, project)
 
 
 @pytest.mark.requires_credentials
