@@ -250,9 +250,9 @@ def test_build_info_project():
         run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}.json')
         run(f'conan art:build-info upload {build_name}.json --server artifactory --project {project}')
 
-        out = run(f'conan art:build-info get {build_name} {build_number} --project {project}')
+        out = run(f'conan art:build-info get {build_name} {build_number} --project {project} --server artifactory')
         assert '"name" : "mybuildinfoproject"' in out
-        out = run(f'conan art:build-info get {build_name} {build_number}')
+        out = run(f'conan art:build-info get {build_name} {build_number}  --server artifactory')
         assert "kk" in out
 
         run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name},{build_number} --project {project} > {build_name}_aggregated.json')
