@@ -256,8 +256,8 @@ def test_build_info_project():
     run('conan remove mypkg* -c -r extensions-stg')
     run('conan install --requires=mypkg/1.0 -r extensions-prod')
 
-    run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory --project {project}')
-    run(f'conan art:build-info delete {build_name}_aggregated --delete-all --delete-artifacts --server artifactory --project {project}')
+    run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory')
+    run(f'conan art:build-info delete {build_name}_aggregated --delete-all --delete-artifacts --server artifactory')
 
 
 @pytest.mark.requires_credentials
