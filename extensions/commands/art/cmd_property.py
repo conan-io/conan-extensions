@@ -92,7 +92,7 @@ def add_default_arguments(subparser):
 @conan_command(group="Custom commands")
 def property(conan_api: ConanAPI, parser, *args):
     """
-    Sets artifacts properties in Artifactory.
+    Manages artifacts properties in Artifactory.
     """
 
 
@@ -105,6 +105,9 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
     add_default_arguments(subparser)
 
     args = parser.parse_args(*args)
+
+    if not args.property:
+        raise ConanException("Please, add at least one property with the --property argument.")
 
     # TODO: do we want to add properties to folders? it's slower but when
     # we set properties recursive the folders are also set, so setting also
@@ -139,10 +142,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
 
         for property in args.property:
             key, val = property.split('=')[0], property.split('=')[1]
-            if artifact_properties.get(key) and val not in artifact_properties.get(key):
-                artifact_properties[key].append(val)
-            else:
-                artifact_properties[key] = val
+            artifact_properties.setdefault(key, []).append(val)
 
         if artifact_properties:
             request_url = f"{args.url}/api/metadata/{args.repository}/{root_path}{uri}?&recursiveProperties=0"
@@ -162,6 +162,9 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_false', help='Will not recursively set properties.')
     args = parser.parse_args(*args)
 
+    if not args.property:
+        raise ConanException("Please, add at least one property with the --property argument.")
+
     recursive = "1" if args.recursive else "0"
 
     json_data = json.dumps(
@@ -175,13 +178,17 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
 @conan_subcommand()
 def property_build_info_add(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Load a Build Info JSON and add the build.number and build.name properties to all the artifacts present in the JSON.
+    Load a Build Info JSON and add the build.number and build.name properties to all the artifacts present in the JSON. 
+    You can also add arbitrary properties with the --property argument.
     """
 
     subparser.add_argument("json", help="Build Info JSON.")
     subparser.add_argument("url", help="Artifactory url, like: https://<address>/artifactory")
-    subparser.add_argument("repository", help="Artifactory repository.")
 
+    subparser.add_argument("--property", action='append',
+                           help='Property to add, like --property="key1=value1" --property="key2=value2". \
+                                 If the property already exists, the values are appended.')
+ 
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
     subparser.add_argument("--apikey", help="apikey for the repository")
@@ -199,23 +206,20 @@ def property_build_info_add(conan_api: ConanAPI, parser, subparser, *args):
             artifact_properties = {}
             artifact_path = artifact.get('path')
             try:
-                request_url = f"{args.url}/api/storage/{args.repository}/{artifact_path}?properties"
+                request_url = f"{args.url}/api/storage/{artifact_path}?properties"
                 props_response = api_request("get", request_url, args.user, args.password, args.apikey)
                 artifact_properties = json.loads(props_response).get("properties")
             except:
                 pass
 
-            if artifact_properties.get("build.name") and build_name not in artifact_properties.get("build.name"):
-                artifact_properties["build.name"].append(build_name)
-            else:
-                artifact_properties["build.name"] = build_name
+            artifact_properties.setdefault("build.name", []).append(build_name)
+            artifact_properties.setdefault("build.number", []).append(build_number)
 
-            if artifact_properties.get("build.number") and build_number not in artifact_properties.get("build.number"):
-                artifact_properties["build.number"].append(build_number)
-            else:
-                artifact_properties["build.number"] = build_number
-        
+            if args.property:
+                for property in args.property:
+                    key, val = property.split('=')[0], property.split('=')[1]
+                    artifact_properties.setdefault(key, []).append(val)
 
-            request_url = f"{args.url}/api/metadata/{args.repository}/{artifact_path}"
+            request_url = f"{args.url}/api/metadata/{artifact_path}"
             api_request("patch", request_url, args.user, args.password,
                         args.apikey, json_data=json.dumps({"props": artifact_properties}))

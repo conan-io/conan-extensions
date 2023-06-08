@@ -29,6 +29,9 @@ Commands useful for migrations
 
 Commands useful in Conan Center Index or its forks
 
+#### [Artifactory](extensions/commands/art/)
+
+Commands useful for managing BuildInfos and properties in Artifactory
 
 ### [Deploy](extensions/deploy)
 

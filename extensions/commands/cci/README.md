@@ -120,3 +120,24 @@ span-lite/0.10.3#5bfea5cdd772dd1236ce982842b040f1
 VERSION LIST
 ['zlib/1.2.13', 'zlib/1.2.12', 'zlib/1.2.11', 'span-lite/0.6.0', 'span-lite/0.7.0', 'span-lite/0.8.0', 'span-lite/0.8.1', 'span-lite/0.9.0', 'span-lite/0.9.2', 'span-lite/0.10.0', 'span-lite/0.10.1', 'span-lite/0.10.3']
 ```
+
+# [Upgrade Qt recipe version](cmd_upgrade_qt_recipe.py)
+
+Upgrades the Qt recipe with a new version of Qt. This command assumes that it's ran in the folder containing qt's `config.yml` file (in conan-center-index: recipes/qt)
+
+This command does the following:
+
+- add the version to `config.yml`
+- add the sources to  `conandata.yml`
+- reuse the patches from the previous version in `conandata.yml`
+- create `qtmodulesX.y.z.conf`
+- add the eventual new modules in `conanfile.py`'s `_submodules` variable. This can be done automatically only if the conanfile.py is already compatible with conan V2.
+
+**Parameters**
+
+- **version** _Required_: Version to add to Qt recipe.
+
+```bash
+$ conan cci:upgrade-qt-recipe 6.4.3
+qt version 6.4.3 successfully added to 6.x.x.
+```
