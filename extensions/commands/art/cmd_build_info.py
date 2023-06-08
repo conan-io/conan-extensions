@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write, ConanOutput
+from conan.api.output import cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
@@ -206,7 +206,7 @@ class _BuildInfo:
 
         if not artifacts:
             # we don't have the artifacts in the local cache
-            # it's possible that the packages came from an install without a build
+            # it's possible that the packages came from an install command without a build
             # so let's ask Artifactory about the checksums of the packages
             # we can use the Conan API to get the enabled remotes and iterate through them
             # but it may be better to use a specific repo when creating the build info ?
@@ -323,7 +323,7 @@ def _check_min_required_conan_version(min_ver):
 
 def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=False):
     url_help = "Artifactory url, like: https://<address>/artifactory."
-    if is_bi_create :
+    if is_bi_create:
         url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
                     "local cache."
     if not (is_bi_create_bundle or is_bi_create_bundle):
@@ -361,7 +361,6 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            action='store_true', default=False)
 
     args = parser.parse_args(*args)
-    out = ConanOutput("art:build-info")
 
     url, user, password = get_url_user_password(args)
 
@@ -373,7 +372,6 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
                     with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
-    out.title("Verifying remote artifacts and generating BuildInfo")
     cli_out_write(bi.create())
 
 
@@ -410,9 +408,6 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
             set_properties(artifact_properties, artifact_path, url, user, password, False)
 
-    out = ConanOutput("art:build-info")
-
-    out.title("Uploading BuildInfo to Artifactory server")
     # now upload the BuildInfo
     request_url = f"{url}/api/build"
     if args.project is not None:
