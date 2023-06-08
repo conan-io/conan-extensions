@@ -1,10 +1,10 @@
+import shutil
 import tempfile
-import textwrap
 import os
 
 import pytest
 
-from tools import save, run
+from tools import run
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +33,7 @@ def test_deploy_runtime_zip():
     run("conan create .")
 
     run("conan install --requires hello/0.1 --deploy=runtime_zip_deploy")
-    assert True
-
-
-    
+    shutil.unpack_archive("runtime.zip", "zip_contents")
+    dir_list = os.listdir("zip_contents")
+    assert len(dir_list) == 1
+    assert isinstance(dir_list[0], str) and dir_list[0].startswith("hello")
