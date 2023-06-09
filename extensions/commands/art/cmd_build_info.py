@@ -326,7 +326,7 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
     if is_bi_create:
         url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
                     "local cache."
-    if not (is_bi_create_bundle or is_bi_create_bundle):
+    if not (is_bi_create or is_bi_create_bundle):
         subparser.add_argument("--project", help="Project key for the Build Info in Artifactory", default=None)
 
     subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from.")
