@@ -31,7 +31,7 @@ Commands useful in Conan Center Index or its forks
 
 #### [Artifactory](extensions/commands/art/)
 
-Commands useful for managing BuildInfos and properties in Artifactory
+Commands useful for managing [JFrog Build Infos](https://www.buildinfo.org/) and properties in Artifactory.
 
 ### [Deployers](extensions/deployers)
 
