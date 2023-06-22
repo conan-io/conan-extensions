@@ -32,7 +32,7 @@ def test_deploy_runtime_zip():
     run("conan profile detect")
     run("conan create .")
 
-    run("conan install --requires hello/0.1 --deploy=runtime_zip_deploy")
+    run("conan install --requires hello/0.1 --deployer=runtime_zip_deploy")
     shutil.unpack_archive("runtime.zip", "zip_contents")
     dir_list = os.listdir("zip_contents")
     assert len(dir_list) == 1

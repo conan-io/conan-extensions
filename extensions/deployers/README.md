@@ -3,7 +3,7 @@
 - Runtime Zipper
 
 ```sh
-$ conan install --requires=fmt/10.0.0 -o="fmt/*:shared=True" --deploy=runtime_zip_deploy
+$ conan install --requires=fmt/10.0.0 -o="fmt/*:shared=True" --deployer=runtime_zip_deploy
 # ...
 ======== Computing necessary packages ========
 Requirements
