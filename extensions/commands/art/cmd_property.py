@@ -56,7 +56,7 @@ def _add_default_arguments(subparser):
     return subparser
 
 
-@conan_command(group="Artifactory commands")
+@conan_command(group="Artifactory")
 def property(conan_api: ConanAPI, parser, *args):
     """
     Manages Conan packages properties in Artifactory.

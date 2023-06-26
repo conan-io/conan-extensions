@@ -336,7 +336,7 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
     return subparser
 
 
-@conan_command(group="Artifactory commands")
+@conan_command(group="Artifactory")
 def build_info(conan_api: ConanAPI, parser, *args):
     """
     Manages JFrog Build Info (https://www.buildinfo.org/)
