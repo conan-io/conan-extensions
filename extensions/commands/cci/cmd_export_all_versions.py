@@ -101,7 +101,7 @@ def export_all_versions(conan_api, parser, *args):
         folders_to_export = item[recipe_name][0]['folders'] if isinstance(item, dict) else None
         out.verbose(f"Processing recipe '{recipe_name}'")
 
-        recipe_folder = os.path.join("recipes", recipe_name)
+        recipe_folder = os.path.join(args.path, recipe_name)
         if not os.path.isdir(recipe_folder):
             raise ConanException(f"Invalid user input: '{recipe_name}' folder does not exist")
 
