@@ -103,11 +103,13 @@ def export_all_versions(conan_api, parser, *args):
 
         recipe_folder = os.path.join(args.path, recipe_name)
         if not os.path.isdir(recipe_folder):
-            raise ConanException(f"Invalid user input: '{recipe_name}' folder does not exist")
+            raise ConanException(f"Invalid user input: '{recipe_name}' does not exist or is not a dir")
 
         config_file = os.path.join(recipe_folder, "config.yml")
         if not os.path.isfile(config_file):
-            raise ConanException(f"The file {config_file} does not exist")
+            out.error(f"The file {config_file} does not exist")
+            failed[recipe_name] = "no config.yml"
+            continue
 
         config = yaml.safe_load(open(config_file, "r"))
         for version in config["versions"]:
