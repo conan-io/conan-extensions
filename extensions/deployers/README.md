@@ -20,3 +20,36 @@ Archive:  runtime.zip
   inflating: libfmt.10.0.0.dylib     
   inflating: libfmt.10.dylib
 ```
+
+- Licenses Zipper
+
+```sh
+$ conan install --requires=restinio/0.6.15 --deployer=licenses
+# ...
+======== Installing packages ========
+asio/1.22.1: Already installed! (1 of 8)
+expected-lite/0.6.3: Already installed! (2 of 8)
+fmt/8.1.1: Already installed! (3 of 8)
+http_parser/2.9.4: Already installed! (4 of 8)
+optional-lite/3.5.0: Already installed! (5 of 8)
+string-view-lite/1.6.0: Already installed! (6 of 8)
+variant-lite/2.0.0: Already installed! (7 of 8)
+restinio/0.6.15: Already installed! (8 of 8)
+
+======== Finalizing install (deploy, generators) ========
+cli: Generating aggregated env files
+cli: Generated aggregated env files: ['conanbuild.sh', 'conanrun.sh']
+Install finished successfully
+$ unzip -l licenses.zip
+Archive:  licenses.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+     1575  05-25-2022 23:38   Users/christopherm/conan-extensions/licenses/restinio/0.6.15/LICENSE
+     1077  03-24-2020 03:54   Users/christopherm/conan-extensions/licenses/http_parser/2.9.4/LICENSE-MIT
+     1408  07-17-2023 11:26   Users/christopherm/conan-extensions/licenses/fmt/8.1.1/LICENSE.rst
+     1338  03-21-2023 06:40   Users/christopherm/conan-extensions/licenses/expected-lite/0.6.3/LICENSE.txt
+     1338  09-19-2021 01:17   Users/christopherm/conan-extensions/licenses/optional-lite/3.5.0/LICENSE.txt
+     1338  10-09-2020 07:01   Users/christopherm/conan-extensions/licenses/string-view-lite/1.6.0/LICENSE.txt
+     1338  11-08-2020 13:51   Users/christopherm/conan-extensions/licenses/variant-lite/2.0.0/LICENSE.txt
+     1338  03-15-2022 16:16   Users/christopherm/conan-extensions/licenses/asio/1.22.1/LICENSE_1_0.txt
+```
