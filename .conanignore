@@ -11,5 +11,3 @@ tmp/*
 tmp2/*
 .vscode/*
 .idea/*
-.conanrc
-.conan2-ext-testing/*
