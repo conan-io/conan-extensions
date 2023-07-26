@@ -38,7 +38,7 @@ def test_deploy_licenses():
         """)
     
     # Let's build a application to bundle
-    save("conanfile.py", confile)
+    save("conanfile.py", conanfile)
     run("conan profile detect")
     run("conan create .")
 
