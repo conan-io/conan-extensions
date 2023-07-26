@@ -31,7 +31,8 @@ def test_deploy_licenses():
         from conan.tools.files import save
         
         class Pkg(ConanFile):
-            name = "pkg"
+            name = "hello"
+            version = "0.1"
 
             def package(self):
                 save(self, os.path.join(self.package_folder, "licences", "hello.txt"), "exmaple licenses")
