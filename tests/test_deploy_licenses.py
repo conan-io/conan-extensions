@@ -29,6 +29,8 @@ def test_deploy_licenses():
     conanfile = textwrap.dedent("""
         from conan import ConanFile
         from conan.tools.files import save
+        import os
+        
         
         class Pkg(ConanFile):
             name = "hello"
