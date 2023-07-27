@@ -41,7 +41,7 @@ These are the current custom deployers. Recall they are experimental and can exp
 
 Makes a ZIP with all the executables and runtimes
 
-#### [Runtime Zipper](extensions/deployers/licenses.py)
+#### [Licenses Zipper](extensions/deployers/licenses.py)
 
 Makes a ZIP with all the licenses from the graph
 

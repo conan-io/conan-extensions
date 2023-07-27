@@ -45,7 +45,7 @@ def test_deploy_licenses():
     run("conan profile detect")
     run("conan create .")
 
-    run("conan install --requires hello/0.1 --deployer=licences")
+    run("conan install --requires hello/0.1 --deployer=licenses")
     shutil.unpack_archive("licenses.zip", "zip_contents")
     dir_list = os.listdir("zip_contents")
     assert len(dir_list) == 1
