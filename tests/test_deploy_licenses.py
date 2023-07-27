@@ -37,7 +37,7 @@ def test_deploy_licenses():
             version = "0.1"
 
             def package(self):
-                save(self, os.path.join(self.package_folder, "licences", "hello.txt"), "exmaple licenses")
+                save(self, os.path.join(self.package_folder, "licenses", "hello.txt"), "example licenses")
         """)
     
     # Let's build a application to bundle
@@ -47,6 +47,4 @@ def test_deploy_licenses():
 
     run("conan install --requires hello/0.1 --deployer=licenses")
     shutil.unpack_archive("licenses.zip", "zip_contents")
-    dir_list = os.listdir("zip_contents")
-    assert len(dir_list) == 1
-    assert isinstance(dir_list[0], str) and dir_list[0].startswith("hello")
+    assert os.path.isfile(os.path.join("zip_contents", "hello", "0.1", "hello.txt"))

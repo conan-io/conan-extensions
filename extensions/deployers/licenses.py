@@ -32,10 +32,11 @@ def deploy(graph, output_folder, **kwargs):
             out.debug(src)
             out.debug(dst)
             copy(conanfile, f, src, dst) # Using the conan help because it make's parent folders
-            files.append(os.path.join(dst,f))
+            files.append(os.path.join(str(d.ref),f))
 
     out.trace(files)
     with zipfile.ZipFile(os.path.join(output_folder, 'licenses.zip'), 'w') as licenses_zip:
         for f in files:
-            licenses_zip.write(f, arcname=None, compress_type=zipfile.ZIP_DEFLATED)
-            os.remove(f) # Delete all the files we copied! This is so the source control stays clean
+            file = os.path.join(tmp_dir, f)
+            licenses_zip.write(file, arcname=f, compress_type=zipfile.ZIP_DEFLATED)
+            os.remove(file) # Delete all the files we copied! This is so the source control stays clean
