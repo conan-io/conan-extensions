@@ -1,4 +1,5 @@
 # Conan Extensions
+
 This repository contains extensions for Conan, such as [custom commands](https://docs.conan.io/2/reference/extensions/custom_commands.html)
 and [deployers](https://docs.conan.io/2/reference/extensions/deployers.html),
 useful for different purposes, like [Artifactory](https://jfrog.com/artifactory) tasks, conan-center-index, etc.
@@ -15,7 +16,6 @@ conan config install https://github.com/conan-io/conan-extensions.git
 ```
 
 Afterwards, running `conan --help` should show you all the custom commands available.
-
 
 ### Custom Commands
 
@@ -39,7 +39,11 @@ These are the current custom deployers. Recall they are experimental and can exp
 
 #### [Runtime Zipper](extensions/deployers/runtime_zip_deploy.py)
 
-Makes a ZIP with all the executables
+Makes a ZIP with all the executables and runtimes
+
+#### [Licenses Zipper](extensions/deployers/licenses.py)
+
+Makes a ZIP with all the licenses from the graph
 
 ### Testing
 

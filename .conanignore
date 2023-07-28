@@ -9,4 +9,5 @@ LICENSE
 *.pytest_cache*
 tmp/*
 tmp2/*
+.vscode/*
 .idea/*
