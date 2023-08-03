@@ -36,3 +36,73 @@ updating moltenvk/1.2.0 to moltenvk/1.2.2 in conan-center-index/recipes/qt/6.x.x
 updating libjpeg-turbo/2.1.4 to libjpeg-turbo/2.1.5 in conan-center-index/recipes/qt/6.x.x/conanfile.py:386
 Successfully bumped the dependencies of recipe conan-center-index/recipes/qt/6.x.x/conanfile.py
 ```
+
+#### [Create SBOM](cmd_create_sbom.py)
+
+For the graph JSON passed as parameter it creates an SBOM in CycloneDX 1.4 JSON format.
+
+**Parameters**
+- **graph_json**: Path to Conan generated graph JSON output file.
+
+```
+$ conan graph info -f json --requires=openssl/3.1.1 > openssl_graph.json
+$ conan recipe:create-sbom ./openssl_graph.json
+{
+    "$schema": "http://cyclonedx.org/schema/bom-1.4.schema.json",
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.4",
+    "version": 1,
+    "dependencies": [
+        {
+            "ref": "1"
+        },
+        {
+            "ref": "2"
+        }
+    ],
+    "components": [
+        {
+            "type": "library",
+            "bom-ref": "1",
+            "purl": "pkg:conan/openssl@3.1.1?repository_url=conancenter&rref=3a25e05b364f335633143656dc265841",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "name": "openssl",
+            "version": "3.1.1",
+            "description": "A toolkit for the Transport Layer Security (TLS) and Secure Sockets Layer (SSL) protocols",
+            "externalReferences": [
+                {
+                    "url": "https://github.com/openssl/openssl",
+                    "type": "website"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "2",
+            "purl": "pkg:conan/zlib@1.2.13?prev=724b61ab750aa7f88abacafc926395d3&repository_url=https://center.conan.io&rref=13c96f538b52e1600c40b88994de240f",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Zlib"
+                    }
+                }
+            ],
+            "name": "zlib",
+            "version": "1.2.13",
+            "description": "A Massively Spiffy Yet Delicately Unobtrusive Compression Library (Also Free, Not to Mention Unencumbered by Patents)",
+            "externalReferences": [
+                {
+                    "url": "https://zlib.net",
+                    "type": "website"
+                }
+            ]
+        }
+    ]
+}
+```
