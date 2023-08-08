@@ -39,70 +39,13 @@ Successfully bumped the dependencies of recipe conan-center-index/recipes/qt/6.x
 
 #### [Create SBOM](cmd_create_sbom.py)
 
-For the graph JSON passed as parameter it creates an SBOM in CycloneDX 1.4 JSON format.
+Creates an SBOM in CycloneDX 1.4 JSON format.
 
 **Parameters**
-- **graph_json**: Path to Conan generated graph JSON output file.
+see `conan recipe:create-sbom --help`
 
 ```
-$ conan graph info -f json --requires=openssl/3.1.1 > openssl_graph.json
-$ conan recipe:create-sbom ./openssl_graph.json
-{
-    "$schema": "http://cyclonedx.org/schema/bom-1.4.schema.json",
-    "bomFormat": "CycloneDX",
-    "specVersion": "1.4",
-    "version": 1,
-    "dependencies": [
-        {
-            "ref": "1"
-        },
-        {
-            "ref": "2"
-        }
-    ],
-    "components": [
-        {
-            "type": "library",
-            "bom-ref": "1",
-            "purl": "pkg:conan/openssl@3.1.1?repository_url=conancenter&rref=3a25e05b364f335633143656dc265841",
-            "licenses": [
-                {
-                    "license": {
-                        "id": "Apache-2.0"
-                    }
-                }
-            ],
-            "name": "openssl",
-            "version": "3.1.1",
-            "description": "A toolkit for the Transport Layer Security (TLS) and Secure Sockets Layer (SSL) protocols",
-            "externalReferences": [
-                {
-                    "url": "https://github.com/openssl/openssl",
-                    "type": "website"
-                }
-            ]
-        },
-        {
-            "type": "library",
-            "bom-ref": "2",
-            "purl": "pkg:conan/zlib@1.2.13?prev=724b61ab750aa7f88abacafc926395d3&repository_url=https://center.conan.io&rref=13c96f538b52e1600c40b88994de240f",
-            "licenses": [
-                {
-                    "license": {
-                        "id": "Zlib"
-                    }
-                }
-            ],
-            "name": "zlib",
-            "version": "1.2.13",
-            "description": "A Massively Spiffy Yet Delicately Unobtrusive Compression Library (Also Free, Not to Mention Unencumbered by Patents)",
-            "externalReferences": [
-                {
-                    "url": "https://zlib.net",
-                    "type": "website"
-                }
-            ]
-        }
-    ]
-}
+$ cd conan-center-index/recipes/gmp/all
+$ conan recipe:create-sbom .
+{"components": [{"bom-ref": "pkg:conan/m4@1.4.19?rref=c1c4b1ee919e34630bb9b50046253d3c", "description": "GNU M4 is an implementation of the traditional Unix macro processor", "externalReferences": [{"type": "website", "url": "https://www.gnu.org/software/m4/"}], "licenses": [{"license": {"id": "GPL-3.0-only"}}], "name": "m4", "purl": "pkg:conan/m4@1.4.19?rref=c1c4b1ee919e34630bb9b50046253d3c", "type": "library", "version": "1.4.19"}], "dependencies": [{"dependsOn": ["pkg:conan/m4@1.4.19?rref=c1c4b1ee919e34630bb9b50046253d3c"], "ref": "pkg:conan/gmp"}, {"ref": "pkg:conan/m4@1.4.19?rref=c1c4b1ee919e34630bb9b50046253d3c"}], "metadata": {"component": {"bom-ref": "pkg:conan/gmp", "description": "GMP is a free library for arbitrary precision arithmetic, operating on signed integers, rational numbers, and floating-point numbers.", "externalReferences": [{"type": "website", "url": "https://gmplib.org"}], "licenses": [{"license": {"id": "GPL-2.0"}}, {"license": {"id": "LGPL-3.0"}}], "name": "gmp", "purl": "pkg:conan/gmp", "type": "library"}, "timestamp": "2023-08-08T12:55:48.275439+00:00", "tools": [{"externalReferences": [{"type": "build-system", "url": "https://github.com/CycloneDX/cyclonedx-python-lib/actions"}, {"type": "distribution", "url": "https://pypi.org/project/cyclonedx-python-lib/"}, {"type": "documentation", "url": "https://cyclonedx.github.io/cyclonedx-python-lib/"}, {"type": "issue-tracker", "url": "https://github.com/CycloneDX/cyclonedx-python-lib/issues"}, {"type": "license", "url": "https://github.com/CycloneDX/cyclonedx-python-lib/blob/main/LICENSE"}, {"type": "release-notes", "url": "https://github.com/CycloneDX/cyclonedx-python-lib/blob/main/CHANGELOG.md"}, {"type": "vcs", "url": "https://github.com/CycloneDX/cyclonedx-python-lib"}, {"type": "website", "url": "https://cyclonedx.org"}], "name": "cyclonedx-python-lib", "vendor": "CycloneDX", "version": "4.0.1"}]}, "serialNumber": "urn:uuid:b5b7a98b-e06a-4627-a520-2db2a4427daa", "version": 1, "$schema": "http://cyclonedx.org/schema/bom-1.4.schema.json", "bomFormat": "CycloneDX", "specVersion": "1.4"}
 ```
