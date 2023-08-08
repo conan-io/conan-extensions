@@ -1,9 +1,24 @@
 import json
 from packageurl import PackageURL
+from cyclonedx.factory.license import LicenseFactory
+from cyclonedx.model import ExternalReference, ExternalReferenceType, LicenseChoice, XsUri
+from cyclonedx.model.bom import Bom
+from cyclonedx.model.component import Component, ComponentType
+from cyclonedx.output.json import JsonV1Dot4
 
 from conan.api.output import cli_out_write
 from conan.api.conan_api import ConanAPI
 from conan.cli.command import conan_command
+
+
+lFac = LicenseFactory()
+
+
+def package_type_to_component_type(pt: str) -> ComponentType:
+    if pt is "application":
+        return ComponentType.APPLICATION
+    else:
+        return ComponentType.LIBRARY
 
 
 def licenses(id):
@@ -11,11 +26,9 @@ def licenses(id):
     see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
     """
     if id is None:
-        return []
+        return None
     else:
-        return [{"license": {
-            "id": id
-        }}]
+        return [LicenseChoice(license=lFac.make_from_string(id))]
 
 
 def package_url(node: dict) -> PackageURL:
@@ -39,25 +52,21 @@ def package_url(node: dict) -> PackageURL:
         qualifiers=qualifiers)
 
 
-def component(n: dict) -> dict:
-    """
-    see https://cyclonedx.org/docs/1.4/json/#components
-    """
-    result = {
-        "type": "library",
-        "bom-ref": n["id"],
-        "purl": package_url(n).to_string(),
-        "licenses": licenses(n["license"]),
-        "name": n["name"],
-        "version": n["version"]
-    }
-    if n["description"]:
-        result["description"] = n["description"]
+def create_component(n):
+    result = Component(
+        type=package_type_to_component_type(n["package_type"]),
+        name=n["name"],
+        version=n["version"],
+        licenses=licenses(n["license"]),
+        bom_ref=package_url(n).to_string(),
+        purl=package_url(n),
+        description=n["description"]
+    )
     if n["homepage"]:
-        result["externalReferences"] = [{
-            "url": n["homepage"],
-            "type": "website"
-        }]
+        result.external_references.add(ExternalReference(
+            type=ExternalReferenceType.WEBSITE,
+            url=XsUri(n["homepage"]),
+        ))
     return result
 
 
@@ -71,16 +80,14 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
     with open(args.graph_json, 'r') as f:
         data = json.load(f)
     deps = data["graph"]["nodes"]
-    deps.pop("0")
-    cyclonedx = {
-        "$schema": "http://cyclonedx.org/schema/bom-1.4.schema.json",  # https not allowed here, see schema
-        "bomFormat": "CycloneDX",
-        "specVersion": "1.4",
-        "version": 1,
-        "dependencies": [{
-            "ref": n
-        } for n in deps],
-        "components": [component(n) for n in deps.values()]
-    }
-    json_result = json.dumps(cyclonedx, indent=4)
-    cli_out_write(json_result)
+
+    root = deps.pop("0")
+    root_component = create_component(root)
+    bom = Bom()
+    bom.metadata.component = root_component
+    for n in deps.values():
+        component = create_component(n)
+        bom.components.add(component)
+        bom.register_dependency(root_component, [component])
+    serialized_json = JsonV1Dot4(bom).output_as_string()
+    cli_out_write(serialized_json)
