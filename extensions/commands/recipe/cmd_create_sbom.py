@@ -47,7 +47,7 @@ def package_url(node: Node) -> PackageURL:
             "rref": node.ref.revision,
             "user": node.conanfile.user,
             "channel": node.conanfile.channel,
-            "repository_url": node.remote
+            "repository_url": node.remote.url if node.remote else None
         })
 
 
