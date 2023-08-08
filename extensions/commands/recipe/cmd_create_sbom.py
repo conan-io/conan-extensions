@@ -44,7 +44,8 @@ def package_url(node: dict) -> PackageURL:
         qualifiers["channel"] = node["channel"]
     if "#" in node["ref"]:
         qualifiers["rref"] = node["ref"].split("#")[1]
-    qualifiers["repository_url"] = node["remote"] if node["remote"] else "https://center.conan.io"
+    if node["remote"]:  # "https://center.conan.io" is default can be omitted
+        qualifiers["repository_url"] = node["remote"]
     return PackageURL(
         type="conan",
         name=node["name"],
