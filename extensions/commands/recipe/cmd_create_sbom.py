@@ -94,17 +94,12 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
                                                      profile_host, profile_build, lockfile,
                                                      remotes, args.update)
     # END COPY
-    root = deps_graph.root
-    root_component = create_component(root)
+    components = {n: create_component(n) for n in deps_graph.nodes}
     bom = Bom()
-    bom.metadata.component = root_component
-    component_per_node = {root: root_component}
+    bom.metadata.component = components[deps_graph.root]
     for n in deps_graph.nodes[1:]:  # node 0 is the root
-        component = create_component(n)
-        bom.components.add(component)
-        component_per_node[n] = component
+        bom.components.add(components[n])
     for dep in deps_graph.nodes:
-        for dep_dep in dep.dependencies:
-            bom.register_dependency(component_per_node[dep], [component_per_node[dep_dep.dst]])
+        bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
     serialized_json = JsonV1Dot4(bom).output_as_string()
     cli_out_write(serialized_json)
