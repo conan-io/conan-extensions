@@ -20,8 +20,8 @@ architecture. Universal binaries can only contain one binary per architecture. S
 `lipo -create` for more information.
 
 ```sh
-$ conan install . --deploy=lipo . -s arch=x86_64
-$ conan install . --deploy=lipo_add . -s arch=armv8
+$ conan install . --deployer=lipo -s arch=x86_64
+$ conan install . --deployer=lipo_add -s arch=armv8
 ```
 
 Profiles can be used to handle additional settings, for example when the architectures
