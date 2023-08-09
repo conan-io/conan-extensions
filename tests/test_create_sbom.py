@@ -77,6 +77,6 @@ def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metad
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    run(f"conan recipe:create-sbom {sbom_command} > sbom.json")
+    run(f"conan recipe:create-sbom -f cyclonedx_1.4_json {sbom_command} > sbom.json")
     sbom = json.loads(load("sbom.json"))
     test_generated_sbom(sbom, test_metadata_name)

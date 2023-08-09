@@ -7,7 +7,7 @@ from cyclonedx.model.bom import Bom
 from cyclonedx.model.component import Component, ComponentType
 from cyclonedx.output.json import JsonV1Dot4
 
-from conan.api.output import cli_out_write
+from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
@@ -81,7 +81,19 @@ def create_component(n: Node) -> Component:
     return result
 
 
-@conan_command(group="Recipe")
+def format_cyclonedx_14_json(result):
+    serialized_json = JsonV1Dot4(result).output_as_string()
+    cli_out_write(serialized_json)
+
+
+def format_text(result):
+    out = ConanOutput()
+    out.error("Format 'text' not supported")
+
+
+@conan_command(group="Recipe", formatters={
+    "text": format_text,  # added by default in BaseConanCommand.__init__
+    "cyclonedx_1.4_json": format_cyclonedx_14_json})
 def create_sbom(conan_api: ConanAPI, parser, *args):
     """
     creates an SBOM in CycloneDX 1.4 JSON format
@@ -119,5 +131,4 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
         bom.components.add(components[n])
     for dep in deps_graph.nodes:
         bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
-    serialized_json = JsonV1Dot4(bom).output_as_string()
-    cli_out_write(serialized_json)
+    return bom
