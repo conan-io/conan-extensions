@@ -14,6 +14,7 @@ from conan.cli.command import conan_command
 from conans.client.graph.graph import Node
 
 lFac = LicenseFactory()
+unknown_name_created = False
 
 
 def package_type_to_component_type(pt: str) -> ComponentType:
@@ -34,17 +35,26 @@ def licenses(ids):
     return [LicenseChoice(license=lFac.make_from_string(i)) for i in ids]
 
 
-def package_url(node: Node) -> PackageURL:
+def name(n: Node) -> str:
+    if n.name:
+        return n.name
+    else:
+        assert globals()["unknown_name_created"] is False, "multiple nodes have no name"
+        globals()["unknown_name_created"] = True
+        return "UNKNOWN"
+
+
+def package_url(node: Node, name: str) -> PackageURL:
     """
     Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
     """
     return PackageURL(
         type="conan",
-        name=node.conanfile.name,
+        name=name,
         version=node.conanfile.version,
         qualifiers={
             "prev": node.prev,
-            "rref": node.ref.revision,
+            "rref": node.ref.revision if node.ref else None,
             "user": node.conanfile.user,
             "channel": node.conanfile.channel,
             "repository_url": node.remote.url if node.remote else None
@@ -52,13 +62,15 @@ def package_url(node: Node) -> PackageURL:
 
 
 def create_component(n: Node) -> Component:
+    name_ = name(n)
+    purl = package_url(n, name_)
     result = Component(
         type=package_type_to_component_type(n.conanfile.package_type),
-        name=n.conanfile.name,
+        name=name_,
         version=n.conanfile.version,
         licenses=licenses(n.conanfile.license),
-        bom_ref=package_url(n).to_string(),
-        purl=package_url(n),
+        bom_ref=purl.to_string(),
+        purl=purl,
         description=n.conanfile.description
     )
     if n.conanfile.homepage:
@@ -89,11 +101,17 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
                                                partial=args.lockfile_partial,
                                                overrides=overrides)
     profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
-    deps_graph = conan_api.graph.load_graph_consumer(path, args.name, args.version,
+    if path:
+        deps_graph = conan_api.graph.load_graph_consumer(path, args.name, args.version,
                                                      args.user, args.channel,
                                                      profile_host, profile_build, lockfile,
                                                      remotes, args.update)
+    else:
+        deps_graph = conan_api.graph.load_graph_requires(args.requires, args.tool_requires,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update)
     # END COPY
+    globals()["unknown_name_created"] = False
     components = {n: create_component(n) for n in deps_graph.nodes}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
