@@ -45,6 +45,16 @@ Creates an SBOM in CycloneDX 1.4 JSON format.
 * **format** _Required_: `cyclonedx_1.4_json`
 * supports all other arguments used by `conan graph`, see `conan recipe:create-sbom --help`
 
+**Dependencies**
+The command requires the packages `packageurl` and `cyclonedx`.
+You can install them via
+
+```bash
+pip install packageurl-python cyclonedx-python-lib
+```
+
+Usage:
+
 ```
 $ cd conan-center-index/recipes/gmp/all
 $ conan recipe:create-sbom -f cyclonedx_1.4_json .
