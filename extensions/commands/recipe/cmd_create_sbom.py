@@ -1,11 +1,20 @@
 import os.path
+import sys
 
-from packageurl import PackageURL
-from cyclonedx.factory.license import LicenseFactory
-from cyclonedx.model import ExternalReference, ExternalReferenceType, LicenseChoice, XsUri
-from cyclonedx.model.bom import Bom
-from cyclonedx.model.component import Component, ComponentType
-from cyclonedx.output.json import JsonV1Dot4
+try:
+    from packageurl import PackageURL
+except ModuleNotFoundError:
+    sys.stderr.write("The sbom extension needs the 'packageurl' package, please run 'pip install packageurl-python'\n")
+    sys.exit(1)
+try:
+    from cyclonedx.factory.license import LicenseFactory
+    from cyclonedx.model import ExternalReference, ExternalReferenceType, LicenseChoice, XsUri
+    from cyclonedx.model.bom import Bom
+    from cyclonedx.model.component import Component, ComponentType
+    from cyclonedx.output.json import JsonV1Dot4
+except ModuleNotFoundError:
+    sys.stderr.write("The sbom extension needs the 'cyclonedx' package, please run 'pip install cyclonedx-python-lib'\n")
+    sys.exit(1)
 
 from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
