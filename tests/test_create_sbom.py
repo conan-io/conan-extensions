@@ -27,7 +27,7 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def test_generated_sbom(sbom, test_metadata_name):
+def _test_generated_sbom(sbom, test_metadata_name):
     assert sbom["bomFormat"] == "CycloneDX"
     assert sbom["specVersion"] == "1.4"
 
@@ -79,4 +79,4 @@ def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metad
 
     run(f"conan recipe:create-sbom -f cyclonedx_1.4_json {sbom_command} > sbom.json")
     sbom = json.loads(load("sbom.json"))
-    test_generated_sbom(sbom, test_metadata_name)
+    _test_generated_sbom(sbom, test_metadata_name)
