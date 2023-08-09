@@ -23,7 +23,6 @@ from conan.cli.command import conan_command
 from conans.client.graph.graph import Node
 
 lFac = LicenseFactory()
-unknown_name_created = False
 
 
 def package_type_to_component_type(pt: str) -> ComponentType:
@@ -44,12 +43,12 @@ def licenses(ids):
     return [LicenseChoice(license=lFac.make_from_string(i)) for i in ids]
 
 
-def name(n: Node) -> str:
+def name(n: Node, aux_vars: dict) -> str:
     if n.name:
         return n.name
     else:
-        assert globals()["unknown_name_created"] is False, "multiple nodes have no name"
-        globals()["unknown_name_created"] = True
+        assert aux_vars["unknown_name_created"] is False, "multiple nodes have no name"
+        aux_vars["unknown_name_created"] = True
         return "UNKNOWN"
 
 
@@ -70,8 +69,8 @@ def package_url(node: Node, name: str) -> PackageURL:
         })
 
 
-def create_component(n: Node) -> Component:
-    name_ = name(n)
+def create_component(n: Node, aux_vars: dict) -> Component:
+    name_ = name(n, aux_vars)
     purl = package_url(n, name_)
     result = Component(
         type=package_type_to_component_type(n.conanfile.package_type),
@@ -132,8 +131,8 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
                                                          profile_host, profile_build, lockfile,
                                                          remotes, args.update)
     # END COPY
-    globals()["unknown_name_created"] = False
-    components = {n: create_component(n) for n in deps_graph.nodes}
+    aux_vars = {"unknown_name_created": False}  # plain bool is immutable
+    components = {n: create_component(n, aux_vars) for n in deps_graph.nodes}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
     for n in deps_graph.nodes[1:]:  # node 0 is the root
