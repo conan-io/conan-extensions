@@ -6,6 +6,10 @@ import textwrap
 
 from tools import load, save, run
 
+REQ_LIB = "gmp"
+REQ_VER = "6.2.1"
+REQ_DEP = "m4"
+
 
 @pytest.fixture(autouse=True)
 def conan_test():
@@ -23,11 +27,29 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def test_create_sbom():
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
-    run("conan profile detect")
-    txt = textwrap.dedent("""
+def test_generated_sbom(sbom, test_metadata_name):
+    assert sbom["bomFormat"] == "CycloneDX"
+    assert sbom["specVersion"] == "1.4"
+
+    assert "metadata" in sbom
+    assert "component" in sbom["metadata"]
+    if test_metadata_name:
+        assert sbom["metadata"]["component"]["name"] == "TestPackage"
+
+    assert "components" in sbom
+    assert len([c for c in sbom["components"] if c["name"] == REQ_LIB and c["version"] == REQ_VER]) == 1
+    assert len([c for c in sbom["components"] if c["name"] == REQ_DEP]) == 1
+
+
+def create_conanfile_txt():
+    return textwrap.dedent(f"""
+    [requires]
+    {REQ_LIB}/{REQ_VER}
+    """)
+
+
+def create_conanfile_py():
+    return textwrap.dedent(f"""
         from conan import ConanFile
         from conan.tools.cmake import cmake_layout
 
@@ -36,24 +58,25 @@ def test_create_sbom():
             name = "TestPackage"
 
             def requirements(self):
-                self.requires("gmp/6.2.1")
+                self.requires("{REQ_LIB}/{REQ_VER}")
 
             def layout(self):
                 cmake_layout(self)
 
             """)
-    save("conanfile.py", txt)
 
-    run("conan recipe:create-sbom . > sbom.json")
+
+@pytest.mark.parametrize("conanfile_content,conanfile_name,sbom_command,test_metadata_name", [
+    (create_conanfile_py(), "conanfile.py", ".", True),
+    (create_conanfile_txt(), "conanfile.txt", ".", False),
+    (str(), "doesnotmatter.txt", f"--requires {REQ_LIB}/{REQ_VER}", False)
+])
+def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metadata_name):
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    run("conan profile detect")
+    save(conanfile_name, conanfile_content)
+
+    run(f"conan recipe:create-sbom {sbom_command} > sbom.json")
     sbom = json.loads(load("sbom.json"))
-
-    assert sbom["bomFormat"] == "CycloneDX"
-    assert sbom["specVersion"] == "1.4"
-
-    assert "metadata" in sbom
-    assert "component" in sbom["metadata"]
-    assert sbom["metadata"]["component"]["name"] == "TestPackage"
-
-    assert "components" in sbom
-    assert len([c for c in sbom["components"] if c["name"] == "gmp" and c["version"] == "6.2.1"]) == 1
-    assert len([c for c in sbom["components"] if c["name"] == "m4"]) == 1
+    test_generated_sbom(sbom, test_metadata_name)
