@@ -1,5 +1,6 @@
 import os.path
 import sys
+import typing
 
 try:
     from packageurl import PackageURL
@@ -20,7 +21,8 @@ from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
-from conans.client.graph.graph import Node
+if typing.TYPE_CHECKING:
+    from conans.client.graph.graph import Node
 
 lFac = LicenseFactory()
 
@@ -43,7 +45,7 @@ def licenses(ids):
     return [LicenseChoice(license=lFac.make_from_string(i)) for i in ids]
 
 
-def name(n: Node, aux_vars: dict) -> str:
+def name(n: 'Node', aux_vars: dict) -> str:
     if n.name:
         return n.name
     else:
@@ -52,7 +54,7 @@ def name(n: Node, aux_vars: dict) -> str:
         return "UNKNOWN"
 
 
-def package_url(node: Node, name: str) -> PackageURL:
+def package_url(node: 'Node', name: str) -> PackageURL:
     """
     Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
     """
@@ -69,7 +71,7 @@ def package_url(node: Node, name: str) -> PackageURL:
         })
 
 
-def create_component(n: Node, aux_vars: dict) -> Component:
+def create_component(n: 'Node', aux_vars: dict) -> Component:
     name_ = name(n, aux_vars)
     purl = package_url(n, name_)
     result = Component(
