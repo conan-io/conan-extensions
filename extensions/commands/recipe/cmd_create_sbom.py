@@ -14,13 +14,15 @@ try:
     from cyclonedx.model.component import Component, ComponentType
     from cyclonedx.output.json import JsonV1Dot4
 except ModuleNotFoundError:
-    sys.stderr.write("The sbom extension needs the 'cyclonedx' package, please run 'pip install cyclonedx-python-lib'\n")
+    sys.stderr.write(
+        "The sbom extension needs the 'cyclonedx' package, please run 'pip install cyclonedx-python-lib'\n")
     sys.exit(1)
 
 from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
+
 if typing.TYPE_CHECKING:
     from conans.client.graph.graph import Node
 
@@ -54,13 +56,13 @@ def name(n: 'Node', aux_vars: dict) -> str:
         return "UNKNOWN"
 
 
-def package_url(node: 'Node', name: str) -> PackageURL:
+def package_url(node: 'Node', cached_name: str) -> PackageURL:
     """
     Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
     """
     return PackageURL(
         type="conan",
-        name=name,
+        name=cached_name,
         version=node.conanfile.version,
         qualifiers={
             "prev": node.prev,
@@ -125,9 +127,9 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
     profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
     if path:
         deps_graph = conan_api.graph.load_graph_consumer(path, args.name, args.version,
-                                                     args.user, args.channel,
-                                                     profile_host, profile_build, lockfile,
-                                                     remotes, args.update)
+                                                         args.user, args.channel,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update)
     else:
         deps_graph = conan_api.graph.load_graph_requires(args.requires, args.tool_requires,
                                                          profile_host, profile_build, lockfile,
