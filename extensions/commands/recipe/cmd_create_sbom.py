@@ -84,7 +84,7 @@ def create_component(n: Node) -> Component:
 @conan_command(group="Recipe")
 def create_sbom(conan_api: ConanAPI, parser, *args):
     """
-    creates an SBOM in CycloneDX 1.4 JSON format from a Conan graph JSON
+    creates an SBOM in CycloneDX 1.4 JSON format
     """
 
     # BEGIN COPY FROM conan: cli/commands/graph.py
