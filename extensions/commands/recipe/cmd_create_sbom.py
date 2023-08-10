@@ -32,12 +32,12 @@ def licenses(ids):
     return [LicenseChoice(license=LicenseFactory().make_from_string(i)) for i in ids]
 
 
-def name(n: 'Node', aux_vars: dict) -> str:
+def name(n: 'Node') -> str:
     if n.name:
         return n.name
     else:
-        assert aux_vars["unknown_name_created"] is False, "multiple nodes have no name"
-        aux_vars["unknown_name_created"] = True
+        assert name.unknown_name_created is False, "multiple nodes have no name"
+        name.unknown_name_created = True
         return "UNKNOWN"
 
 
@@ -59,10 +59,10 @@ def package_url(node: 'Node', cached_name: str):
         })
 
 
-def create_component(n: 'Node', aux_vars: dict):
+def create_component(n: 'Node'):
     from cyclonedx.model.component import Component
     from cyclonedx.model import ExternalReference, ExternalReferenceType, XsUri
-    name_ = name(n, aux_vars)
+    name_ = name(n)
     purl = package_url(n, name_)
     result = Component(
         type=package_type_to_component_type(n.conanfile.package_type),
@@ -136,8 +136,8 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
                                                          profile_host, profile_build, lockfile,
                                                          remotes, args.update)
     # END COPY
-    aux_vars = {"unknown_name_created": False}  # plain bool is immutable
-    components = {n: create_component(n, aux_vars) for n in deps_graph.nodes}
+    name.unknown_name_created = False
+    components = {n: create_component(n) for n in deps_graph.nodes}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
     for n in deps_graph.nodes[1:]:  # node 0 is the root
