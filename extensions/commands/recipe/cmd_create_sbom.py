@@ -2,23 +2,6 @@ import os.path
 import sys
 import typing
 
-found_libs = {}
-
-try:
-    from packageurl import PackageURL
-    found_libs["packageurl-python"] = True
-except ModuleNotFoundError:
-    found_libs["packageurl-python"] = False
-try:
-    from cyclonedx.factory.license import LicenseFactory
-    from cyclonedx.model import ExternalReference, ExternalReferenceType, LicenseChoice, XsUri
-    from cyclonedx.model.bom import Bom
-    from cyclonedx.model.component import Component, ComponentType
-    from cyclonedx.output.json import JsonV1Dot4
-    found_libs["cyclonedx-python-lib"] = True
-except ModuleNotFoundError:
-    found_libs["cyclonedx-python-lib"] = False
-
 from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
 from conan.cli.args import common_graph_args, validate_common_graph_args
@@ -28,7 +11,8 @@ if typing.TYPE_CHECKING:
     from conans.client.graph.graph import Node
 
 
-def package_type_to_component_type(pt: str) -> 'ComponentType':
+def package_type_to_component_type(pt: str):
+    from cyclonedx.model.component import ComponentType
     if pt is "application":
         return ComponentType.APPLICATION
     else:
@@ -39,6 +23,8 @@ def licenses(ids):
     """
     see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
     """
+    from cyclonedx.factory.license import LicenseFactory
+    from cyclonedx.model import LicenseChoice
     if ids is None:
         return None
     if not isinstance(ids, tuple):
@@ -55,10 +41,11 @@ def name(n: 'Node', aux_vars: dict) -> str:
         return "UNKNOWN"
 
 
-def package_url(node: 'Node', cached_name: str) -> 'PackageURL':
+def package_url(node: 'Node', cached_name: str):
     """
     Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
     """
+    from packageurl import PackageURL
     return PackageURL(
         type="conan",
         name=cached_name,
@@ -72,7 +59,9 @@ def package_url(node: 'Node', cached_name: str) -> 'PackageURL':
         })
 
 
-def create_component(n: 'Node', aux_vars: dict) -> 'Component':
+def create_component(n: 'Node', aux_vars: dict):
+    from cyclonedx.model.component import Component
+    from cyclonedx.model import ExternalReference, ExternalReferenceType, XsUri
     name_ = name(n, aux_vars)
     purl = package_url(n, name_)
     result = Component(
@@ -93,6 +82,7 @@ def create_component(n: 'Node', aux_vars: dict) -> 'Component':
 
 
 def format_cyclonedx_14_json(result):
+    from cyclonedx.output.json import JsonV1Dot4
     serialized_json = JsonV1Dot4(result).output_as_string()
     cli_out_write(serialized_json)
 
@@ -109,11 +99,19 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
     """
     creates an SBOM in CycloneDX 1.4 JSON format
     """
-    for package_name, found in found_libs.items():
-        if not found:
-            sys.stderr.write(
-                f"The sbom extension needs an additional package, please run 'pip install {package_name}'\n")
-            sys.exit(1)
+    try:
+        import packageurl
+    except ModuleNotFoundError:
+        sys.stderr.write(
+            "The sbom extension needs an additional package, please run 'pip install packageurl-python'\n")
+        sys.exit(1)
+    try:
+        import cyclonedx
+    except ModuleNotFoundError:
+        sys.stderr.write(
+            "The sbom extension needs an additional package, please run 'pip install cyclonedx-python-lib'\n")
+        sys.exit(1)
+    from cyclonedx.model.bom import Bom
     # BEGIN COPY FROM conan: cli/commands/graph.py
     common_graph_args(parser)
     args = parser.parse_args(*args)
