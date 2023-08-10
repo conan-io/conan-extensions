@@ -100,12 +100,6 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
     creates an SBOM in CycloneDX 1.4 JSON format
     """
     try:
-        import packageurl
-    except ModuleNotFoundError:
-        sys.stderr.write(
-            "The sbom extension needs an additional package, please run 'pip install packageurl-python'\n")
-        sys.exit(1)
-    try:
         import cyclonedx
     except ModuleNotFoundError:
         sys.stderr.write(

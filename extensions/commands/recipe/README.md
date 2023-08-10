@@ -40,17 +40,18 @@ Successfully bumped the dependencies of recipe conan-center-index/recipes/qt/6.x
 #### [Create SBOM](cmd_create_sbom.py)
 
 Creates an SBOM in CycloneDX 1.4 JSON format.
+**This command is in an experimental stage, feedback is welcome.**
 
 **Parameters**
 * **format** _Required_: `cyclonedx_1.4_json`
 * supports all other arguments used by `conan graph`, see `conan recipe:create-sbom --help`
 
 **Dependencies**
-The command requires the packages `packageurl` and `cyclonedx`.
-You can install them via
+The command requires the package `cyclonedx-python-lib`.
+You can install it via
 
 ```shell
-$ pip install packageurl-python cyclonedx-python-lib
+$ pip install "cyclonedx-python-lib>=4.0.1,<5.0.0"
 ```
 
 Usage:
