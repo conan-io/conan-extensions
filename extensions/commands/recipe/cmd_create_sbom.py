@@ -92,6 +92,16 @@ def format_text(result):
     out.error("Format 'text' not supported")
 
 
+def me_as_tool():
+    from cyclonedx.model import ExternalReference, ExternalReferenceType, XsUri
+    from cyclonedx.model.bom import Tool
+    result = Tool(name="conan extension recipe:create-sbom")
+    result.external_references.add(ExternalReference(
+        type=ExternalReferenceType.WEBSITE,
+        url=XsUri("https://github.com/conan-io/conan-extensions")))
+    return result
+
+
 @conan_command(group="Recipe", formatters={
     "text": format_text,  # added by default in BaseConanCommand.__init__
     "cyclonedx_1.4_json": format_cyclonedx_14_json})
@@ -134,6 +144,7 @@ def create_sbom(conan_api: ConanAPI, parser, *args):
     components = {n: create_component(n) for n in deps_graph.nodes}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
+    bom.metadata.tools.add(me_as_tool())
     for n in deps_graph.nodes[1:]:  # node 0 is the root
         bom.components.add(components[n])
     for dep in deps_graph.nodes:
