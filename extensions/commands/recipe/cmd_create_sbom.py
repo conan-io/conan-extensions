@@ -62,20 +62,13 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
             ls = [ls]
         return [LicenseChoice(license=LicenseFactory().make_from_string(i)) for i in ls]
 
-    def name(node: 'Node') -> str:
-        if node.name:
-            return node.name
-        assert name.unknown_name_created is False, "multiple nodes have no name"
-        name.unknown_name_created = True
-        return "UNKNOWN"
-
-    def package_url(node: 'Node', cached_name: str) -> PackageURL:
+    def package_url(node: 'Node') -> Optional[PackageURL]:
         """
         Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
         """
         return PackageURL(
             type="conan",
-            name=cached_name,
+            name=node.name,
             version=node.conanfile.version,
             qualifiers={
                 "prev": node.prev,
@@ -83,26 +76,26 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
                 "user": node.conanfile.user,
                 "channel": node.conanfile.channel,
                 "repository_url": node.remote.url if node.remote else None
-            })
+            }
+        ) if node.name else None
 
-    def create_component(n: 'Node') -> Component:
-        name_ = name(n)
-        purl = package_url(n, name_)
-        result = Component(
-            type=package_type_to_component_type(n.conanfile.package_type),
-            name=name_,
-            version=n.conanfile.version,
-            licenses=licenses(n.conanfile.license),
-            bom_ref=purl.to_string(),
+    def create_component(node: 'Node') -> Component:
+        purl = package_url(node)
+        component = Component(
+            type=package_type_to_component_type(node.conanfile.package_type),
+            name=node.name or f'UNKNOWN.{id(node)}',
+            version=node.conanfile.version,
+            licenses=licenses(node.conanfile.license),
+            bom_ref=purl.to_string() if purl else None,
             purl=purl,
-            description=n.conanfile.description
+            description=node.conanfile.description
         )
-        if n.conanfile.homepage:
-            result.external_references.add(ExternalReference(
+        if node.conanfile.homepage:
+            component.external_references.add(ExternalReference(
                 type=ExternalReferenceType.WEBSITE,
-                url=XsUri(n.conanfile.homepage),
+                url=XsUri(node.conanfile.homepage),
             ))
-        return result
+        return component
 
     def me_as_tool() -> Tool:
         tool = Tool(name="conan extension recipe:create-sbom")
@@ -136,13 +129,12 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
                                                          remotes, args.update)
     # endregion COPY
 
-    name.unknown_name_created = False
-    components = {n: create_component(n) for n in deps_graph.nodes}
+    components = {node: create_component(node) for node in deps_graph.nodes}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
     bom.metadata.tools.add(me_as_tool())
-    for n in deps_graph.nodes[1:]:  # node 0 is the root
-        bom.components.add(components[n])
+    for node in deps_graph.nodes[1:]:  # node 0 is the root
+        bom.components.add(components[node])
     for dep in deps_graph.nodes:
         bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
     return bom
