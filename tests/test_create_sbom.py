@@ -4,7 +4,7 @@ import pytest
 import tempfile
 import textwrap
 
-from tools import load, save, run
+from tools import save, run
 
 REQ_LIB = "gmp"
 REQ_VER = "6.2.1"
@@ -71,12 +71,29 @@ def create_conanfile_py():
     (create_conanfile_txt(), "conanfile.txt", ".", False),
     (str(), "doesnotmatter.txt", f"--requires {REQ_LIB}/{REQ_VER}", False)
 ])
-def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metadata_name):
+def test_create_sbom_cdx14json(conanfile_content, conanfile_name, sbom_command, test_metadata_name):
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    run(f"conan recipe:create-sbom -f cyclonedx_1.4_json {sbom_command} > sbom.json")
-    sbom = json.loads(load("sbom.json"))
+    # discard all STD_ERR(2)
+    out = run(f"conan recipe:create-sbom -f cyclonedx_1.4_json {sbom_command} 2>/dev/null")
+    sbom = json.loads(out)
     _test_generated_sbom(sbom, test_metadata_name)
+
+
+@pytest.mark.parametrize("conanfile_content,conanfile_name,sbom_command,test_metadata_name", [
+    (create_conanfile_py(), "conanfile.py", ".", True),
+    (create_conanfile_txt(), "conanfile.txt", ".", False),
+    (str(), "doesnotmatter.txt", f"--requires {REQ_LIB}/{REQ_VER}", False)
+])
+def test_create_sbom_text(conanfile_content, conanfile_name, sbom_command, test_metadata_name):
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    run("conan profile detect")
+    save(conanfile_name, conanfile_content)
+
+    # discard all STD_OUT(1)
+    out_err = run(f"conan recipe:create-sbom {sbom_command} >/dev/null", True)
+    assert "Format 'text' not supported" in out_err
