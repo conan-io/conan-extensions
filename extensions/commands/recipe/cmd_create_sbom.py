@@ -1,13 +1,13 @@
 import os.path
 import sys
-import typing
+from typing import Iterable, Optional, Tuple, TYPE_CHECKING, Union
 
-from conan.api.output import cli_out_write, ConanOutput
 from conan.api.conan_api import ConanAPI
+from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from conans.client.graph.graph import Node
 
 
@@ -19,7 +19,7 @@ def package_type_to_component_type(pt: str):
         return ComponentType.LIBRARY
 
 
-def licenses(ids):
+def licenses(ids: Union[Tuple[str], str]) -> Optional[Iterable]:
     """
     see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
     """
