@@ -1,11 +1,13 @@
 import os.path
 import sys
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Iterable, List, Optional, Set, Tuple,
+                    Union)
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import ConanOutput, cli_out_write
+from conan.api.output import cli_out_write
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
+from conan.errors import ConanException
 
 if TYPE_CHECKING:
     from cyclonedx.model.bom import Bom
@@ -17,9 +19,8 @@ def format_cyclonedx_14_json(bom: 'Bom') -> None:
     cli_out_write(serialized_json)
 
 
-def format_text():
-    out = ConanOutput()
-    out.error("Format 'text' not supported")
+def format_text(_: Any) -> None:
+    raise ConanException("Format 'text' not supported")
 
 
 @conan_command(group="Recipe", formatters={
