@@ -40,7 +40,7 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
         # Assert on RUNTIME of the actual conan-command, that all requirements exist.
         # Since conan loads all extensions when started, this check could prevent conan from running,
         # if loading dependencies is performed outside the actual conan-command in global/module scope.
-        print('The sbom extension needs an additional package, please run:'
+        print('The sbom extension needs an additional package, please run:',
               # keep in synk with the instructions in `README.md`
               "pip install 'cyclonedx-python-lib>=4.0.1,<5.0.0'"
               , sep='\n', file=sys.stderr)
