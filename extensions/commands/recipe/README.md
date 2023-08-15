@@ -49,9 +49,9 @@ Creates an SBOM in CycloneDX 1.4 JSON format.
 **Dependencies**
 The command requires the package `cyclonedx-python-lib`.
 You can install it via
-
+<!-- keep in sync with the error message that asks for requirements/dependencies in `cmd_create_sbom.py` -->
 ```shellSession
-$ pip install "cyclonedx-python-lib>=4.0.1,<5.0.0"
+$ pip install 'cyclonedx-python-lib>=4.0.1,<5.0.0'
 ```
 
 Usage:
