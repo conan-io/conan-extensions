@@ -1,32 +1,23 @@
 import os.path
 import sys
-from typing import (TYPE_CHECKING, Any, Iterable, List, Optional, Set, Tuple,
-                    Union)
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Set, Tuple, Union, Dict
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
-from conan.errors import ConanException
 
 if TYPE_CHECKING:
     from cyclonedx.model.bom import Bom
 
 
-def format_cyclonedx_14_json(bom: 'Bom') -> None:
-    from cyclonedx.output.json import JsonV1Dot4
-    serialized_json = JsonV1Dot4(bom).output_as_string()
-    cli_out_write(serialized_json)
+def format_text(output: Dict[str, Any]) -> None:
+    serialized = output['formatters'][output['sbom_format']](output['bom']).output_as_string()
+    cli_out_write(serialized)
 
 
-def format_text(_: Any) -> None:
-    raise ConanException("Format 'text' not supported")
-
-
-@conan_command(group="Recipe", formatters={
-    "text": format_text,  # added by default in BaseConanCommand.__init__
-    "cyclonedx_1.4_json": format_cyclonedx_14_json})
-def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
+@conan_command(group="Recipe", formatters={"text": format_text})
+def create_sbom(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
     try:
@@ -35,6 +26,8 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
                                      LicenseChoice, Tool, XsUri)
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
+        import cyclonedx.output.json
+        import cyclonedx.output.xml
         from packageurl import PackageURL
     except ModuleNotFoundError:
         # Assert on RUNTIME of the actual conan-command, that all requirements exist.
@@ -104,6 +97,18 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
             url=XsUri("https://github.com/conan-io/conan-extensions")))
         return tool
 
+    formatters = {
+        '1.4_json': cyclonedx.output.json.JsonV1Dot4,
+        '1.3_json': cyclonedx.output.json.JsonV1Dot4,
+        '1.2_json': cyclonedx.output.json.JsonV1Dot4,
+        '1.4_xml': cyclonedx.output.xml.XmlV1Dot4,
+        '1.3_xml': cyclonedx.output.xml.XmlV1Dot3,
+        '1.2_xml': cyclonedx.output.xml.XmlV1Dot2,
+        '1.1_xml': cyclonedx.output.xml.XmlV1Dot1,
+        '1.0_xml': cyclonedx.output.xml.XmlV1Dot0
+    }
+    parser.add_argument("--sbom_format", choices=formatters.keys(), required=True)
+
     # region COPY FROM conan: cli/commands/graph.py
     common_graph_args(parser)
     args = parser.parse_args(*args)
@@ -137,4 +142,4 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> 'Bom':
         bom.components.add(components[node])
     for dep in deps_graph.nodes:
         bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
-    return bom
+    return {'bom': bom, 'sbom_format': args.sbom_format, 'formatters': formatters}
