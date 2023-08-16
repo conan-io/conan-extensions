@@ -99,8 +99,8 @@ def create_sbom(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
 
     formatters = {
         '1.4_json': cyclonedx.output.json.JsonV1Dot4,
-        '1.3_json': cyclonedx.output.json.JsonV1Dot4,
-        '1.2_json': cyclonedx.output.json.JsonV1Dot4,
+        '1.3_json': cyclonedx.output.json.JsonV1Dot3,
+        '1.2_json': cyclonedx.output.json.JsonV1Dot2,
         '1.4_xml': cyclonedx.output.xml.XmlV1Dot4,
         '1.3_xml': cyclonedx.output.xml.XmlV1Dot3,
         '1.2_xml': cyclonedx.output.xml.XmlV1Dot2,
