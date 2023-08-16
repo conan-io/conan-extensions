@@ -77,7 +77,6 @@ def test_create_sbom_cdx14json(conanfile_content, conanfile_name, sbom_command, 
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    # discard all STD_ERR(2)
-    out = run(f"conan recipe:create-sbom --sbom_format 1.4_json {sbom_command} 2>/dev/null")
+    out = run(f"conan recipe:create-sbom --sbom_format 1.4_json {sbom_command}", stderr=None)
     sbom = json.loads(out)
     _test_generated_sbom(sbom, test_metadata_name)

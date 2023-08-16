@@ -1,15 +1,15 @@
 import subprocess
 
 
-def run(cmd, error=False):
+def run(cmd, error=False, stderr=subprocess.PIPE):
     process = subprocess.Popen(cmd, 
                                stdout=subprocess.PIPE, 
-                               stderr=subprocess.PIPE, 
+                               stderr=stderr,
                                shell=True)
 
     out, err = process.communicate()
     out = out.decode("utf-8")
-    err = err.decode("utf-8")
+    err = err.decode("utf-8") if stderr else ""
     ret = process.returncode
 
     output = err + out
