@@ -1,4 +1,5 @@
 import json
+import xml.dom.minidom
 import os
 import pytest
 import tempfile
@@ -27,9 +28,9 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def _test_generated_sbom(sbom, test_metadata_name):
+def _test_generated_sbom_json(sbom, test_metadata_name, spec_version):
     assert sbom["bomFormat"] == "CycloneDX"
-    assert sbom["specVersion"] == "1.4"
+    assert sbom["specVersion"] == spec_version
 
     assert "metadata" in sbom
     assert "component" in sbom["metadata"]
@@ -39,6 +40,35 @@ def _test_generated_sbom(sbom, test_metadata_name):
     assert "components" in sbom
     assert len([c for c in sbom["components"] if c["name"] == REQ_LIB and c["version"] == REQ_VER]) == 1
     assert len([c for c in sbom["components"] if c["name"] == REQ_DEP]) == 1
+
+
+def _test_generated_sbom_xml(sbom, test_metadata_name, spec_version):
+    schema = sbom.getAttribute("xmlns:ns0")
+    assert "cyclonedx" in schema
+    assert schema.split("/")[-1] == spec_version
+
+    if spec_version not in ['1.1', '1.0']:
+        metadata = sbom.getElementsByTagName("ns0:metadata")
+        assert metadata
+        component = metadata[0].getElementsByTagName("ns0:component")
+        assert component
+        if test_metadata_name:
+            assert component[0].getElementsByTagName("ns0:name")[0].firstChild.nodeValue == "TestPackage"
+
+    components = sbom.getElementsByTagName("ns0:components")
+    assert components
+    components = components[0].getElementsByTagName("ns0:component")
+    assert components
+    assert 1 == len([
+        c for c in components if
+        c.getElementsByTagName("ns0:name")[0].firstChild.nodeValue == REQ_LIB
+        and
+        c.getElementsByTagName("ns0:version")[0].firstChild.nodeValue == REQ_VER
+    ])
+    assert 1 == len([
+        c for c in components if
+        c.getElementsByTagName("ns0:name")[0].firstChild.nodeValue == REQ_DEP
+    ])
 
 
 def create_conanfile_txt():
@@ -66,17 +96,27 @@ def create_conanfile_py():
             """)
 
 
-@pytest.mark.parametrize("conanfile_content,conanfile_name,sbom_command,test_metadata_name", [
-    (create_conanfile_py(), "conanfile.py", ".", True),
-    (create_conanfile_txt(), "conanfile.txt", ".", False),
-    (str(), "doesnotmatter.txt", f"--requires {REQ_LIB}/{REQ_VER}", False)
-])
-def test_create_sbom_cdx14json(conanfile_content, conanfile_name, sbom_command, test_metadata_name):
+params = []
+for version in ['1.4', '1.3', '1.2', '1.1', '1.0']:
+    for ft in ['xml', 'json']:
+        if ft == 'json' and version in ['1.1', '1.0']:
+            continue
+        params.append((create_conanfile_py(), "conanfile.py", ".", True, f"{version}_{ft}"))
+        params.append((create_conanfile_txt(), "conanfile.txt", ".", False, f"{version}_{ft}"))
+        params.append((str(), "doesnotmatter.txt", f"--requires {REQ_LIB}/{REQ_VER}", False, f"{version}_{ft}"))
+
+
+@pytest.mark.parametrize("conanfile_content,conanfile_name,sbom_command,test_metadata_name,sbom_format", params)
+def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metadata_name, sbom_format):
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    out = run(f"conan recipe:create-sbom --sbom_format 1.4_json {sbom_command}", stderr=None)
-    sbom = json.loads(out)
-    _test_generated_sbom(sbom, test_metadata_name)
+    out = run(f"conan recipe:create-sbom --sbom_format {sbom_format} {sbom_command}", stderr=None)
+    if sbom_format.split('_')[1] == "json":
+        sbom = json.loads(out)
+        _test_generated_sbom_json(sbom, test_metadata_name, sbom_format.split('_')[0])
+    else:
+        dom = xml.dom.minidom.parseString(out).firstChild
+        _test_generated_sbom_xml(dom, test_metadata_name, sbom_format.split('_')[0])
