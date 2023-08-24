@@ -1,3 +1,4 @@
+import importlib.metadata
 import json
 import xml.dom.minidom
 import os
@@ -10,6 +11,10 @@ from tools import save, run
 REQ_LIB = "gmp"
 REQ_VER = "6.2.1"
 REQ_DEP = "m4"
+
+
+def cyclonedx_major_version_is_4() -> int:
+    return importlib.metadata.version('cyclonedx-python-lib')[0] == '4'
 
 
 @pytest.fixture(autouse=True)
@@ -43,31 +48,35 @@ def _test_generated_sbom_json(sbom, test_metadata_name, spec_version):
 
 
 def _test_generated_sbom_xml(sbom, test_metadata_name, spec_version):
-    schema = sbom.getAttribute("xmlns:ns0")
+    def with_ns(key: str) -> str:
+        ns = "ns0:" if cyclonedx_major_version_is_4() else ""
+        return ns + key
+
+    schema = sbom.getAttribute("xmlns:ns0" if cyclonedx_major_version_is_4() else "xmlns")
     assert "cyclonedx" in schema
     assert schema.split("/")[-1] == spec_version
 
     if spec_version not in ['1.1', '1.0']:
-        metadata = sbom.getElementsByTagName("ns0:metadata")
+        metadata = sbom.getElementsByTagName(with_ns("metadata"))
         assert metadata
-        component = metadata[0].getElementsByTagName("ns0:component")
+        component = metadata[0].getElementsByTagName(with_ns("component"))
         assert component
         if test_metadata_name:
-            assert component[0].getElementsByTagName("ns0:name")[0].firstChild.nodeValue == "TestPackage"
+            assert component[0].getElementsByTagName(with_ns("name"))[0].firstChild.nodeValue == "TestPackage"
 
-    components = sbom.getElementsByTagName("ns0:components")
+    components = sbom.getElementsByTagName(with_ns("components"))
     assert components
-    components = components[0].getElementsByTagName("ns0:component")
+    components = components[0].getElementsByTagName(with_ns("component"))
     assert components
     assert 1 == len([
         c for c in components if
-        c.getElementsByTagName("ns0:name")[0].firstChild.nodeValue == REQ_LIB
+        c.getElementsByTagName(with_ns("name"))[0].firstChild.nodeValue == REQ_LIB
         and
-        c.getElementsByTagName("ns0:version")[0].firstChild.nodeValue == REQ_VER
+        c.getElementsByTagName(with_ns("version"))[0].firstChild.nodeValue == REQ_VER
     ])
     assert 1 == len([
         c for c in components if
-        c.getElementsByTagName("ns0:name")[0].firstChild.nodeValue == REQ_DEP
+        c.getElementsByTagName(with_ns("name"))[0].firstChild.nodeValue == REQ_DEP
     ])
 
 
