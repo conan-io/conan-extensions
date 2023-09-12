@@ -122,7 +122,7 @@ def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metad
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    out = run(f"conan sbom:cyclonedx --sbom_format {sbom_format} {sbom_command}", stderr=None)
+    out = run(f"conan sbom:cyclonedx --format {sbom_format} {sbom_command}", stderr=None)
     if sbom_format.split('_')[1] == "json":
         sbom = json.loads(out)
         _test_generated_sbom_json(sbom, test_metadata_name, sbom_format.split('_')[0])

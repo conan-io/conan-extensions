@@ -1,12 +1,15 @@
 from importlib.metadata import version
+from importlib import import_module
+from functools import partial
 import os.path
 import sys
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Set, Tuple, Union, Dict
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
+from conan.errors import ConanException
 
 if TYPE_CHECKING:
     from cyclonedx.model.bom import Bom
@@ -16,13 +19,35 @@ def cyclonedx_major_version_is_4() -> int:
     return version('cyclonedx-python-lib')[0] == '4'
 
 
-def format_text(output: Dict[str, Any]) -> None:
-    serialized = output['formatters'][output['sbom_format']](output['bom']).output_as_string()
+def format_cyclonedx(formatter_module: str, formatter_class: str, bom: 'Bom') -> None:
+    module = import_module(formatter_module)
+    klass = getattr(module, formatter_class)
+    serialized = klass(bom).output_as_string()
     cli_out_write(serialized)
 
 
-@conan_command(group="Recipe", formatters={"text": format_text})
-def cyclonedx(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
+formatter = {
+    "1.4_json": partial(format_cyclonedx, "cyclonedx.output.json", "JsonV1Dot4"),
+    "1.3_json": partial(format_cyclonedx, "cyclonedx.output.json", "JsonV1Dot3"),
+    "1.2_json": partial(format_cyclonedx, "cyclonedx.output.json", "JsonV1Dot2"),
+    "1.4_xml": partial(format_cyclonedx, "cyclonedx.output.xml", "XmlV1Dot4"),
+    "1.3_xml": partial(format_cyclonedx, "cyclonedx.output.xml", "XmlV1Dot3"),
+    "1.2_xml": partial(format_cyclonedx, "cyclonedx.output.xml", "XmlV1Dot2"),
+    "1.1_xml": partial(format_cyclonedx, "cyclonedx.output.xml", "XmlV1Dot1"),
+    "1.0_xml": partial(format_cyclonedx, "cyclonedx.output.xml", "XmlV1Dot0")
+}
+
+
+def format_text(_: 'Bom') -> None:
+    supported = ', '.join([v for v in formatter.keys() if v is not 'text'])
+    raise ConanException(f"Format 'text' not supported. Supported values are: {supported}")
+
+
+formatter["text"] = format_text
+
+
+@conan_command(group="Recipe", formatters=formatter)
+def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
     try:
@@ -31,8 +56,6 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
                                      LicenseChoice, Tool, XsUri)
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
-        import cyclonedx.output.json
-        import cyclonedx.output.xml
         from packageurl import PackageURL
     except ModuleNotFoundError:
         # Assert on RUNTIME of the actual conan-command, that all requirements exist.
@@ -121,18 +144,6 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
                 url=XsUri("https://github.com/conan-io/conan-extensions")))
         return tool
 
-    formatters = {
-        '1.4_json': cyclonedx.output.json.JsonV1Dot4,
-        '1.3_json': cyclonedx.output.json.JsonV1Dot3,
-        '1.2_json': cyclonedx.output.json.JsonV1Dot2,
-        '1.4_xml': cyclonedx.output.xml.XmlV1Dot4,
-        '1.3_xml': cyclonedx.output.xml.XmlV1Dot3,
-        '1.2_xml': cyclonedx.output.xml.XmlV1Dot2,
-        '1.1_xml': cyclonedx.output.xml.XmlV1Dot1,
-        '1.0_xml': cyclonedx.output.xml.XmlV1Dot0
-    }
-    parser.add_argument("--sbom_format", choices=formatters.keys(), required=True)
-
     # region COPY FROM conan: cli/commands/graph.py
     common_graph_args(parser)
     args = parser.parse_args(*args)
@@ -167,4 +178,4 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
     if cyclonedx_major_version_is_4():
         for dep in deps_graph.nodes:
             bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])  # noqa
-    return {'bom': bom, 'sbom_format': args.sbom_format, 'formatters': formatters}
+    return bom
