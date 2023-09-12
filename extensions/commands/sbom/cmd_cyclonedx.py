@@ -22,7 +22,7 @@ def format_text(output: Dict[str, Any]) -> None:
 
 
 @conan_command(group="Recipe", formatters={"text": format_text})
-def create_sbom(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
+def cyclonedx(conan_api: ConanAPI, parser, *args) -> Dict[str, Any]:
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
     try:
