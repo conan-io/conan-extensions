@@ -1,4 +1,3 @@
-from importlib.metadata import version
 from importlib import import_module
 from functools import partial
 import os.path
@@ -13,10 +12,6 @@ from conan.errors import ConanException
 
 if TYPE_CHECKING:
     from cyclonedx.model.bom import Bom
-
-
-def cyclonedx_major_version_is_4() -> int:
-    return version('cyclonedx-python-lib')[0] == '4'
 
 
 def format_cyclonedx(formatter_module: str, formatter_class: str, bom: 'Bom') -> None:
@@ -69,6 +64,13 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     if TYPE_CHECKING:
         from conans.client.graph.graph import Node
+
+    def cyclonedx_major_version_is_4() -> bool:
+        try:
+            LicenseChoice(license=LicenseFactory().make_from_string("MIT"))
+            return True
+        except TypeError:  # argument in version 3 is named license_
+            return False
 
     def package_type_to_component_type(pt: str) -> ComponentType:
         return ComponentType.APPLICATION if pt == "application" else ComponentType.LIBRARY

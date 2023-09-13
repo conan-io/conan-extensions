@@ -1,4 +1,3 @@
-import importlib.metadata
 import json
 import xml.dom.minidom
 import os
@@ -13,8 +12,14 @@ REQ_VER = "6.2.1"
 REQ_DEP = "m4"
 
 
-def cyclonedx_major_version_is_4() -> int:
-    return importlib.metadata.version('cyclonedx-python-lib')[0] == '4'
+def cyclonedx_major_version_is_4() -> bool:
+    try:
+        from cyclonedx.factory.license import LicenseFactory
+        from cyclonedx.model import LicenseChoice
+        LicenseChoice(license=LicenseFactory().make_from_string("MIT"))
+        return True
+    except TypeError:  # argument in version 3 is named license_
+        return False
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +127,6 @@ def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metad
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    run("conan remote update --insecure conancenter")
     out = run(f"conan sbom:cyclonedx --format {sbom_format} {sbom_command}", stderr=None)
     if sbom_format.split('_')[1] == "json":
         sbom = json.loads(out)
