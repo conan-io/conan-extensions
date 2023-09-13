@@ -41,7 +41,7 @@ def format_text(_: 'Bom') -> None:
 formatter["text"] = format_text
 
 
-@conan_command(group="Recipe", formatters=formatter)
+@conan_command(group="SBOM", formatters=formatter)
 def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
