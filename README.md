@@ -33,6 +33,10 @@ Commands useful in Conan Center Index or its forks
 
 Commands useful for managing [JFrog Build Infos](https://www.buildinfo.org/) and properties in Artifactory.
 
+#### [SBOM](extensions/commands/sbom)
+
+Commands to create Software Bill of Materials.
+
 ### [Deployers](extensions/deployers)
 
 These are the current custom deployers. Recall they are experimental and can experience breaking changes, use them as a base to create your own under your control for stability.
