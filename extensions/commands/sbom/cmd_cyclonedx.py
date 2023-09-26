@@ -148,6 +148,9 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     # region COPY FROM conan: cli/commands/graph.py
     common_graph_args(parser)
+    # FIXME: Process the ``--build-require`` argument
+    parser.add_argument("--build-require", action='store_true', default=False,
+                        help='Whether the provided path is a build-require')
     args = parser.parse_args(*args)
     validate_common_graph_args(args)
     cwd = os.getcwd()
