@@ -1,7 +1,9 @@
 import ast
 import configparser
+import hashlib
 import os
 import sys
+import urllib
 import xml.etree.ElementTree
 from typing import List, Tuple
 
@@ -86,11 +88,17 @@ def get_hash_and_mirrors(version: Version, session: requests.Session) -> Tuple[s
         hash_element = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']")
         if hash_element is None:
             ConanOutput().error(f"Could not find hash tag in {link}.meta4 file content")
-            sys.exit(-1)
-        sources_hash = hash_element.text
-        if sources_hash is None:
-            ConanOutput().error(f"Could not find hash text in {link}.meta4 file content")
-            sys.exit(-1)
+            sha256_hash = hashlib.sha256()
+            with urllib.request.urlopen(link) as f:
+                # Read and update hash string value in blocks of 4K
+                for byte_block in iter(lambda: f.read(4096),b""):
+                    sha256_hash.update(byte_block)
+            sources_hash = sha256_hash.hexdigest()
+        else:
+            sources_hash = hash_element.text
+            if sources_hash is None:
+                ConanOutput().error(f"Could not find hash text in {link}.meta4 file content")
+                sys.exit(-1)
         mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url") if node.text)
     return sources_hash, mirrors
 
