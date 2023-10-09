@@ -145,7 +145,7 @@ class _BuildInfo:
             file_list = list(dl_folder.glob("*"))
             if len(file_list) >= 3:
                 for file_path in dl_folder.glob("*"):
-                    if file_path.is_file():
+                    if file_path.is_file():  # FIXME: Make it recursive for metadata folder
                         file_name = file_path.name
                         md5, sha1, sha256 = _get_hashes(file_path)
                         artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
@@ -226,6 +226,33 @@ class _BuildInfo:
 
         return artifacts
 
+    def _get_python_requires(self, node, modules):
+        python_requires = node.get("python_requires")
+        if python_requires is None:
+            return
+        for pyref, pyreq in python_requires.items():
+            pyrecipe = pyreq["recipe"]
+            artifacts_folder = pyreq["path"]
+            remote_path = _get_remote_path(pyref)
+            artifacts = []
+
+            dl_folder = Path(artifacts_folder).parents[0] / "d"
+            file_list = list(dl_folder.glob("*"))
+            for f in file_list:
+                if not f.is_file():
+                    continue  # FIXME: This is discarding metadata folders
+                md5, sha1, sha256 = _get_hashes(f)
+                artifact_info = {"type": os.path.splitext(f.name)[1].lstrip('.'),
+                                "sha256": sha256,
+                                "sha1": sha1,
+                                "md5": md5}
+                artifact_info.update({"name": f.name, "path": f'{self._repository}/{remote_path}/{f.name}'})
+                artifacts.append(artifact_info)
+            pyreq_module = {"type": "conan", 
+                            "id": pyref,
+                            "artifacts": artifacts}
+            modules.append(pyreq_module)
+
     def get_modules(self):
         ret = []
         try:
@@ -237,6 +264,7 @@ class _BuildInfo:
             ref = node.get("ref")
             if ref:
                 transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
+                self._get_python_requires(node, modules=ret)
 
                 # only add the nodes that were marked as built
                 if node.get("binary") == "Build":
