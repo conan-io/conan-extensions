@@ -231,8 +231,10 @@ class _BuildInfo:
         if python_requires is None:
             return
         for pyref, pyreq in python_requires.items():
-            pyrecipe = pyreq["recipe"]
-            artifacts_folder = pyreq["path"]
+            artifacts_folder = pyreq.get("path")
+            # this may happen for conan versions < 2.0.14, do not crash in that case
+            if artifacts_folder is None:
+                continue
             remote_path = _get_remote_path(pyref)
             artifacts = []
 
@@ -252,6 +254,7 @@ class _BuildInfo:
                             "id": pyref,
                             "artifacts": artifacts}
             modules.append(pyreq_module)
+
 
     def get_modules(self):
         ret = []

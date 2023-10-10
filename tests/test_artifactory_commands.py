@@ -4,6 +4,7 @@ import tempfile
 import textwrap
 
 from tools import run, save
+from conan.tools.scm import Version
 
 import pytest
 
@@ -201,6 +202,7 @@ def test_build_info_create_deps():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.skipif(conan_version <= Version("2.0.13"), reason="path key is only added to python requires in graph for conan >= 2.0.14")
 def test_build_info_create_python_requires():
     build_name = "mybuildinfo"
     build_number = "1"
