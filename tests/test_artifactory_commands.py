@@ -5,6 +5,7 @@ import textwrap
 
 from tools import run, save
 from conan.tools.scm import Version
+from conan import conan_version
 
 import pytest
 
