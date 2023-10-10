@@ -226,7 +226,7 @@ def test_build_info_create_python_requires():
     save("conanfile.py", pkg)
     run('conan create . --format=json > create_release.json')
 
-    run("conan upload * -c --dry-run -r=extensions-stg")
+    run("conan upload '*' -c --dry-run -r=extensions-stg")
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
     build_info = open("mybuildinfo_release.json").read()
 
