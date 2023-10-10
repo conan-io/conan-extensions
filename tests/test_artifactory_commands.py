@@ -39,6 +39,7 @@ def conan_test():
         os.environ.update(old_env)
 
 
+
 @pytest.mark.requires_credentials
 def test_build_info_create_no_deps():
     # Make sure artifactory repos are empty before starting the test
