@@ -234,7 +234,7 @@ def test_build_info_create_python_requires():
     build_info = open("mybuildinfo_release.json").read()
 
     build_info = json.loads(build_info)
-    assert "pytool/0.1#" in build_info["modules"][0]["id"] == 
+    assert "pytool/0.1#" in build_info["modules"][0]["id"]
     artifacts = build_info["modules"][0]["artifacts"]
     assert len(artifacts) == 2
     assert artifacts[0]["name"] == "conanfile.py"
