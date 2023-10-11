@@ -237,8 +237,11 @@ def test_build_info_create_python_requires():
     assert "pytool/0.1#" in build_info["modules"][0]["id"]
     artifacts = build_info["modules"][0]["artifacts"]
     assert len(artifacts) == 2
-    assert artifacts[0]["name"] == "conanfile.py"
-    assert artifacts[1]["name"] == "conanmanifest.txt"
+
+    artifact_names = [artifact["name"] for artifact in artifacts]
+
+    assert "conanfile.py" in artifact_names
+    assert "conanmanifest.txt" in artifact_names
 
 
 @pytest.mark.requires_credentials
