@@ -110,7 +110,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
 class _BuildInfo:
 
     def __init__(self, graph, name, number, repository, with_dependencies=False, 
-                 url=None, user=None, password=None):
+                 add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
@@ -120,6 +120,7 @@ class _BuildInfo:
         self._password = password
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
+        self._add_cached_deps = add_cached_deps
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -307,7 +308,7 @@ class _BuildInfo:
             binary = node.get("binary")
             dependencies = node.get("dependencies", {})
 
-            if ref and binary == "Build":
+            if ref and (binary == "Build" or (binary == "Cache" and self._add_cached_deps)):
                 transitive_dependencies = list(dependencies.keys()) if self._with_dependencies else None
 
                 # If the package that was built had a python_requires then add it as a separate module
@@ -408,6 +409,10 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
 
+    subparser.add_argument("--add-cached-deps", help="It will add not only the Conan packages that are built "
+                           "but also the ones that are used from the cache but not built. Default: false.",
+                           action='store_true', default=False)
+
     args = parser.parse_args(*args)
 
     url, user, password = get_url_user_password(args)
@@ -418,7 +423,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
-                    with_dependencies=args.with_dependencies, url=url, user=user, password=password)
+                    with_dependencies=args.with_dependencies, 
+                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
 
