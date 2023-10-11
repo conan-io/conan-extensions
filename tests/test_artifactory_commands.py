@@ -208,9 +208,6 @@ def test_build_info_create_from_cached_deps():
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r extensions-prod")
 
-    build_name = "mybuildinfo"
-    build_number = "1"
-
     run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Create dependency packages and upload them
