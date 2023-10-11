@@ -256,22 +256,22 @@ class _BuildInfo:
             modules.append(pyreq_module)
 
 
-    def create_module(self, node, artifact_type, transitive_dependencies):
-        if artifact_type=="recipe" or (node.get("package_id") and node.get("prev")):
+    def create_module(self, node, module_type, transitive_dependencies):
+        if module_type=="recipe" or (node.get("package_id") and node.get("prev")):
             
             ref = node.get("ref")
     
             module = {
                 "type": "conan",
-                "id": str(ref) if artifact_type=="recipe" else f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
-                "artifacts": self.get_artifacts(node, artifact_type)
+                "id": str(ref) if module_type=="recipe" else f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                "artifacts": self.get_artifacts(node, module_type)
             }
 
             if self._with_dependencies:
                 nodes = self._graph["graph"]["nodes"]
                 all_dependencies = []
                 for require_id in transitive_dependencies:
-                    deps_artifacts = self.get_artifacts(nodes.get(require_id), artifact_type,
+                    deps_artifacts = self.get_artifacts(nodes.get(require_id), module_type,
                                                         is_dependency=True)
                     all_dependencies.extend(deps_artifacts)
 
@@ -283,27 +283,23 @@ class _BuildInfo:
         modules_list = []
         try:
             nodes = self._graph["graph"]["nodes"]
-        except KeyError:
-            raise ConanException("JSON does not contain graph information")
+        except KeyError as e:
+            raise ConanException(f"JSON does not contain graph information: {e}")
 
-        for _, node in nodes.items():
-            if node.get("ref"):
+        for node in nodes.values():
+            ref = node.get("ref")
+            binary = node.get("binary")
+            dependencies = node.get("dependencies", {})
 
-                # only add the nodes that were marked as built
-                if node.get("binary") == "Build":
+            if ref and binary == "Build":
+                transitive_dependencies = list(dependencies.keys())
 
-                    transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
-                    self._get_python_requires(node, modules=modules_list)
+                self._get_python_requires(node, modules=modules_list)
 
-                    # For each package that was build we create a recipe module and a package module
-
-                    # recipe module
-                    recipe_module = self.create_module(node, "recipe", transitive_dependencies)
-                    modules_list.append(recipe_module)
-
-                    # package module
-                    package_module = self.create_module(node, "package", transitive_dependencies)
-                    modules_list.append(package_module)
+                # For each package that was built we create a recipe module and a package module
+                for module_type in ["recipe", "package"]:
+                    module = self.create_module(node, module_type, transitive_dependencies)
+                    modules_list.append(module)
 
         return modules_list
 
