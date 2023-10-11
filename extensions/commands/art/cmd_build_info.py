@@ -226,38 +226,9 @@ class _BuildInfo:
 
         return artifacts
 
-    def _get_python_requires(self, node, modules):
-        python_requires = node.get("python_requires")
-        if python_requires is None:
-            return
-        for pyref, pyreq in python_requires.items():
-            artifacts_folder = pyreq.get("path")
-            # this may happen for conan versions < 2.0.14, do not crash in that case
-            if artifacts_folder is None:
-                continue
-            remote_path = _get_remote_path(pyref)
-            artifacts = []
 
-            dl_folder = Path(artifacts_folder).parents[0] / "d"
-            file_list = list(dl_folder.glob("*"))
-            for f in file_list:
-                if not f.is_file():
-                    continue  # FIXME: This is discarding metadata folders
-                md5, sha1, sha256 = _get_hashes(f)
-                artifact_info = {"type": os.path.splitext(f.name)[1].lstrip('.'),
-                                "sha256": sha256,
-                                "sha1": sha1,
-                                "md5": md5}
-                artifact_info.update({"name": f.name, "path": f'{self._repository}/{remote_path}/{f.name}'})
-                artifacts.append(artifact_info)
-            pyreq_module = {"type": "conan", 
-                            "id": pyref,
-                            "artifacts": artifacts}
-            modules.append(pyreq_module)
-
-
-    def create_module(self, node, module_type, transitive_dependencies):
-        if module_type=="recipe" or (node.get("package_id") and node.get("prev")):
+    def create_module(self, node, module_type, transitive_dependencies=None, python_requires=None):
+        if module_type=="recipe" or (node.get("package_id") and node.get("prev") and module_type=="package"):
             
             ref = node.get("ref")
     
@@ -267,7 +238,7 @@ class _BuildInfo:
                 "artifacts": self.get_artifacts(node, module_type)
             }
 
-            if self._with_dependencies:
+            if transitive_dependencies:
                 nodes = self._graph["graph"]["nodes"]
                 all_dependencies = []
                 for require_id in transitive_dependencies:
@@ -277,7 +248,33 @@ class _BuildInfo:
 
                 module.update({"dependencies": all_dependencies})
             return module
+        elif (module_type=="python_requires"):
+            # FIXME: this deserves some refactoring
+            python_requires = node.get("python_requires")
+            for pyref, pyreq in python_requires.items():
+                artifacts_folder = pyreq.get("path")
+                # this may happen for conan versions < 2.0.14, do not crash in that case
+                if artifacts_folder is None:
+                    continue
+                remote_path = _get_remote_path(pyref)
+                artifacts = []
 
+                dl_folder = Path(artifacts_folder).parents[0] / "d"
+                file_list = list(dl_folder.glob("*"))
+                for f in file_list:
+                    if not f.is_file():
+                        continue  # FIXME: This is discarding metadata folders
+                    md5, sha1, sha256 = _get_hashes(f)
+                    artifact_info = {"type": os.path.splitext(f.name)[1].lstrip('.'),
+                                     "sha256": sha256,
+                                     "sha1": sha1,
+                                     "md5": md5}
+                    artifact_info.update({"name": f.name, "path": f'{self._repository}/{remote_path}/{f.name}'})
+                    artifacts.append(artifact_info)
+                pyreq_module = {"type": "conan", 
+                                "id": pyref,
+                                "artifacts": artifacts}
+                return pyreq_module
 
     def get_modules(self):
         modules_list = []
@@ -292,14 +289,23 @@ class _BuildInfo:
             dependencies = node.get("dependencies", {})
 
             if ref and binary == "Build":
-                transitive_dependencies = list(dependencies.keys())
+                transitive_dependencies = list(dependencies.keys()) if self._with_dependencies else None
 
-                self._get_python_requires(node, modules=modules_list)
+                # If the package that was built had a python_requires then add it as a separate module
+                
+                python_requires = node.get("python_requires")
+                if python_requires:
+                    module = self.create_module(node, "python_requires")
+                    modules_list.append(module)
 
                 # For each package that was built we create a recipe module and a package module
-                for module_type in ["recipe", "package"]:
-                    module = self.create_module(node, module_type, transitive_dependencies)
-                    modules_list.append(module)
+                recipe_module = self.create_module(node, "recipe", transitive_dependencies, python_requires)
+                modules_list.append(recipe_module)
+
+
+                package_module = self.create_module(node, "package", transitive_dependencies)
+                modules_list.append(package_module)
+
 
         return modules_list
 
