@@ -48,7 +48,7 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
         for remote in remotes:
             refs = conan_api.search.recipes(name, remote=remote)
             if refs:
-                all_refs.extend(refs)
+                all_refs.extend(r for r in refs if r != "system")
         if not all_refs:
             return None
         return str(max(all_refs))
