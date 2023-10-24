@@ -111,7 +111,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             component = Component(
                 type=package_type_to_component_type(node.conanfile.package_type),  # noqa
                 name=node.name or f'UNKNOWN.{id(node)}',
-                author=node.conanfile.author,
+                author=node.conanfile.author if node.conanfile.author else "Conan",
                 version=node.conanfile.version,
                 licenses=licenses(node.conanfile.license),
                 bom_ref=purl.to_string() if purl else None,
