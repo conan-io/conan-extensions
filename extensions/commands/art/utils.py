@@ -4,6 +4,18 @@ import requests
 from conan.errors import ConanException
 
 
+def load_json(json_file):
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        raise ConanException(f"Error: The file {json_file} was not found.")
+    except json.JSONDecodeError:
+        raise ConanException(f"Error: The file {json_file} is not a valid JSON file.")
+    except Exception as e:
+        raise ConanException(f"An unexpected error occurred: {e}")
+
 def response_to_str(response):
     content = response.content
     try:
