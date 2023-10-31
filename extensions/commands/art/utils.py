@@ -76,7 +76,9 @@ def api_request(method, request_url, user=None, password=None, json_data=None,
     else:
         response = requests_method(request_url)
 
-    if response.status_code == 401:
+    if response.status_code == 400:
+        raise BadRequestException(response_to_str(response))
+    elif response.status_code == 401:
         raise UnauthorizedException(response_to_str(response))
     elif response.status_code == 403:
         raise ForbiddenException(response_to_str(response))
