@@ -13,7 +13,7 @@ from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
 
-from utils import api_request, assert_server_or_url_user_password, load_json
+from utils import NotFoundException, api_request, assert_server_or_url_user_password, load_json
 from cmd_property import get_properties, set_properties
 from cmd_server import get_url_user_password
 
@@ -179,7 +179,9 @@ class _BuildInfo:
                         response_data = json.loads(response)
                         checksums = response_data.get("checksums")
                         self._cached_artifact_info[request_url] = checksums
-                    except Exception:
+                    # pass here only if not found because there are some artifacts that are
+                    # not always there like conan_export.tgz
+                    except NotFoundException:
                         pass
                 else:
                     checksums = self._cached_artifact_info.get(request_url)
