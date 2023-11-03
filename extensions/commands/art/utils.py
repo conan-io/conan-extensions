@@ -41,19 +41,19 @@ def response_to_str(response):
         return response.content
 
 class UnauthorizedException(ConanException):
-    """Exception raised for unauthorized requests (HTTP 401)."""
+    """Exception raised for unauthorized request (HTTP 401)."""
     pass
 
 class ForbiddenException(ConanException):
-    """Exception raised for forbidden requests (HTTP 403)."""
+    """Exception raised for forbidden request (HTTP 403)."""
     pass
 
 class NotFoundException(ConanException):
-    """Exception raised for requests to non-existent resources (HTTP 404)."""
+    """Exception raised for request to non-existent resources (HTTP 404)."""
     pass
 
 class BadRequestException(ConanException):
-    """Exception raised for bad requests (HTTP 400)."""
+    """Exception raised for bad request (HTTP 400)."""
     pass
 
 class UnexpectedResponseException(ConanException):
