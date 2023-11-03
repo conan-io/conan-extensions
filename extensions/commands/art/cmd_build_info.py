@@ -13,7 +13,7 @@ from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
 
-from utils import api_request, assert_server_or_url_user_password
+from utils import NotFoundException, api_request, assert_server_or_url_user_password, load_json
 from cmd_property import get_properties, set_properties
 from cmd_server import get_url_user_password
 
@@ -179,7 +179,9 @@ class _BuildInfo:
                         response_data = json.loads(response)
                         checksums = response_data.get("checksums")
                         self._cached_artifact_info[request_url] = checksums
-                    except Exception:
+                    # pass here only if not found because there are some artifacts that are
+                    # not always there like conan_export.tgz
+                    except NotFoundException:
                         pass
                 else:
                     checksums = self._cached_artifact_info.get(request_url)
@@ -364,8 +366,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    with open(args.json, 'r') as f:
-        data = json.load(f)
+    data = load_json(args.json)
 
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
@@ -389,8 +390,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    with open(args.build_info) as f:
-        build_info_json = json.load(f)
+    build_info_json = load_json(args.build_info)
 
     # first, set the properties build.name and build.number
     # for the artifacts in the BuildInfo
@@ -580,8 +580,7 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    with open(args.json, 'r') as f:
-        data = json.load(f)
+    data = load_json(args.json)
 
     manifest = _manifest_from_build_info(data, args.repository, with_dependencies=True)
 

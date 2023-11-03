@@ -4,6 +4,18 @@ import requests
 from conan.errors import ConanException
 
 
+def load_json(json_file):
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        raise ConanException(f"Error: The file {json_file} was not found.")
+    except json.JSONDecodeError:
+        raise ConanException(f"Error: The file {json_file} is not a valid JSON file.")
+    except Exception as e:
+        raise ConanException(f"An unexpected error occurred: {e}")
+
 def response_to_str(response):
     content = response.content
     try:
@@ -28,6 +40,26 @@ def response_to_str(response):
     except Exception:
         return response.content
 
+class UnauthorizedException(ConanException):
+    """Exception raised for unauthorized request (HTTP 401)."""
+    pass
+
+class ForbiddenException(ConanException):
+    """Exception raised for forbidden request (HTTP 403)."""
+    pass
+
+class NotFoundException(ConanException):
+    """Exception raised for request to non-existent resources (HTTP 404)."""
+    pass
+
+class BadRequestException(ConanException):
+    """Exception raised for bad request (HTTP 400)."""
+    pass
+
+class UnexpectedResponseException(ConanException):
+    """Exception raised for unexpected response status codes."""
+    pass
+
 
 def api_request(method, request_url, user=None, password=None, json_data=None,
                 sign_key_name=None):
@@ -44,10 +76,16 @@ def api_request(method, request_url, user=None, password=None, json_data=None,
     else:
         response = requests_method(request_url)
 
-    if response.status_code == 401:
-        raise Exception(response_to_str(response))
+    if response.status_code == 400:
+        raise BadRequestException(response_to_str(response))
+    elif response.status_code == 401:
+        raise UnauthorizedException(response_to_str(response))
+    elif response.status_code == 403:
+        raise ForbiddenException(response_to_str(response))
+    elif response.status_code == 404:
+        raise NotFoundException(response_to_str(response))
     elif response.status_code not in [200, 204]:
-        raise Exception(response_to_str(response))
+        raise UnexpectedResponseException(response_to_str(response))
 
     return response_to_str(response)
 
