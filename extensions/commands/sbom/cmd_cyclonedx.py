@@ -2,7 +2,7 @@ from importlib import import_module
 from functools import partial
 import os.path
 import sys
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
@@ -47,8 +47,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     try:
         from cyclonedx.factory.license import LicenseFactory
-        from cyclonedx.model import (ExternalReference, ExternalReferenceType,
-                                     LicenseChoice, Tool, XsUri)
+        from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
         from packageurl import PackageURL
@@ -58,24 +57,24 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         # if loading dependencies is performed outside the actual conan-command in global/module scope.
         print('The sbom extension needs an additional package, please run:',
               # keep in synk with the instructions in `README.md`
-              "pip install 'cyclonedx-python-lib>=3.1.5,<5.0.0'",
+              "pip install 'cyclonedx-python-lib>=3.1.5,!=4.*,<6'",
               sep='\n', file=sys.stderr)
         sys.exit(1)
 
     if TYPE_CHECKING:
         from conans.client.graph.graph import Node
 
-    def cyclonedx_major_version_is_4() -> bool:
+    def cyclonedx_major_version_is_5() -> bool:
         try:
-            LicenseChoice(license=LicenseFactory().make_from_string("MIT"))
-            return True
-        except TypeError:  # argument in version 3 is named license_
+            from cyclonedx import __version__
+            return __version__[0] == "5"
+        except ImportError:
             return False
 
     def package_type_to_component_type(pt: str) -> ComponentType:
         return ComponentType.APPLICATION if pt == "application" else ComponentType.LIBRARY
 
-    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]) -> Optional[Iterable[LicenseChoice]]:
+    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]):
         """
         see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
         """
@@ -83,9 +82,10 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             return None
         if not isinstance(ls, (tuple, set, list)):
             ls = [ls]
-        if cyclonedx_major_version_is_4():
-            return [LicenseChoice(license=LicenseFactory().make_from_string(i)) for i in ls]  # noqa
+        if cyclonedx_major_version_is_5():
+            return [LicenseFactory().make_from_string(i) for i in ls]  # noqa
         else:
+            from cyclonedx.model import LicenseChoice  # without that, xml cannot be serialized
             return [LicenseChoice(license_=LicenseFactory().make_from_string(i)) for i in ls]
 
     def package_url(node: 'Node') -> Optional[PackageURL]:
@@ -107,7 +107,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     def create_component(node: 'Node') -> Component:
         purl = package_url(node)
-        if cyclonedx_major_version_is_4():
+        if cyclonedx_major_version_is_5():
             component = Component(
                 type=package_type_to_component_type(node.conanfile.package_type),  # noqa
                 name=node.name or f'UNKNOWN.{id(node)}',
@@ -129,7 +129,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
                 purl=purl,
                 description=node.conanfile.description
             )
-        if node.conanfile.homepage and cyclonedx_major_version_is_4():  # bug in cyclonedx 3 enforces hashes
+        if node.conanfile.homepage and cyclonedx_major_version_is_5():  # bug in cyclonedx 3 enforces hashes
             component.external_references.add(ExternalReference(
                 type=ExternalReferenceType.WEBSITE,  # noqa
                 url=XsUri(node.conanfile.homepage),
@@ -137,8 +137,8 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         return component
 
     def me_as_tool() -> Tool:
-        tool = Tool(name="conan extension recipe:create-sbom")
-        if cyclonedx_major_version_is_4():
+        tool = Tool(name="conan extension sbom:cyclonedx")
+        if cyclonedx_major_version_is_5():
             tool.external_references.add(ExternalReference(
                 type=ExternalReferenceType.WEBSITE,  # noqa
                 url=XsUri("https://github.com/conan-io/conan-extensions")))  # noqa
@@ -182,7 +182,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     bom.metadata.tools.add(me_as_tool())
     for node in deps_graph.nodes[1:]:  # node 0 is the root
         bom.components.add(components[node])
-    if cyclonedx_major_version_is_4():
+    if cyclonedx_major_version_is_5():
         for dep in deps_graph.nodes:
             bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])  # noqa
     return bom
