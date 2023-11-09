@@ -145,7 +145,7 @@ class _BuildInfo:
             file_list = list(dl_folder.glob("*"))
             if len(file_list) >= 3:
                 for file_path in dl_folder.glob("*"):
-                    if file_path.is_file():
+                    if file_path.is_file():  # FIXME: Make it recursive for metadata folder
                         file_name = file_path.name
                         md5, sha1, sha256 = _get_hashes(file_path)
                         artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
@@ -228,59 +228,107 @@ class _BuildInfo:
 
         return artifacts
 
+    def get_pyreq_artifacts(self, pyreq, pyref, is_dependency=False):
+        artifacts_folder = pyreq.get("path")
+        # this may happen for conan versions < 2.0.14, do not crash in that case
+        if artifacts_folder is None:
+            return
+        remote_path = _get_remote_path(pyref)
+        artifacts = []
+
+        dl_folder = Path(artifacts_folder).parents[0] / "d"
+        file_list = list(dl_folder.glob("*"))
+        for f in file_list:
+            if not f.is_file():
+                continue  # FIXME: This is discarding metadata folders
+            md5, sha1, sha256 = _get_hashes(f)
+
+            artifact_info = {"type": os.path.splitext(f.name)[1].lstrip('.'),
+                             "sha256": sha256,
+                             "sha1": sha1,
+                             "md5": md5}
+
+            if not is_dependency:
+                artifact_info.update({"name": f.name, "path": f'{self._repository}/{remote_path}/{f.name}'})
+            else:
+                artifact_info.update({"id": f"{pyref} :: {f.name}"})
+
+            artifacts.append(artifact_info)
+        return artifacts
+
+    def create_pyreq_modules(self, node):
+        python_requires = node.get("python_requires")
+        pyreq_modules = []
+        for pyref, pyreq in python_requires.items():
+
+            artifacts = self.get_pyreq_artifacts(pyreq, pyref)
+
+            module = {"type": "conan", 
+                      "id": pyref,
+                      "artifacts": artifacts}
+            pyreq_modules.append(module)
+        return pyreq_modules
+
+    def create_module(self, node, module_type, transitive_dependencies=None, python_requires=None):
+        if module_type=="recipe" or (node.get("package_id") and node.get("prev") and module_type=="package"):
+            ref = node.get("ref")
+            module = {
+                "type": "conan",
+                "id": str(ref) if module_type=="recipe" else f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
+                "artifacts": self.get_artifacts(node, module_type)
+            }
+
+        if transitive_dependencies or python_requires:
+            nodes = self._graph["graph"]["nodes"]
+            all_dependencies = []
+
+            if transitive_dependencies:
+                for require_id in transitive_dependencies:
+                    deps_artifacts = self.get_artifacts(nodes.get(require_id), module_type, is_dependency=True)
+                    all_dependencies.extend(deps_artifacts)
+
+            if python_requires:
+                for pyref, pyreq in python_requires.items():
+                    pyreq_artifacts = self.get_pyreq_artifacts(pyreq, pyref, is_dependency=True)
+                    all_dependencies.extend(pyreq_artifacts)
+
+            module.update({"dependencies": all_dependencies})
+
+        return module
+
+
     def get_modules(self):
-        ret = []
+        modules_list = []
         try:
             nodes = self._graph["graph"]["nodes"]
-        except KeyError:
-            raise ConanException("JSON does not contain graph information")
+        except KeyError as e:
+            raise ConanException(f"JSON does not contain graph information: {e}")
 
-        for id, node in nodes.items():
+        for node in nodes.values():
             ref = node.get("ref")
-            if ref:
-                transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
+            binary = node.get("binary")
+            dependencies = node.get("dependencies", {})
 
-                # only add the nodes that were marked as built
-                if node.get("binary") == "Build":
+            if ref and binary == "Build":
+                transitive_dependencies = list(dependencies.keys()) if self._with_dependencies else None
 
-                    # recipe module
-                    module = {
-                        "type": "conan",
-                        "id": str(ref),
-                        "artifacts": self.get_artifacts(node, "recipe")
-                    }
+                # If the package that was built had a python_requires then add it as a separate module
+                
+                python_requires = node.get("python_requires")
+                if python_requires:
+                    modules = self.create_pyreq_modules(node)
+                    modules_list.extend(modules)
 
-                    if self._with_dependencies:
-                        all_dependencies = []
-                        for require_id in transitive_dependencies:
-                            deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
-                                                                is_dependency=True)
-                            all_dependencies.extend(deps_artifacts)
+                # For each package that was built we create a recipe module and a package module
+                recipe_module = self.create_module(node, "recipe", transitive_dependencies, python_requires)
+                modules_list.append(recipe_module)
 
-                        module.update({"dependencies": all_dependencies})
 
-                    ret.append(module)
+                package_module = self.create_module(node, "package", transitive_dependencies)
+                modules_list.append(package_module)
 
-                    # package module
-                    if node.get("package_id") and node.get("prev"):
-                        module = {
-                            "type": "conan",
-                            "id": f'{str(ref)}:{node.get("package_id")}#{node.get("prev")}',
-                            "artifacts": self.get_artifacts(node, "package")
-                        }
-                        # get the dependencies and its artifacts
-                        if self._with_dependencies:
-                            all_dependencies = []
-                            for require_id in transitive_dependencies:
-                                deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
-                                                                    is_dependency=True)
-                                all_dependencies.extend(deps_artifacts)
 
-                            module.update({"dependencies": all_dependencies})
-
-                        ret.append(module)
-
-        return ret
+        return modules_list
 
     def header(self):
         return {"version": "1.0.1",

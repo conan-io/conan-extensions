@@ -1,7 +1,11 @@
+import json
 import os
 import tempfile
+import textwrap
 
-from tools import run
+from tools import run, save
+from conan.tools.scm import Version
+from conan import conan_version
 
 import pytest
 
@@ -196,6 +200,48 @@ def test_build_info_create_deps():
     # Remove pacakges to clean Artifactory (Deleting the build infos does not remove pacakges from repos)
     run('conan remove "*" -c -r extensions-prod')
     run('conan remove "*" -c -r extensions-stg')
+
+
+@pytest.mark.requires_credentials
+@pytest.mark.skipif(conan_version <= Version("2.0.13"), reason="path key is only added to python requires in graph for conan >= 2.0.14")
+def test_build_info_create_python_requires():
+    build_name = "mybuildinfo"
+    build_number = "1"
+
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Create dependency packages and upload them
+    pytool = textwrap.dedent("""\
+        from conan import ConanFile
+        class PyTool(ConanFile):
+            name = "pytool"
+            version = "0.1"
+        """)
+    save("conanfile.py", pytool)
+    run('conan create . ')
+    pkg = textwrap.dedent("""\
+        from conan import ConanFile
+        class PyTool(ConanFile):
+            name = "pkg"
+            version = "0.1"
+            python_requires = "pytool/0.1"
+        """)
+    save("conanfile.py", pkg)
+    run('conan create . --format=json > create_release.json')
+
+    run("conan upload '*' -c --dry-run -r=extensions-stg")
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
+    build_info = open("mybuildinfo_release.json").read()
+
+    build_info = json.loads(build_info)
+    assert "pytool/0.1#" in build_info["modules"][0]["id"]
+    artifacts = build_info["modules"][0]["artifacts"]
+    assert len(artifacts) == 2
+
+    artifact_names = [artifact["name"] for artifact in artifacts]
+
+    assert "conanfile.py" in artifact_names
+    assert "conanmanifest.txt" in artifact_names
 
 
 @pytest.mark.requires_credentials
