@@ -68,7 +68,7 @@ def test_list_arg():
     save("list.yml", list_yml)
 
     run("conan cci:export-all-versions -l list.yml")
-    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 4
+    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 6
 
 def test_name_arg():
     run("conan cci:export-all-versions -n pkga")
