@@ -114,12 +114,22 @@ class _BuildInfo:
         self._graph = graph
         self._name = name
         self._number = number
-        self._repository = repository
+        self._repositories = repositories.split(",")
         self._url = url
         self._user = user
         self._password = password
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
+
+    def _check_artifact_exists(self, artifact_path):
+        artifact_exists = False
+        try:
+            request_url = f"{self._url}/api/storage/{artifact_path}"
+            api_request("get", request_url, self._user, self._password)
+            artifact_exists = True
+        except:
+            pass
+        return artifact_exists
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -154,7 +164,11 @@ class _BuildInfo:
                                          "md5": md5}
 
                         if not is_dependency:
-                            artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
+                            for repository in self._repositories:
+                                artifact_path = f'{repository}/{remote_path}/{file_name}'
+                                if self._check_artifact_exists(artifact_path):
+                                    artifact_info.update({"name": file_name, "path": f'{repository}/{remote_path}/{file_name}'})
+                                    break
                         else:
                             ref = node.get("ref")
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
@@ -164,43 +178,44 @@ class _BuildInfo:
             return local_artifacts
 
         def _get_remote_artifacts():
-            assert self._url and self._repository, "Missing information in the Conan local cache, " \
-                                                   "please provide the --url and --repository arguments " \
-                                                   "to retrieve the information from Artifactory."
+            assert self._url and self._repositories, "Missing information in the Conan local cache, " \
+                                                     "please provide the --url and --repositories arguments " \
+                                                     "to retrieve the information from Artifactory."
 
             remote_artifacts = []
 
             for artifact in artifacts_names:
-                request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
-                if not self._cached_artifact_info.get(request_url):
-                    checksums = None
-                    try:
-                        response = api_request("get", request_url, self._user, self._password)
-                        response_data = json.loads(response)
-                        checksums = response_data.get("checksums")
-                        self._cached_artifact_info[request_url] = checksums
-                    # pass here only if not found because there are some artifacts that are
-                    # not always there like conan_export.tgz
-                    except NotFoundException:
-                        pass
-                else:
-                    checksums = self._cached_artifact_info.get(request_url)
-
-                if checksums:
-                    artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
-                                     "sha256": checksums.get("sha256"),
-                                     "sha1": checksums.get("sha1"),
-                                     "md5": checksums.get("md5")}
-
-                    artifact_path = f'{self._repository}/{remote_path}/{artifact}'
-                    if not is_dependency:
-                        artifact_info.update({"name": artifact, "path": artifact_path})
+                for repository in self._repositories:
+                    request_url = f"{self._url}/api/storage/{repository}/{remote_path}/{artifact}"
+                    if not self._cached_artifact_info.get(request_url):
+                        checksums = None
+                        try:
+                            response = api_request("get", request_url, self._user, self._password)
+                            response_data = json.loads(response)
+                            checksums = response_data.get("checksums")
+                            self._cached_artifact_info[request_url] = checksums
+                        # pass here only if not found because there are some artifacts that are
+                        # not always there like conan_export.tgz
+                        except NotFoundException:
+                            continue
                     else:
-                        ref = node.get("ref")
-                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
+                        checksums = self._cached_artifact_info.get(request_url)
 
-                    remote_artifacts.append(artifact_info)
+                    if checksums:
+                        artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
+                                        "sha256": checksums.get("sha256"),
+                                        "sha1": checksums.get("sha1"),
+                                        "md5": checksums.get("md5")}
+
+                        artifact_path = f'{repository}/{remote_path}/{artifact}'
+                        if not is_dependency:
+                            artifact_info.update({"name": artifact, "path": artifact_path})
+                        else:
+                            ref = node.get("ref")
+                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                            artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
+
+                        remote_artifacts.append(artifact_info)
 
             return remote_artifacts
 
@@ -357,7 +372,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
-    subparser.add_argument("repository", help="Repository to look artifacts for.")
+    subparser.add_argument("repositories", help="List of comma separated repositories to look artifacts for. e.g. repo1,repo2")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
@@ -370,7 +385,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    bi = _BuildInfo(data, args.build_name, args.build_number, args.repositories,
                     with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
