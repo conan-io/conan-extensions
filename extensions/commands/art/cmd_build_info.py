@@ -106,10 +106,27 @@ def _get_requested_by(nodes, node_id, artifact_type):
         ret.append(ref_list)
     return ret
 
+def _check_artifact_exists(artifact_path, artifactory_url, artifactory_user, artifactory_password):
+    artifact_exists = False
+    try:
+        request_url = f"{artifactory_url}/api/storage/{artifact_path}"
+        api_request("get", request_url, artifactory_user, artifactory_password)
+        artifact_exists = True
+    except:
+        pass
+    return artifact_exists
+
+def _get_artifact_path_from_artifactory(artifactory_url, repositories, file_path, artifactory_user, artifactory_password):
+    for repository in repositories:
+        artifact_path = f'{repository}/{file_path}'
+        if _check_artifact_exists(artifact_path, artifactory_url, artifactory_user, artifactory_password)
+            return artifact_path
+    raise Exception(f"Artifact path '{file_path}' not found in repositories {repositories} of Artifactory '{artifactory_url}'")
+
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, with_dependencies=False, 
+    def __init__(self, graph, name, number, repositories, with_dependencies=False,
                  url=None, user=None, password=None):
         self._graph = graph
         self._name = name
@@ -120,16 +137,6 @@ class _BuildInfo:
         self._password = password
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
-
-    def _check_artifact_exists(self, artifact_path):
-        artifact_exists = False
-        try:
-            request_url = f"{self._url}/api/storage/{artifact_path}"
-            api_request("get", request_url, self._user, self._password)
-            artifact_exists = True
-        except:
-            pass
-        return artifact_exists
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -164,11 +171,9 @@ class _BuildInfo:
                                          "md5": md5}
 
                         if not is_dependency:
-                            for repository in self._repositories:
-                                artifact_path = f'{repository}/{remote_path}/{file_name}'
-                                if self._check_artifact_exists(artifact_path):
-                                    artifact_info.update({"name": file_name, "path": f'{repository}/{remote_path}/{file_name}'})
-                                    break
+                            remote_file_path = f'{remote_path}/{file_name}'
+                            artifact_path = _get_artifact_path_from_artifactory(self._url, self._repositories, remote_file_path, self._user, self._password)
+                            artifact_info.update({"name": file_name, "path": artifact_path})
                         else:
                             ref = node.get("ref")
                             pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
@@ -311,7 +316,7 @@ class _BuildInfo:
         return json.dumps(bi, indent=4)
 
 
-def _manifest_from_build_info(build_info, repository, with_dependencies=True):
+def _manifest_from_build_info(build_info, repositories, artifactory_url=None, artifactory_user=None, artifactory_password=None, with_dependencies=False):
     manifest = {"files": []}
     for module in build_info.get("modules"):
         for artifact in module.get("artifacts"):
@@ -326,9 +331,10 @@ def _manifest_from_build_info(build_info, repository, with_dependencies=True):
                 if ":" in full_reference:
                     pkgid = full_reference.split(":")[1].split("#")[0]
                     prev = full_reference.split(":")[1].split("#")[1]
-                full_path = repository + "/" + _get_remote_path(rrev, pkgid, prev) + "/" + filename
-                if not any(d['path'] == full_path for d in manifest["files"]):
-                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
+                    remote_path = _get_remote_path(rrev, pkgid, prev)
+                    artifact_path = _get_artifact_path_from_artifactory(artifactory_url, repositories, remote_path, artifactory_user, artifactory_password)
+                    if not any(d['path'] == artifact_path for d in manifest["files"]):
+                        manifest["files"].append({"path": artifact_path, "checksum": dependency.get("sha256")})
     return manifest
 
 
@@ -583,7 +589,7 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("json", help="BuildInfo JSON.")
 
-    subparser.add_argument("repository", help="Repository where artifacts are located.")
+    subparser.add_argument("repositories", help="List of comma separated repositories to look artifacts for. e.g. repo1,repo2")
 
     subparser.add_argument("bundle_name", help="The created bundle name.")
     subparser.add_argument("bundle_version", help="The created bundle version.")
@@ -594,10 +600,11 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
+    repositories = args.repositories.split(",")
 
     data = load_json(args.json)
 
-    manifest = _manifest_from_build_info(data, args.repository, with_dependencies=True)
+    manifest = _manifest_from_build_info(data, repositories, artifactory_url=url, artifactory_user=user, artifactory_password=password, with_dependencies=True)
 
     bundle_json = {
         "payload": manifest
