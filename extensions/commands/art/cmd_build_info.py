@@ -141,9 +141,7 @@ class _BuildInfo:
         def _get_local_artifacts():
             local_artifacts = []
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
-            #print("artifacts_folder", artifacts_folder)
             dl_folder = Path(artifacts_folder).parents[0] / "d"
-            #print("dl_folder", dl_folder)
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
             artifacts_folder_files = [file for file in artifacts_folder.glob("*") if file.name in artifacts_names]
             all_files = dl_folder_files + artifacts_folder_files
