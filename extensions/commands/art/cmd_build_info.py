@@ -172,12 +172,11 @@ class _BuildInfo:
             missing_files = set(artifacts_names) - processed_files
             return (local_artifacts, missing_files)
 
-        def _get_remote_conan_sources():
+        def _get_remote_artifacts(artifact):
             assert self._url and self._repository, "Missing information in the Conan local cache, " \
                                                    "please provide the --url and --repository arguments " \
                                                    "to retrieve the information from Artifactory."
 
-            artifact = "conan_sources.tgz"
             request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
             if not self._cached_artifact_info.get(request_url):
@@ -215,7 +214,7 @@ class _BuildInfo:
             # check if we have the conan_sources in Artifactory, if it's not there
             # maybe the package comes from an installation that did not build the package
             # so we don't fail if we can't find conan_sources.tgz
-            sources_artifact = _get_remote_conan_sources()
+            sources_artifact = _get_remote_artifacts("conan_sources.tgz")
             artifacts.append(sources_artifact)
 
         if not artifacts:
