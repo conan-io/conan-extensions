@@ -4,7 +4,7 @@ from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
-from statuspage_requester import Requester
+from statuspage_requester import patch
 
 
 __version__ = "0.1.0"
@@ -55,4 +55,4 @@ def resolve_incident(conan_api: ConanAPI, parser, *args) -> dict:
     }
     if args.message:
         payload["incident"]["body"] = args.message
-    return Requester().patch(f"pages/{args.page}/incidents/{args.incident}", token, payload, verify=not args.ignore_ssl)
+    return patch(f"pages/{args.page}/incidents/{args.incident}", token, payload, verify=not args.ignore_ssl)

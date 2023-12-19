@@ -4,7 +4,7 @@ from conan.api.conan_api import ConanAPI
 from conan.errors import ConanException
 from conan.api.output import cli_out_write
 from statuspage_utils import get_token, output_json
-from statuspage_requester import Requester
+from statuspage_requester import post
 
 
 __version__ = "0.1.0"
@@ -55,4 +55,4 @@ def create_incident(conan_api: ConanAPI, parser, *args) -> dict:
         payload["incident"]["component_ids"] = args.components
     if args.impact:
         payload["incident"]["impact_override"] = args.impact
-    return Requester().post(f"pages/{args.page}/incidents", token, payload, verify=not args.ignore_ssl)
+    return post(f"pages/{args.page}/incidents", token, payload, verify=not args.ignore_ssl)
