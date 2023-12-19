@@ -1,16 +1,24 @@
 import requests
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
-from conan.api.output import ConanOutput
+from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
 from datetime import datetime, timezone, timedelta
 
+
 __version__ = "0.1.0"
 
 
-@conan_command(group="Status Page", formatters={"json": output_json})
-def schedule_maintenance(conan_api: ConanAPI, parser, subparser, *args):
+def output_text(results: dict):
+    lines = [f"Maintenance ID: {results['id']}", f"Created at: {results['created_at']}", f"Name: {results['name']}",
+             f"Scheduled for (UTC) {results['scheduled_for']}",
+             f"Status: {results['status']}", f"Impact: {results['impact']}", f"URL: {results['shortlink']}"]
+    cli_out_write("Scheduled maintenance:\n{}\n".format('\n'.join(lines)))
+
+
+@conan_command(group="Status Page", formatters={"json": output_json, "text": output_text})
+def schedule_maintenance(conan_api: ConanAPI, parser, *args) -> dict:
     """
     Schedule a new maintenance window in Status Page.
 
@@ -35,7 +43,6 @@ def schedule_maintenance(conan_api: ConanAPI, parser, subparser, *args):
     if not args.title:
         raise ConanException("Incident title is required.")
 
-    output = ConanOutput()
     url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents"
     # scheduled_for
     sched = args.scheduled or 'now'
@@ -66,8 +73,7 @@ def schedule_maintenance(conan_api: ConanAPI, parser, subparser, *args):
             "component_ids": args.components,
         }
     }
-    output.info(f"Scheduling a new maintenance: {args.title}")
     headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
     response = requests.post(url, json=payload, headers=headers, verify=not args.ignore_ssl)
     response.raise_for_status()
-    output.info(f"Status Page API response ({response.status_code}):\n{response.json()}")
+    return response.json()

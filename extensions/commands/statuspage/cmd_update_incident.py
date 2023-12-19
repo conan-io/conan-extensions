@@ -1,7 +1,7 @@
 import requests
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
-from conan.api.output import ConanOutput
+from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
 
@@ -9,8 +9,14 @@ from statuspage_utils import get_token, output_json
 __version__ = "0.1.0"
 
 
-@conan_command(group="Status Page", formatters={"json": output_json})
-def update_incident(conan_api: ConanAPI, parser, subparser, *args):
+def output_text(results: dict):
+    lines = [f"Incident ID: {results['id']}", f"Created at: {results['created_at']}",  f"Updated at: {results['updated_at']}", f"Name: {results['name']}",
+             f"Status: {results['status']}", f"Impact: {results['impact']}", f"URL: {results['shortlink']}"]
+    cli_out_write("Updated incident:\n{}\n".format('\n'.join(lines)))
+
+
+@conan_command(group="Status Page", formatters={"json": output_json, "text": output_text})
+def update_incident(conan_api: ConanAPI, parser, *args) -> dict:
     """
     Update an existing incident in Status Page.
 
@@ -38,7 +44,6 @@ def update_incident(conan_api: ConanAPI, parser, subparser, *args):
     if not args.incident:
         raise ConanException("Incident ID is required.")
 
-    output = ConanOutput()
     url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents/{args.incident}"
     payload = {"incident": {}}
     if args.title:
@@ -52,8 +57,7 @@ def update_incident(conan_api: ConanAPI, parser, subparser, *args):
         payload["incident"]["component_ids"] = args.components
     if args.impact:
         payload["incident"]["impact_override"] = args.impact
-    output.info(f"Updating the incident: {args.incident}")
     headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
     response = requests.patch(url, json=payload, headers=headers, verify=not args.ignore_ssl)
     response.raise_for_status()
-    output.info(f"Status Page API response ({response.status_code}):\n{response.json()}")
+    return response.json()

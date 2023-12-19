@@ -2,7 +2,7 @@ import requests
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
 from conan.errors import ConanException
-from conan.api.output import ConanOutput, cli_out_write
+from conan.api.output import cli_out_write
 from statuspage_utils import get_token, output_json
 
 
