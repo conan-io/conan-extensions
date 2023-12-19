@@ -1,7 +1,7 @@
 import requests
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
-from conan.api.output import ConanOutput
+from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
 
@@ -9,8 +9,14 @@ from statuspage_utils import get_token, output_json
 __version__ = "0.1.0"
 
 
-@conan_command(group="Status Page", formatters={"json": output_json})
-def resolve_incident(conan_api: ConanAPI, parser, subparser, *args):
+def output_text(results: dict):
+    lines = [f"Incident ID: {results['id']}", f"Created at: {results['created_at']}",  f"Updated at: {results['updated_at']}", f"Name: {results['name']}",
+             f"Status: {results['status']}", f"Impact: {results['impact']}", f"URL: {results['shortlink']}"]
+    cli_out_write("Resolved incident:\n{}\n".format('\n'.join(lines)))
+
+
+@conan_command(group="Status Page", formatters={"json": output_json, "text": output_text})
+def resolve_incident(conan_api: ConanAPI, parser, *args) -> dict:
     """
     Resolve an existing incident in Status Page.
 
@@ -21,6 +27,7 @@ def resolve_incident(conan_api: ConanAPI, parser, subparser, *args):
     parser.add_argument('-e', '--event', help="Event type to be finished", choices=["maintenance", "incident"])
     parser.add_argument("-p", "--page", type=str, help="Status Page ID")
     parser.add_argument('-c', "--components", help="Incident components", nargs="+")
+    parser.add_argument("-m", "--message", type=str, help="Incident body description")
     parser.add_argument('-g', '--ignore-ssl', action='store_true', help="Ignore SSL verification")
     parser.add_argument('-ku', '--keychain-user', type=str, help="Status Page username")
     parser.add_argument("-ks", "--keychain-service", type=str, help="Keychain service", default="statuspage-token")
@@ -36,7 +43,6 @@ def resolve_incident(conan_api: ConanAPI, parser, subparser, *args):
     if not args.event:
         raise ConanException("Event type is required.")
 
-    output = ConanOutput()
     status = 'resolved' if args.event == 'incident' else 'completed'
     url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents/{args.incident}"
     payload = {
@@ -47,8 +53,9 @@ def resolve_incident(conan_api: ConanAPI, parser, subparser, *args):
             "component_ids": args.components,
         }
     }
-    output.info(f"Resolving the incident: {args.incident}")
+    if args.message:
+        payload["incident"]["body"] = args.message
     headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
     response = requests.patch(url, json=payload, headers=headers, verify=not args.ignore_ssl)
     response.raise_for_status()
-    output.info(f"Status Page API response ({response.status_code}):\n{response.json()}")
+    return response.json()

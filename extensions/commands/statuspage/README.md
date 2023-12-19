@@ -122,3 +122,35 @@ Status: scheduled
 Impact: maintenance
 URL: https://stspg.io/fasdadwd
 ```
+
+#### [Resolve an existing incident](cmd_resolve_incident.py)
+
+When an existing incident is already created, but now is solved, it can be resolved.
+
+Regular incidents and scheduled maintenance are resolved in different ways by Status page, so it is important to use the event type.
+
+Once the incident is resolved, it will be marked as "Resolved" in the status page, and all components affected by the incident will be marked as "Operational".
+
+**Parameters**
+- **token** _Required_: The Status Page API Token.
+- **page** _Required_: The Status Page - Page ID. It works like an ID for your status page.
+- **incident** _Required_: The incident ID.
+- **event** _Required_: The event type to be finished. Choices: maintenance, incident.
+- **components** _Optional_: A list of components IDs that are affected by the incident.
+- **message** _Optional_: An update message to the incident. No new lines are allowed.
+- **ignore-ssl** _Optional_: Ignore SSL verification.
+- **keychain-user** _Optional_: Keychain username.
+- **keychain-service** _Optional_: Keychain name used to store Status page token. Default: statuspage-token.
+
+
+```
+$ conan statuspage:schedule-maintenance --token=<yourapitoken> --page=<yourpageid> --components=<componentid> -t "weekly maintenance" --message='Jenkins will be under maintenance'
+Scheduled maintenance:
+Maintenance ID: uvneiwmc2d3x
+Created at: 2023-12-19T16:18:55Z
+Name: weekly maintenance
+Scheduled for (UTC) 2023-12-19T16:19:54Z
+Status: scheduled
+Impact: maintenance
+URL: https://stspg.io/fasdadwd
+```
