@@ -4,6 +4,7 @@ from conan.api.conan_api import ConanAPI
 from conan.errors import ConanException
 from conan.api.output import cli_out_write
 from statuspage_utils import get_token, output_json
+from statuspage_requester import Requester
 
 
 __version__ = "0.1.0"
@@ -43,7 +44,6 @@ def create_incident(conan_api: ConanAPI, parser, *args) -> dict:
     if not args.title:
         raise ConanException("Incident title is required.")
 
-    url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents"
     comp_status = args.component_status or 'major_outage'
     payload = {"incident": {"name": args.title}}
     if args.status:
@@ -55,7 +55,4 @@ def create_incident(conan_api: ConanAPI, parser, *args) -> dict:
         payload["incident"]["component_ids"] = args.components
     if args.impact:
         payload["incident"]["impact_override"] = args.impact
-    headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
-    response = requests.post(url, json=payload, headers=headers, verify=not args.ignore_ssl)
-    response.raise_for_status()
-    return response.json()
+    return Requester().post(f"pages/{args.page}/incidents", token, payload, verify=not args.ignore_ssl)

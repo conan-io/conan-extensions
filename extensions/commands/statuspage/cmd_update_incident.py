@@ -4,6 +4,7 @@ from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
+from statuspage_requester import Requester
 
 
 __version__ = "0.1.0"
@@ -44,7 +45,6 @@ def update_incident(conan_api: ConanAPI, parser, *args) -> dict:
     if not args.incident:
         raise ConanException("Incident ID is required.")
 
-    url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents/{args.incident}"
     payload = {"incident": {}}
     if args.title:
         payload["incident"]["name"] = args.title
@@ -57,7 +57,4 @@ def update_incident(conan_api: ConanAPI, parser, *args) -> dict:
         payload["incident"]["component_ids"] = args.components
     if args.impact:
         payload["incident"]["impact_override"] = args.impact
-    headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
-    response = requests.patch(url, json=payload, headers=headers, verify=not args.ignore_ssl)
-    response.raise_for_status()
-    return response.json()
+    return Requester().patch(f"pages/{args.page}/incidents/{args.incident}", token, payload, verify=not args.ignore_ssl)

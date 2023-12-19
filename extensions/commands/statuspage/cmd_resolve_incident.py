@@ -4,6 +4,7 @@ from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.errors import ConanException
 from statuspage_utils import get_token, output_json
+from statuspage_requester import Requester
 
 
 __version__ = "0.1.0"
@@ -44,7 +45,6 @@ def resolve_incident(conan_api: ConanAPI, parser, *args) -> dict:
         raise ConanException("Event type is required.")
 
     status = 'resolved' if args.event == 'incident' else 'completed'
-    url = f"https://api.statuspage.io/v1/pages/{args.page}/incidents/{args.incident}"
     payload = {
         "incident": {
             "status": status,
@@ -55,7 +55,4 @@ def resolve_incident(conan_api: ConanAPI, parser, *args) -> dict:
     }
     if args.message:
         payload["incident"]["body"] = args.message
-    headers = {"Authorization": f"OAuth {token}", "Content-Type": "application/json"}
-    response = requests.patch(url, json=payload, headers=headers, verify=not args.ignore_ssl)
-    response.raise_for_status()
-    return response.json()
+    return Requester().patch(f"pages/{args.page}/incidents/{args.incident}", token, payload, verify=not args.ignore_ssl)
