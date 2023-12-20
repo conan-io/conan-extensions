@@ -3,7 +3,7 @@ from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
 from conan.errors import ConanException
 from conan.api.output import cli_out_write
-from statuspage_utils import get_token, output_json
+from statuspage_utils import get_token, output_json, add_common_arguments
 from statuspage_requester import post
 
 
@@ -23,17 +23,13 @@ def create_incident(conan_api: ConanAPI, parser, *args) -> dict:
 
     https://developer.statuspage.io/#operation/postPagesPageIdIncidents
     """
-    parser.add_argument("-tk", "--token", type=str, help="Status Page API token")
+    add_common_arguments(parser)
     parser.add_argument("-t", "--title", type=str, help="Incident title")
     parser.add_argument("-m", "--message", type=str, help="Incident body description")
     parser.add_argument("-s", "--status", help="Incident status", choices=["investigating", "identified", "monitoring", "resolved"])
     parser.add_argument("-i", "--impact", help="Incident impact", choices=["none", "maintenance", "minor", "major", "critical"])
     parser.add_argument("-cs", "--component-status", help="Component status", choices=["operational", "degraded_performance", "partial_outage", "major_outage"])
-    parser.add_argument("-p", "--page", type=str, help="Status Page ID")
     parser.add_argument('-c', "--components", help="Incident components", nargs="+")
-    parser.add_argument('-g', '--ignore-ssl', action='store_true', help="Ignore SSL verification")
-    parser.add_argument('-ku', '--keychain-user', type=str, help="Status Page username")
-    parser.add_argument("-ks", "--keychain-service", type=str, help="Keychain service", default="statuspage-token")
     args = parser.parse_args(*args)
 
     token = get_token(args)
