@@ -8,19 +8,59 @@ To obtain a Token API, you need to go to your statuspage.io account and generate
 It should be available at the following URL: `https://manage.statuspage.io/organizations/<your_organization>/api-info`
 For more information, please, read the [Authentication](https://developer.statuspage.io/#section/Authentication) documentation.
 
-#### Keychain (Only macOS)
+#### Keychain
 
-Storing token as environment variable is too risky, so it's recommended to use the keychain to store it.
-To do so, you can use the following command:
+Storing Status Page API token as environment variable is too risky, it could be used by any service running in your machine,
+so it's recommended to use the keychain to store it instead.
+
+For now, there is support for MacOS, Linux and using python keyring library.
+
+##### MacOS
+
+To store the token in the keychain, you can use the [security](https://ss64.com/osx/security.html) command line tool:
 
 ```
-$ security add-generic-password -a $USER -s statuspage-token -w <statuspage-api-token> secrets.keychain
+security add-generic-password -a $USER -s statuspage-token -w <statuspage-api-token> secrets.keychain
 ```
 
 The `secrets.keychain` is the name of the keychain where the token will be stored.
 
-All commands have support to automatically retrieve the token from the keychain, so you don't need to pass it as a parameter.
+All commands have support to automatically retrieve the token from the keychain, so you don't need to pass the `token` as a parameter.
 
+##### Linux
+
+To store the token in the keychain, you can use the [secret-tool](https://manpages.ubuntu.com/manpages/focal/man1/secret-tool.1.html) command line tool.
+It's available under the `libsecret-tools` package and is not installed by default.
+
+```
+sudo apt install libsecret-tools
+secret-tool store --label='statuspage' $(whoami) statuspage-token
+```
+
+##### Windows
+
+There is no native support for Windows. As alternative, you can use the [python keyring](https://pypi.org/project/keyring/) library.
+
+Windows makes available the [Credential Manager](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmdkey) to store credentials, but we can not retrieve any password from it.
+
+There is a native support using Powershell, but it will require a custom keyring file installed in the machine.
+
+
+##### Python keyring
+
+To use the python keyring, you need to install the `keyring` package:
+
+```
+pip install keyring
+```
+
+Then, you can store the token using the `keyring` command line tool:
+
+```
+keyring set statuspage-token <yourapitoken>
+```
+
+The statuspage report will try to use python keyring to retrieve the token, if it is not available by argument or others native keychain.
 
 ### Commands
 
