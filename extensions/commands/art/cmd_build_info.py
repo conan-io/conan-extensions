@@ -119,7 +119,7 @@ def _check_artifact_exists(artifact_path, artifactory_url, artifactory_user, art
 def _get_artifact_path_from_artifactory(artifactory_url, repositories, file_path, artifactory_user, artifactory_password):
     for repository in repositories:
         artifact_path = f'{repository}/{file_path}'
-        if _check_artifact_exists(artifact_path, artifactory_url, artifactory_user, artifactory_password)
+        if _check_artifact_exists(artifact_path, artifactory_url, artifactory_user, artifactory_password):
             return artifact_path
     raise Exception(f"Artifact path '{file_path}' not found in repositories {repositories} of Artifactory '{artifactory_url}'")
 
