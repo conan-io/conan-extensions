@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>ConanCenter - summary</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"
+          integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.21/css/dataTables.bootstrap.min.css"/>
+    <style>
+        tr td {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container-fluid">
+    <h1>ConanCenter - Summary of packages generated</h1>
+
+    <table id="summary" class="table table-striped table-bordered" style="width:100%">
+        <thead>
+        <tr id="summary-tr1">
+        </tr>
+        <tr id="summary-tr2">
+        </tr>
+        </thead>
+        <tfoot>
+        <tr id="summary-trfoot"></tr>
+        </tfoot>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"
+            integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd"
+            crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.20/datatables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.21/js/dataTables.bootstrap.min.js"></script>
+    <script>
+            var getJSON = function (url, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'json';
+                xhr.onload = function () {
+                    var status = xhr.status;
+                    if (status === 200) {
+                        callback(null, xhr.response);
+                    } else {
+                        callback(status, xhr.response);
+                    }
+                };
+                xhr.send();
+            };
+
+            var get_subsettings = function (data) {
+                var subsettings = {};
+                for (let it in data) {
+                    var item = data[it];
+                    var settings = item['settings'];
+                    for (var key in settings) {
+                        var ifs = key.split(".");
+                        if (ifs.length == 1) {
+                            if (!(ifs in subsettings)) {
+                                subsettings[ifs] = new Set()
+                            }
+                        }
+                        else {
+                            if (!(ifs[0] in subsettings)) {
+                                subsettings[ifs[0]] = new Set()
+                            }
+                            subsettings[ifs[0]].add(ifs[1])
+                        }
+                    }
+                }
+                return subsettings
+            }
+
+            var get_options_headers = function (data) {
+                var options_headers = new Set();
+                for (let it in data) {
+                    var item = data[it];
+                    var options = item['options'];
+                    for (var key in options) {
+                        //var ifs = key.split(":");  // De-scope options
+                        options_headers.add(key)
+                    }
+                }
+                return options_headers
+            }
+
+            var populate_headers = function (pre, settings_headers, options_headers, post) {
+                console.log('populate_headers')
+                var tr1 = document.getElementById('summary-tr1');
+                var tr2 = document.getElementById('summary-tr2');
+                var trfoot = document.getElementById('summary-trfoot');
+
+                // Headers pre
+                for (const it in pre) {
+                    console.log(` - pre: ${pre[it]}`)
+                    var th = document.createElement("th");
+                    th.setAttribute("class", "text-center");
+                    th.setAttribute("rowspan", "2");
+                    th.setAttribute("colspan", "1");
+                    th.textContent = pre[it];
+                    tr1.appendChild(th);
+
+                    var th = document.createElement("th");
+                    th.textContent = pre[it];
+                    trfoot.appendChild(th);
+                }
+
+                // Headers for settings
+                for (const [key, value] of Object.entries(settings_headers)) {
+                    console.log(`key: ${key}, value (${value.size}): ${value.keys()}`)
+
+                    var th = document.createElement("th");
+                    th.textContent = key;
+                    trfoot.appendChild(th);
+
+                    if (value.size) {
+                        console.log(` - tr1: ${key}`)
+                        var th1 = document.createElement("th");
+                        th1.setAttribute("class", "text-center");
+                        th1.setAttribute("rowspan", "1");
+                        th1.setAttribute("colspan", `${value.size + 1}`);
+                        th1.textContent = key;
+                        tr1.appendChild(th1);
+
+                        var th2 = document.createElement("th");
+                        th2.textContent = key;
+                        tr2.appendChild(th2);
+
+                        for (const v of value) {
+                            console.log(`   - tr2: ${v}`)
+                            var th2 = document.createElement("th");
+                            th2.textContent = v;
+                            tr2.appendChild(th2);
+
+                            var th = document.createElement("th");
+                            th.textContent = v;
+                            trfoot.appendChild(th);
+                        }
+                    }
+                    else {
+                        console.log(` - tr1: ${key}`)
+                        var th = document.createElement("th");
+                        th.setAttribute("class", "text-center");
+                        th.setAttribute("rowspan", "2");
+                        th.setAttribute("colspan", '1');
+                        th.textContent = key;
+                        tr1.appendChild(th);
+                    }
+                }
+
+                // Headers for options
+                if (options_headers.size) {
+                    console.log(' - tr1: options')
+                    var th1 = document.createElement("th");
+                    th1.setAttribute("class", "text-center");
+                    th1.setAttribute("rowspan", "1");
+                    th1.setAttribute("colspan", `${options_headers.size}`);
+                    th1.textContent = 'options';
+                    tr1.appendChild(th1);
+
+                    for (const opt of options_headers) {
+                        console.log(`   - tr2: ${opt}`)
+                        var th2 = document.createElement("th");
+                        th2.textContent = opt;
+                        tr2.appendChild(th2);
+
+                        var th = document.createElement("th");
+                        th.textContent = opt;
+                        trfoot.appendChild(th);
+                    }
+                }
+
+                // Headers post
+                for (const it in post) {
+                    console.log(` - post: ${post[it]}`)
+                    var th = document.createElement("th");
+                    th.setAttribute("class", "text-center");
+                    th.setAttribute("rowspan", "2");
+                    th.setAttribute("colspan", '1');
+                    th.textContent = post[it];
+                    tr1.appendChild(th);
+
+                    var th = document.createElement("th");
+                    th.textContent = post[it];
+                    trfoot.appendChild(th);
+                }
+            }
+
+            var isOriginSameAsLocation = function(url) {
+                var pageLocation = window.location;
+                var URL_HOST_PATTERN = /(\w+:)?(?:\/\/)([\w.-]+)?(?::(\d+))?\/?/;
+                var urlMatch = URL_HOST_PATTERN.exec(url) || [];
+                var urlparts = {
+                    protocol:   urlMatch[1] || '',
+                    hostname:   urlMatch[2] || '',
+                    port:       urlMatch[3] || ''
+                };
+
+                var defaultPort = function(protocol) {
+                   return {'http:':80, 'https:':443}[protocol];
+                }
+
+                var portOf = function(location) {
+                   return location.port || defaultPort(location.protocol||pageLocation.protocol);
+                }
+
+                return !!((urlparts.protocol && (urlparts.protocol == pageLocation.protocol)) &&
+                          (urlparts.hostname && (urlparts.hostname == pageLocation.hostname)) &&
+                          (portOf(urlparts) == portOf(pageLocation)));
+            }
+
+            $(document).ready(function () {
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('json')) {
+                    var json = urlParams.get('json');
+
+                    if (!isOriginSameAsLocation(json)) {
+                        alert("JSON not valid");
+                        throw "Unknown origin for JSON file";
+                    }
+
+                    getJSON(json, function (err, data) {
+                        var pre_headers = ['build_status', 'test_status', 'reference']
+                        var post_headers = ['build_log', 'test_log']
+
+                        // Get dynamic headers
+                        var settings_headers = get_subsettings(data);
+                        console.log(settings_headers)
+                        var options_headers = get_options_headers(data);
+                        console.log(options_headers)
+
+                        populate_headers(pre_headers, settings_headers, options_headers, post_headers)
+
+                        // Iterate the data itself
+                        var rows = [];
+                        for (let it in data) {
+                            var item = data[it];
+                            var row_data = []
+                            for (const it in pre_headers) {
+                                row_data.push(item[pre_headers[it]] || '');
+                            }
+
+                            for (const [key, value] of Object.entries(settings_headers)) {
+                                row_data.push(item['settings'][key] || '');
+                                if (value.size) {
+                                    for (const v of value) {
+                                        var entry = `${key}.${v}`
+                                        row_data.push(item['settings'][entry] || '');
+                                    }
+                                }
+                            }
+
+                            for (const opt of options_headers) {
+                                row_data.push(item['options'][opt] || '');
+                            }
+
+                            for (const it in post_headers) {
+                                const value = item[post_headers[it]]
+                                if (value && ['build_log', 'test_log'].includes(post_headers[it])) {
+                                    row_data.push(`<a href="${value}" target="_blank">${post_headers[it]}</a>`);
+                                }
+                                else {
+                                    row_data.push(value || '');
+                                }
+                            }
+                            rows.push(row_data);
+                        }
+
+                        // Setup - add a text input to each footer cell
+                        $('#summary tfoot th').each(function () {
+                            var title = $(this).text();
+                            $(this).html('<input type="text" class="form-control filter-input" placeholder="Filter ' + title + '" style="width:100%"/>');
+                        });
+
+                        var table = $('#summary').DataTable({
+                            data: rows,
+                            "dom": "lrtip",
+                            "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                            "pageLength": 10,
+                        });
+
+                        // Apply the search
+                        table.columns().every(function () {
+                            var that = this;
+                            $('input', this.footer()).on('keyup change clear', function () {
+                                if (that.search() !== this.value) {
+                                    that
+                                        .search(this.value)
+                                        .draw();
+                                }
+                            });
+                        });
+                    });
+                }
+            })
+    </script>
+    <hr/>
+    <div class="container-fluid">
+        <div class="info">
+
+            <p>The table shows the information for all the package IDs iterated during the build. The meaning of the
+                column <code>status</code> is:
+            <ul>
+                <li><code>CONAN-CENTER</code>: The package is already available in ConanCenter.</li>
+                <li><code>UPSTREAM</code>: The package is already available in a previous build of this same job
+                    (available
+                    in the intermediate repository, not in ConanCenter).
+                </li>
+                <li><code>BUILT</code>: The package has been built successfully, but testing didn't get executed.</li>
+                <li><code>BUILT+TEST_OK</code>: Package has been built and tests passed successfully.</li>
+                <li><code>FAILED</code>: Package failed to build or test failed. Columns
+                    <code>build</code>/<code>test</code> contains the logs with information.
+                </li>
+                <li><code>UNKNOWN</code>: This configuration didn't run or the job was stopped while building.</li>
+                <li><code>DUPLICATED</code>: This configuration generates a duplicated package ID (the other was built).
+                </li>
+                <li><code>INVALID_CONFIGURATION</code>: This profile raised a <code>ConanInvalidConfiguration</code>
+                    exception for this configuration.
+                </li>
+                <li><code>MISSING_DEPENDENCIES</code>: The build failed because there are missing dependencies. Please
+                    report to the repository maintainers.
+                </li>
+            </ul>
+            </p>
+            <p><small><strong>Note:</strong> To save resources, CI tries to finish as soon as an error is found. For
+                this
+                reason you might find that not all the references have been launched or not all the configurations for a
+                given reference. Also, take into account that we cannot guarantee the order of execution as it depends
+                on CI
+                workload and workers availability.
+            </small></p>
+        </div>
+    </div>
+    <hr/>
+</body>
+<footer>
+    <div class="container-fluid">
+        <div class="info">
+            <p>
+                Conan <b>v1.31.0-dev</b>
+                <script>document.write(new Date().getFullYear())</script>
+                JFrog LTD. <a>https://conan.io</a>
+            </p>
+        </div>
+    </div>
+</footer>
+
+</html>
