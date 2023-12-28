@@ -11,10 +11,8 @@ from cmd_server import get_url_user_password
 
 def upload_file(repository, file, upload_path, url, user, password):
     filename = os.path.basename(file)
-
     request_url = f"{url}/{repository}/{upload_path}/{filename}"
     file_content = _read_file(file)
-
     return api_request("put", request_url, user, password, json_data=file_content)
 
 def read_file(repository, file, url, user, password):
@@ -25,7 +23,6 @@ def read_file(repository, file, url, user, password):
 def list_folders(repository, path, url, user, password):
     request_url = f"{url}/api/storage/{repository}/{path}"
     response = json.loads(api_request("get", request_url, user, password))
-    print(response)
     folders = [item["uri"] for item in response["children"] if item["folder"]]
     return folders
 

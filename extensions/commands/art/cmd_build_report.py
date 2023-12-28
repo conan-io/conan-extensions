@@ -1,5 +1,6 @@
 import os
 import json
+import yaml
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
 from conan.cli.command import conan_command, conan_subcommand
@@ -20,6 +21,15 @@ report_template = {
     "test_log": None,
 }
 
+
+def output_text(result):
+    cli_out_write(yaml.dump(result, default_flow_style=False, indent=2))
+
+
+def output_json(result):
+    cli_out_write(json.dumps(result, indent=2))
+
+
 def save(f, content):
     with open(f, "w") as f:
         f.write(content)
@@ -32,7 +42,7 @@ def build_report(conan_api: ConanAPI, parser, *args):
     """
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": output_text, "json": output_json})
 def build_report_add(conan_api: ConanAPI, parser, subparser, *args):
     """
     Generate a build report by adding information of the build for a pull-request, build and ID.
@@ -88,11 +98,11 @@ def build_report_add(conan_api: ConanAPI, parser, subparser, *args):
     for key, value in report.items():
         if "log" in key and value:
             upload_file(args.repository, os.path.basename(value), base_path, url, user, password)
-    upload_file(args.repository, "report.json", base_path, url, user, password)
-    cli_out_write(f"Report:\n{json.dumps(report, indent=4)}")
+    response = json.loads(upload_file(args.repository, "report.json", base_path, url, user, password))
+    return {'url': response['uri'], 'report': report}
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": output_text, "json": output_json})
 def build_report_summary(conan_api: ConanAPI, parser, subparser, *args):
     """
     Collect build reports from same pull-request number and build and store them together in a common file.
@@ -120,5 +130,5 @@ def build_report_summary(conan_api: ConanAPI, parser, subparser, *args):
         report_data = json.loads(content)
         summary_data.append(report_data)
     save("summary.json", json.dumps(summary_data))
-    upload_file(args.repository, "summary.json", path, url, user, password)
-    cli_out_write(f"Summary:\n{json.dumps(summary_data, indent=4)}")
+    response = json.loads(upload_file(args.repository, "summary.json", path, url, user, password))
+    return {'url': response['uri'], 'summary': summary_data}
