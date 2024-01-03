@@ -89,6 +89,13 @@ def test_build_info_create_no_deps():
     # otherwise you can end up deleting recipe artifacts that other packages use
     run('conan remove mypkg* -c -r extensions-stg')
 
+    out = run('conan list "*#*:*#*" -r extensions-prod')
+    print("[[[[extensions-prod]]]]")
+    print(out)
+    out = run('conan list "*#*:*#*" -r extensions-stg')
+    print("[[[[extensions-stg]]]]")
+    print(out)
+
     # Check that we can install from the prod repo after the promotion
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Debug')
