@@ -1,6 +1,5 @@
 import os
 import tempfile
-import time
 
 from tools import run
 
@@ -82,8 +81,6 @@ def test_build_info_create_no_deps():
 
     run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    # maybe give some time for promotion to finish?
-    time.sleep(3)
     # Clean cache to make sure package comes from artifactory later
     run('conan remove mypkg* -c')
 
@@ -93,13 +90,6 @@ def test_build_info_create_no_deps():
     run('conan remove mypkg* -c -r extensions-stg')
 
     # Check that we can install from the prod repo after the promotion
-    print("----->extensions-prod")
-    run('conan list "*" -r extensions-prod')
-    print("----->extensions-stg")
-    run('conan list "*" -r extensions-stg')
-    print("-----><-------")
-
-    run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Debug')
 
