@@ -93,6 +93,13 @@ def test_build_info_create_no_deps():
     run('conan remove mypkg* -c -r extensions-stg')
 
     # Check that we can install from the prod repo after the promotion
+    print("----->extensions-prod")
+    run('conan list "*" -r extensions-prod')
+    print("----->extensions-stg")
+    run('conan list "*" -r extensions-stg')
+    print("-----><-------")
+
+    run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Debug')
 
