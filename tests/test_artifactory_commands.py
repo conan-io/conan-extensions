@@ -79,7 +79,9 @@ def test_build_info_create_no_deps():
     out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --server artifactory')
     assert '"name" : "mybuildinfo_aggregated"' in out
 
-    run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    out = run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    print("[[[[promotion:]]]]")
+    print(out)
 
     # Clean cache to make sure package comes from artifactory later
     run('conan remove mypkg* -c')
