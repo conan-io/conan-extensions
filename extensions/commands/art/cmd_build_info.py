@@ -335,6 +335,7 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
     subparser.add_argument("--url", help=url_help)
     subparser.add_argument("--user", help="User name for the repository.")
     subparser.add_argument("--password", help="Password for the user name.")
+    subparser.add_argument("--token", help="Token for the user name.")
     return subparser
 
 

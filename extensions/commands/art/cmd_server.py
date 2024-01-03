@@ -23,7 +23,7 @@ def get_url_user_password(args):
     else:
         url = args.url
         user = args.user
-        password = args.password
+        password = args.password or args.token
     return url, user, password
 
 
@@ -91,17 +91,23 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("url", help="URL of the artifactory server")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--token", help="token for the user name")
 
     args = parser.parse_args(*args)
+
+    token = None
 
     if not args.user:
         user = input("User: ")
     else:
         user = args.user.strip()
-    if not args.password:
-        password = getpass.getpass()
+    if args.token:
+        token = args.token.strip()
     else:
-        password = args.password.strip()
+        if not args.password:
+            password = getpass.getpass()
+        else:
+            password = args.password.strip()
 
     name = args.name.strip()
     url = args.url.rstrip("/")
@@ -109,8 +115,12 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     servers = _read_servers()
     _assert_new_server(name, servers)
 
-    token = api_request("get", f"{url}/api/security/encryptedPassword", user, password)
-    # TODO: manage error with auth
+    if not token:
+        # TODO: manage error with auth
+        token = api_request("get", f"{url}/api/security/encryptedPassword", user, password)
+
+    # Check token is valid
+    api_request("get", f"{url}/api/v1/system/ping", user, token)
 
     new_server = {"name": name,
                   "url": url,

@@ -328,3 +328,21 @@ def test_server_list_empty():
     out = run("conan art:server list")
 
     assert "No servers configured. Use `conan art:server add` command to add one." in out
+
+
+@pytest.mark.requires_credentials
+def test_add_server_token():
+    """
+    Test server add with token, list, remove commands
+    """
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
+    server_url = os.getenv("ART_URL")
+    server_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+
+    out_add = run(f'conan art:server add server1 {server_url} --user={server_user} --token={os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}')
+
+    assert f"Server 'server1' ({server_url}) added successfully" in out_add
