@@ -25,15 +25,29 @@ def conan_test():
     os.chdir(current)
     run("conan profile detect")
     run("conan remove '*' -c")
-    run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
-    run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+
+    out = run("conan remote list")
+
+    if "extensions-stg" not in out:
+        run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
+
+    if "extensions-prod" not in out:
+        run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+
+    run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
+    run("conan remove '*' -c -r extensions-stg")
+    run("conan remove '*' -c -r extensions-prod")
+
     try:
         yield
     finally:
+        run("conan remove '*' -c -r extensions-stg")
+        run("conan remove '*' -c -r extensions-prod")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
