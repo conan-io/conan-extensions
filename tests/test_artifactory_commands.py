@@ -30,10 +30,10 @@ def conan_test():
 
     if "extensions-stg" not in out:
         run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
-    
+
     if "extensions-prod" not in out:
         run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
-    
+
     run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
