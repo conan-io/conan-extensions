@@ -31,9 +31,14 @@ def conan_test():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
+    run("conan remove * -c -r extensions-stg")
+    run("conan remove * -c -r extensions-prod")
+
     try:
         yield
     finally:
+        run("conan remove * -c -r extensions-stg")
+        run("conan remove * -c -r extensions-prod")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
@@ -41,9 +46,6 @@ def conan_test():
 
 @pytest.mark.requires_credentials
 def test_build_info_create_no_deps():
-    # Make sure artifactory repos are empty before starting the test
-    run("conan remove mypkg* -c -r extensions-stg")
-    run("conan remove mypkg* -c -r extensions-prod")
 
     build_name = "mybuildinfo"
     build_number = "1"
