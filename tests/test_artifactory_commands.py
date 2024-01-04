@@ -300,7 +300,7 @@ def test_build_info_project():
 
     # Create dependency packages and upload them
     run("conan new cmake_lib -d name=liba -d version=1.0 --force")
-    run("conan create . -tf='")
+    run("conan create . -tf=''")
 
     # Upload dependency to separated repo and remove from local cache
     run("conan upload liba/1.0 -r extensions-prod")
