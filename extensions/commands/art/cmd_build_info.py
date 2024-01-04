@@ -171,6 +171,7 @@ class _BuildInfo:
             return (local_artifacts, missing_files)
 
         def _get_remote_artifacts(artifact):
+            artifact_info = None
             assert self._url and self._repository, "Missing information in the Conan local cache, " \
                                                    "please provide the --url and --repository arguments " \
                                                    "to retrieve the information from Artifactory."
@@ -213,7 +214,8 @@ class _BuildInfo:
             # maybe the package comes from an installation that did not build the package
             # so we don't fail if we can't find conan_sources.tgz
             sources_artifact = _get_remote_artifacts("conan_sources.tgz")
-            artifacts.append(sources_artifact)
+            if sources_artifact:
+                artifacts.append(sources_artifact)
 
         if not artifacts:
             raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
