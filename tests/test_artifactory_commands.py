@@ -204,10 +204,6 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
-    # Remove pacakges to clean Artifactory (Deleting the build infos does not remove pacakges from repos)
-    run('conan remove "*" -c -r extensions-prod')
-    run('conan remove "*" -c -r extensions-stg')
-
 
 @pytest.mark.requires_credentials
 def test_fail_if_not_uploaded():
