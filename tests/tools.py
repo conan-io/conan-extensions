@@ -6,7 +6,7 @@ def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.STDOUT):
     print("Running: {}".format(cmd))
     start_time = time.time()
 
-    process = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, shell=True, text=True)
+    process = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, shell=True, universal_newlines=True)
 
     output = ''
     
