@@ -31,14 +31,14 @@ def conan_test():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
-    run("conan remove * -c -r extensions-stg")
-    run("conan remove * -c -r extensions-prod")
+    run("conan remove '*' -c -r extensions-stg")
+    run("conan remove '*' -c -r extensions-prod")
 
     try:
         yield
     finally:
-        run("conan remove * -c -r extensions-stg")
-        run("conan remove * -c -r extensions-prod")
+        run("conan remove '*' -c -r extensions-stg")
+        run("conan remove '*' -c -r extensions-prod")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
