@@ -25,8 +25,17 @@ def conan_test():
     os.chdir(current)
     run("conan profile detect")
     run("conan remove '*' -c")
-    run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
-    run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+
+    out = run("conan remote list")
+
+    if "extensions-stg" not in out:
+        run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
+    
+    if "extensions-prod" not in out:
+        run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+    
+    run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
@@ -81,9 +90,7 @@ def test_build_info_create_no_deps():
     out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --server artifactory')
     assert '"name" : "mybuildinfo_aggregated"' in out
 
-    out = run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
-    print("[[[[promotion:]]]]")
-    print(out)
+    run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Clean cache to make sure package comes from artifactory later
     run('conan remove mypkg* -c')
@@ -93,12 +100,9 @@ def test_build_info_create_no_deps():
     # otherwise you can end up deleting recipe artifacts that other packages use
     run('conan remove mypkg* -c -r extensions-stg')
 
-    out = run('conan list "*#*:*#*" -r extensions-prod')
-    print("[[[[extensions-prod]]]]")
-    print(out)
-    out = run('conan list "*#*:*#*" -r extensions-stg')
-    print("[[[[extensions-stg]]]]")
-    print(out)
+    run('conan list "*#*:*#*" -r extensions-prod')
+
+    run('conan list "*#*:*#*" -r extensions-stg')
 
     # Check that we can install from the prod repo after the promotion
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
