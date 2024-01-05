@@ -275,7 +275,7 @@ def test_build_info_project():
 
 
 @pytest.mark.requires_credentials
-def test_build_info_project():
+def test_build_info_dependency_different_repo():
     """
     Test that build info is correctly generated for a package with dependencies in a different repo in Artifactory
     """
