@@ -4,7 +4,7 @@ import hashlib
 import os
 import sys
 import urllib
-import xml.etree.ElementTree
+import xml.dom.minidom
 from typing import List, Tuple
 
 from conan.api.conan_api import ConanAPI
@@ -67,26 +67,33 @@ def update_config_yml(version: Version) -> None:
 def get_hash_and_mirrors(version: Version, session: requests.Session) -> Tuple[str, List[str]]:
     sources_hash = None
     mirrors = []
-    if version.major == 5:
-        archive_name = f"qt-everywhere-opensource-src-{version}.tar.xz"
+    for archive_name in [f"qt-everywhere-opensource-src-{version}.tar.xz", f"qt-everywhere-src-{version}.tar.xz"]:
+        link = f"https://download.qt.io/official_releases/qt/{version.major}.{version.minor}/{version}/single/{archive_name}"
+        with session.head(link) as req:
+            if req.ok:
+                break
     else:
-        archive_name = f"qt-everywhere-src-{version}.tar.xz"
-
-    link = f"https://download.qt.io/official_releases/qt/{version.major}.{version.minor}/{version}/single/{archive_name}"
+        ConanOutput().error(f"Could not download metalink for version {version}")
+        sys.exit(-1)
     mirrors.append(link)
     mirrors.append(f"https://download.qt.io/archive/qt/{version.major}.{version.minor}/{version}/single/{archive_name}")
     with session.get(f"{link}.meta4") as req:
         req.raise_for_status()
-        tree = xml.etree.ElementTree.fromstring(req.text)
-        if tree.tag != "{urn:ietf:params:xml:ns:metalink}metalink":
-            ConanOutput().error(f"meta link root tag incorrect: expected \"metalink\" but got {tree.tag}")
+        tree = xml.dom.minidom.parseString(req.text).documentElement
+        if tree.tagName != "metalink":
+            ConanOutput().error(f"meta link root tag incorrect: expected \"metalink\" but got {tree.tagName}")
             sys.exit(-1)
-        file = tree.find("{urn:ietf:params:xml:ns:metalink}file")
-        if not file:
+        files = tree.getElementsByTagName("file")
+        if not len(files) == 1:
             ConanOutput().error(f"Could not find `file` tag in {link}.meta4 file content")
             sys.exit(-1)
-        hash_element = file.find("{urn:ietf:params:xml:ns:metalink}hash[@type='sha-256']")
-        if hash_element is None:
+        file = files[0]
+        hash_elements = file.getElementsByTagName("hash")
+        for hash_element in hash_elements:
+            if hash_element.getAttribute("type") == "sha-256":
+                sources_hash = hash_element.firstChild.nodeValue
+                break
+        else:
             ConanOutput().error(f"Could not find hash tag in {link}.meta4 file content")
             sha256_hash = hashlib.sha256()
             with urllib.request.urlopen(link) as f:
@@ -94,12 +101,7 @@ def get_hash_and_mirrors(version: Version, session: requests.Session) -> Tuple[s
                 for byte_block in iter(lambda: f.read(4096),b""):
                     sha256_hash.update(byte_block)
             sources_hash = sha256_hash.hexdigest()
-        else:
-            sources_hash = hash_element.text
-            if sources_hash is None:
-                ConanOutput().error(f"Could not find hash text in {link}.meta4 file content")
-                sys.exit(-1)
-        mirrors.extend(node.text for node in file.findall("{urn:ietf:params:xml:ns:metalink}url") if node.text)
+        mirrors.extend(node.firstChild.nodeValue for node in file.getElementsByTagName("url") if node.firstChild.nodeValue)
     return sources_hash, mirrors
 
 
@@ -143,14 +145,15 @@ def update_conandata_yml(version: Version, sources_hash: str, mirrors: List[str]
 
 
 def create_modules_file(version: Version, session: requests.Session) -> None:
-    if version.major == 5:
-        tag = f"v{version}-lts-lgpl"
+    for tag in [f"v{version}-lts-lgpl", f"v{version}"]:
+        with session.get(f"https://code.qt.io/cgit/qt/qt5.git/plain/.gitmodules?h=refs/tags/{tag}") as req:
+            if req.ok:
+                with open(f"{recipe_folder(version)}/qtmodules{version}.conf", 'w') as f:
+                    f.write(req.text)
+                return
     else:
-        tag = f"v{version}"
-    with session.get(f"https://code.qt.io/cgit/qt/qt5.git/plain/.gitmodules?h=refs/tags/{tag}") as req:
-        req.raise_for_status()
-        with open(f"{recipe_folder(version)}/qtmodules{version}.conf", 'w') as f:
-            f.write(req.text)
+        ConanOutput().error(f"Could not find tag for version \"{version}\"")
+        sys.exit(-1)
 
 
 def update_conanfile(version: Version) -> None:
