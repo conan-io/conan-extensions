@@ -326,6 +326,7 @@ def test_server_add_error():
     assert f"Server 'server1' ({server_url}) already exist." in out_add
 
 
+@pytest.mark.requires_credentials
 def test_server_remove_error():
     """
     Test server remove errors when there is no server with the provided name
@@ -335,6 +336,7 @@ def test_server_remove_error():
     assert "Server 'server1' does not exist." in out
 
 
+@pytest.mark.requires_credentials
 def test_server_list_empty():
     """
     Test server list output when no servers are configured
