@@ -53,34 +53,44 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
             return None
         return str(max(all_refs))
 
+    def bump_dep(arg: str):
+        if not isinstance(arg, ast.Constant):
+            ConanOutput().warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
+            return
+        oldref = arg.value
+        parts = oldref.split("/")
+        version = parts[1]
+        if version.startswith("[") or version.endswith("]"):
+            ConanOutput().info(f"Won't bump {oldref} because it uses a version range")
+            return
+        if version == "<host_version>":
+            return
+        name = parts[0]
+        newref = latest_ref(name)
+        if not newref:
+            ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
+            return
+        if newref != oldref:
+            line = arg.lineno - 1
+            recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
+            ConanOutput().info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
+            changes.append({"line": arg.lineno,
+                            "old reference": oldref,
+                            "new reference": newref})
+
     for node in ast.walk(ast.parse("".join(recipe_lines))):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Attribute):
                 if node.func.attr in ["requires", "build_requires", "tool_requires"]:
-                    arg = node.args[0]
-                    if not isinstance(arg, ast.Constant):
-                        ConanOutput().warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
-                        continue
-                    oldref = arg.value
-                    parts = oldref.split("/")
-                    version = parts[1]
-                    if version.startswith("[") or version.endswith("]"):
-                        ConanOutput().info(f"Won't bump {oldref} because it uses a version range")
-                        continue
-                    if version == "<host_version>":
-                        continue
-                    name = parts[0]
-                    newref = latest_ref(name)
-                    if not newref:
-                        ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
-                        continue
-                    if newref != oldref:
-                        line = arg.lineno - 1
-                        recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
-                        ConanOutput().info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
-                        changes.append({"line": arg.lineno,
-                                        "old reference": oldref,
-                                        "new reference": newref})
+                    bump_dep(node.args[0])
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in ["requires", "build_requires", "tool_requires"]:
+                    if isinstance(node.value, ast.Tuple) or isinstance(node.value, ast.List):
+                        for e in node.value.elts:
+                            bump_dep(e)
+                    elif isinstance(node.value, ast.Constant):
+                        bump_dep(node.value)
 
     if changes:
         with open(recipe_file, 'w') as f:
