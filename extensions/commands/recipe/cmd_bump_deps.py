@@ -27,8 +27,10 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
     args = parser.parse_args(*args)
     recipe_file = os.path.join(args.path, "conanfile.py")
 
+    out = ConanOutput()
+
     if not os.path.isfile(recipe_file):
-        ConanOutput().error(f"Recipe file {recipe_file} not found")
+        out.error(f"Recipe file {recipe_file} not found")
         sys.exit(-1)
 
     with open(recipe_file) as f:
@@ -55,25 +57,25 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
 
     def bump_dep(arg: ast.AST):
         if not isinstance(arg, ast.Constant):
-            ConanOutput().warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
+            out.warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
             return
         oldref = arg.value
         parts = oldref.split("/")
         version = parts[1]
         if version.startswith("[") or version.endswith("]"):
-            ConanOutput().info(f"Won't bump {oldref} because it uses a version range")
+            out.info(f"Won't bump {oldref} because it uses a version range")
             return
         if version == "<host_version>":
             return
         name = parts[0]
         newref = latest_ref(name)
         if not newref:
-            ConanOutput().warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
+            out.warning(f"Error bumping {oldref} in {recipe_file}:{arg.lineno}")
             return
         if newref != oldref:
             line = arg.lineno - 1
             recipe_lines[line] = recipe_lines[line].replace(oldref, newref)
-            ConanOutput().info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
+            out.info(f"updating {oldref} to {newref} in {recipe_file}:{arg.lineno}")
             changes.append({"line": arg.lineno,
                             "old reference": oldref,
                             "new reference": newref})
@@ -95,7 +97,7 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
     if changes:
         with open(recipe_file, 'w') as f:
             f.writelines(recipe_lines)
-        ConanOutput().success(f"Successfully bumped the dependencies of recipe {recipe_file}")
+        out.success(f"Successfully bumped the dependencies of recipe {recipe_file}")
     else:
-        ConanOutput().success(f"All the dependencies of recipe {recipe_file} are already up to date")
+        out.success(f"All the dependencies of recipe {recipe_file} are already up to date")
     return changes
