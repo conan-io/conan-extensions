@@ -86,9 +86,9 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
         elif isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id in ["requires", "build_requires", "tool_requires"]:
-                    if isinstance(node.value, ast.Tuple) or isinstance(node.value, ast.List):
-                        for e in node.value.elts:
-                            bump_dep(e)
+                    if isinstance(node.value, (ast.List, ast.Tuple)):
+                        for elt in node.value.elts:
+                            bump_dep(elt)
                     elif isinstance(node.value, ast.Constant):
                         bump_dep(node.value)
 
