@@ -53,7 +53,7 @@ def bump_deps(conan_api: ConanAPI, parser, *args):
             return None
         return str(max(all_refs))
 
-    def bump_dep(arg: str):
+    def bump_dep(arg: ast.AST):
         if not isinstance(arg, ast.Constant):
             ConanOutput().warning(f"Unable to bump non constant dependency in {recipe_file}:{arg.lineno}")
             return
