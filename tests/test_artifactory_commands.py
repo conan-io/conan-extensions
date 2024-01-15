@@ -25,15 +25,29 @@ def conan_test():
     os.chdir(current)
     run("conan profile detect")
     run("conan remove '*' -c")
-    run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
-    run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+
+    out = run("conan remote list")
+
+    if "extensions-stg" not in out:
+        run(f'conan remote add extensions-stg {os.getenv("ART_URL")}/api/conan/extensions-stg')
+
+    if "extensions-prod" not in out:
+        run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
+
+    run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
+    run("conan remove '*' -c -r extensions-stg")
+    run("conan remove '*' -c -r extensions-prod")
+
     try:
         yield
     finally:
+        run("conan remove '*' -c -r extensions-stg")
+        run("conan remove '*' -c -r extensions-prod")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
@@ -41,9 +55,6 @@ def conan_test():
 
 @pytest.mark.requires_credentials
 def test_build_info_create_no_deps():
-    # Make sure artifactory repos are empty before starting the test
-    run("conan remove mypkg* -c -r extensions-stg")
-    run("conan remove mypkg* -c -r extensions-prod")
 
     build_name = "mybuildinfo"
     build_number = "1"
@@ -88,6 +99,10 @@ def test_build_info_create_no_deps():
     # Conan promotions must always be copy, and the clean must be handled manually
     # otherwise you can end up deleting recipe artifacts that other packages use
     run('conan remove mypkg* -c -r extensions-stg')
+
+    run('conan list "*#*:*#*" -r extensions-prod')
+
+    run('conan list "*#*:*#*" -r extensions-stg')
 
     # Check that we can install from the prod repo after the promotion
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
@@ -193,10 +208,6 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
-    # Remove pacakges to clean Artifactory (Deleting the build infos does not remove pacakges from repos)
-    run('conan remove "*" -c -r extensions-prod')
-    run('conan remove "*" -c -r extensions-stg')
-
 
 @pytest.mark.requires_credentials
 def test_fail_if_not_uploaded():
@@ -261,6 +272,59 @@ def test_build_info_project():
 
 
 @pytest.mark.requires_credentials
+def test_build_info_dependency_different_repo():
+    """
+    Test that build info is correctly generated for a package with dependencies in a different repo in Artifactory
+    """
+    #         +-------+
+    #         | liba  |
+    #         +-------+
+    #             |
+    #          +--+--+
+    #          |mypkg|
+    #          +-----+
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    build_name = "buildinfoprojectwithdependencyuploadedtoadifferentrepo"
+    build_number = "1"
+    project = "extensions-testing"
+
+    # Create dependency packages and upload them
+    run("conan new cmake_lib -d name=liba -d version=1.0 --force")
+    run("conan create . -tf=''")
+
+    # Upload dependency to separated repo and remove from local cache
+    run("conan upload liba/1.0 -r extensions-prod")
+    run('conan remove liba* -c')
+
+    # Create consumer
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 -d requires=liba/1.0 --force")
+    run("conan create . --format json -tf='' > create.json")
+
+    # Upload consumer to another repo
+    run("conan upload mypkg/1.0 -r extensions-stg")
+
+    # Create build info
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}.json')
+    run(f'conan art:build-info upload {build_name}.json --server artifactory')
+
+    out = run(f'conan art:build-info get {build_name} {build_number} --server artifactory')
+    assert '"name" : "buildinfoprojectwithdependencyuploadedtoadifferentrepo"' in out
+
+    run('conan remove mypkg* -c')
+    run('conan remove mypkg* -c -r extensions-stg')
+    run('conan remove liba* -c -r extensions-prod')
+
+    run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory')
+
+
+@pytest.mark.requires_credentials
 def test_server_complete():
     """
     Test server add, list, remove commands
@@ -312,6 +376,7 @@ def test_server_add_error():
     assert f"Server 'server1' ({server_url}) already exist." in out_add
 
 
+@pytest.mark.requires_credentials
 def test_server_remove_error():
     """
     Test server remove errors when there is no server with the provided name
@@ -321,6 +386,7 @@ def test_server_remove_error():
     assert "Server 'server1' does not exist." in out
 
 
+@pytest.mark.requires_credentials
 def test_server_list_empty():
     """
     Test server list output when no servers are configured

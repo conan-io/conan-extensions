@@ -2,6 +2,7 @@ import subprocess
 
 
 def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    print(f"Running: {cmd}")
     process = subprocess.Popen(cmd, 
                                stdout=stdout,
                                stderr=stderr,
@@ -18,6 +19,7 @@ def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
     if ret == 0 and error:
         raise Exception(
             "Cmd succeded (failure expected): {}\n{}".format(cmd, output))
+    print(f"Output: {output}")
     return output
 
 
