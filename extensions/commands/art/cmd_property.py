@@ -48,8 +48,8 @@ def _add_default_arguments(subparser):
     subparser.add_argument("reference", help="Conan reference.")
     subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
-    subparser.add_argument("--user", help="user name for the repository")
-    subparser.add_argument("--password", help="password for the user name")
+    subparser.add_argument("--user", help="User name for the Artifactory server.")
+    subparser.add_argument("--password", help="Password for the Artifactory server.")
     subparser.add_argument("--property", action='append',
                            help='Property to add, like --property="build.name=buildname" --property="build.number=1"')
 
