@@ -140,84 +140,86 @@ class _BuildInfo:
 
         def _get_local_artifacts():
             local_artifacts = []
-            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
-            dl_folder = Path(artifacts_folder).parents[0] / "d"
-            file_list = list(dl_folder.glob("*"))
-            if len(file_list) >= 3:
-                for file_path in dl_folder.glob("*"):
-                    if file_path.is_file():
-                        file_name = file_path.name
-                        md5, sha1, sha256 = _get_hashes(file_path)
-                        artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
-                                         "sha256": sha256,
-                                         "sha1": sha1,
-                                         "md5": md5}
+            artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
+            dl_folder = artifacts_folder.parents[0] / "d"
+            dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
+            artifacts_folder_files = [file for file in artifacts_folder.glob("*") if file.name in artifacts_names]
+            all_files = dl_folder_files + artifacts_folder_files
+            
+            processed_files = set()
+            
+            for file_path in all_files:
+                file_name = file_path.name
+                if file_path.is_file() and file_name not in processed_files:
+                    processed_files.add(file_path.name)
+                    md5, sha1, sha256 = _get_hashes(file_path)
+                    artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
+                                     "sha256": sha256,
+                                     "sha1": sha1,
+                                     "md5": md5}
 
-                        if not is_dependency:
-                            artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
-                        else:
-                            ref = node.get("ref")
-                            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                            artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
+                    if not is_dependency:
+                        artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
+                    else:
+                        ref = node.get("ref")
+                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                        artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
 
-                        local_artifacts.append(artifact_info)
-            return local_artifacts
+                    local_artifacts.append(artifact_info)
+            
+            missing_files = set(artifacts_names) - processed_files
+            return (local_artifacts, missing_files)
 
-        def _get_remote_artifacts():
+        def _get_remote_artifacts(artifact):
+            artifact_info = None
             assert self._url and self._repository, "Missing information in the Conan local cache, " \
                                                    "please provide the --url and --repository arguments " \
                                                    "to retrieve the information from Artifactory."
 
-            remote_artifacts = []
+            request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
-            for artifact in artifacts_names:
-                request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
-                if not self._cached_artifact_info.get(request_url):
-                    checksums = None
-                    try:
-                        response = api_request("get", request_url, self._user, self._password)
-                        response_data = json.loads(response)
-                        checksums = response_data.get("checksums")
-                        self._cached_artifact_info[request_url] = checksums
-                    # pass here only if not found because there are some artifacts that are
-                    # not always there like conan_export.tgz
-                    except NotFoundException:
-                        pass
+            if not self._cached_artifact_info.get(request_url):
+                checksums = None
+                try:
+                    response = api_request("get", request_url, self._user, self._password)
+                    response_data = json.loads(response)
+                    checksums = response_data.get("checksums")
+                    self._cached_artifact_info[request_url] = checksums
+                # pass if not found, maybe we do not have the sources in the repo
+                except NotFoundException:
+                    pass
+            else:
+                checksums = self._cached_artifact_info.get(request_url)
+
+            if checksums:
+                artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
+                                 "sha256": checksums.get("sha256"),
+                                 "sha1": checksums.get("sha1"),
+                                 "md5": checksums.get("md5")}
+
+                artifact_path = f'{self._repository}/{remote_path}/{artifact}'
+                if not is_dependency:
+                    artifact_info.update({"name": artifact, "path": artifact_path})
                 else:
-                    checksums = self._cached_artifact_info.get(request_url)
+                    ref = node.get("ref")
+                    pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+                    artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
 
-                if checksums:
-                    artifact_info = {"type": os.path.splitext(artifact)[1].lstrip('.'),
-                                     "sha256": checksums.get("sha256"),
-                                     "sha1": checksums.get("sha1"),
-                                     "md5": checksums.get("md5")}
+            return artifact_info
 
-                    artifact_path = f'{self._repository}/{remote_path}/{artifact}'
-                    if not is_dependency:
-                        artifact_info.update({"name": artifact, "path": artifact_path})
-                    else:
-                        ref = node.get("ref")
-                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg} :: {artifact}"})
+        artifacts, missing = _get_local_artifacts()
 
-                    remote_artifacts.append(artifact_info)
-
-            return remote_artifacts
-
-        artifacts = _get_local_artifacts()
+        if 'conan_sources.tgz' in missing:
+            # check if we have the conan_sources in Artifactory, if it's not there
+            # maybe the package comes from an installation that did not build the package
+            # so we don't fail if we can't find conan_sources.tgz
+            sources_artifact = _get_remote_artifacts("conan_sources.tgz")
+            if sources_artifact:
+                artifacts.append(sources_artifact)
 
         if not artifacts:
-            # we don't have the artifacts in the local cache
-            # it's possible that the packages came from an install command without a build
-            # so let's ask Artifactory about the checksums of the packages
-            # we can use the Conan API to get the enabled remotes and iterate through them
-            # but it may be better to use a specific repo when creating the build info ?
-            artifacts = _get_remote_artifacts()
-
-        if not artifacts:
-            raise ConanException(f"There are no artifacts for the {node.get('ref')} {artifact_type}. "
-                                 "Probably the package was not uploaded before creating the Build Info."
-                                 "Please upload the package to the server and try again.")
+            raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
+                                  "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
 
         # complete the information for the artifacts:
 

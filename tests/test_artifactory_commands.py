@@ -55,9 +55,6 @@ def conan_test():
 
 @pytest.mark.requires_credentials
 def test_build_info_create_no_deps():
-    # Make sure artifactory repos are empty before starting the test
-    run("conan remove mypkg* -c -r extensions-stg")
-    run("conan remove mypkg* -c -r extensions-prod")
 
     build_name = "mybuildinfo"
     build_number = "1"
@@ -102,6 +99,10 @@ def test_build_info_create_no_deps():
     # Conan promotions must always be copy, and the clean must be handled manually
     # otherwise you can end up deleting recipe artifacts that other packages use
     run('conan remove mypkg* -c -r extensions-stg')
+
+    run('conan list "*#*:*#*" -r extensions-prod')
+
+    run('conan list "*#*:*#*" -r extensions-stg')
 
     # Check that we can install from the prod repo after the promotion
     run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
@@ -207,10 +208,6 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
-    # Remove pacakges to clean Artifactory (Deleting the build infos does not remove pacakges from repos)
-    run('conan remove "*" -c -r extensions-prod')
-    run('conan remove "*" -c -r extensions-stg')
-
 
 @pytest.mark.requires_credentials
 def test_fail_if_not_uploaded():
@@ -272,6 +269,59 @@ def test_build_info_project():
 
     run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory --project {project}')
     run(f'conan art:build-info delete {build_name}_aggregated --delete-all --delete-artifacts --server artifactory --project {project}')
+
+
+@pytest.mark.requires_credentials
+def test_build_info_dependency_different_repo():
+    """
+    Test that build info is correctly generated for a package with dependencies in a different repo in Artifactory
+    """
+    #         +-------+
+    #         | liba  |
+    #         +-------+
+    #             |
+    #          +--+--+
+    #          |mypkg|
+    #          +-----+
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    build_name = "buildinfoprojectwithdependencyuploadedtoadifferentrepo"
+    build_number = "1"
+    project = "extensions-testing"
+
+    # Create dependency packages and upload them
+    run("conan new cmake_lib -d name=liba -d version=1.0 --force")
+    run("conan create . -tf=''")
+
+    # Upload dependency to separated repo and remove from local cache
+    run("conan upload liba/1.0 -r extensions-prod")
+    run('conan remove liba* -c')
+
+    # Create consumer
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 -d requires=liba/1.0 --force")
+    run("conan create . --format json -tf='' > create.json")
+
+    # Upload consumer to another repo
+    run("conan upload mypkg/1.0 -r extensions-stg")
+
+    # Create build info
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}.json')
+    run(f'conan art:build-info upload {build_name}.json --server artifactory')
+
+    out = run(f'conan art:build-info get {build_name} {build_number} --server artifactory')
+    assert '"name" : "buildinfoprojectwithdependencyuploadedtoadifferentrepo"' in out
+
+    run('conan remove mypkg* -c')
+    run('conan remove mypkg* -c -r extensions-stg')
+    run('conan remove liba* -c -r extensions-prod')
+
+    run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory')
 
 
 @pytest.mark.requires_credentials
