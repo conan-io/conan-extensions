@@ -172,9 +172,9 @@ class _BuildInfo:
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
-            assert self._url and self._repository, "Missing information in the Conan local cache, " \
-                                                   "please provide the --url and --repository arguments " \
-                                                   "to retrieve the information from Artifactory."
+            assert self._url, "Missing information in the Conan local cache, " \
+                              "please provide '--url' or '--server' arguments " \
+                              "to retrieve the information from Artifactory."
 
             request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
@@ -335,8 +335,8 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
 
     subparser.add_argument("--server", help="Server name of the Artifactory to get the build info from.")
     subparser.add_argument("--url", help=url_help)
-    subparser.add_argument("--user", help="User name for the repository.")
-    subparser.add_argument("--password", help="Password for the user name.")
+    subparser.add_argument("--user", help="User name for the Artifactory server.")
+    subparser.add_argument("--password", help="Password for the Artifactory server.")
     return subparser
 
 

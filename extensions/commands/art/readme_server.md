@@ -35,8 +35,8 @@ options:
   -v [V]               Level of detail of the output. Valid options from less verbose to more verbose:
                        -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or
                        -vdebug, -vvv or -vtrace
-  --user USER          user name for the repository
-  --password PASSWORD  password for the user name
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
 ```
 
 Example:
