@@ -172,9 +172,9 @@ class _BuildInfo:
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
-            assert self._url and self._repository, "Missing information in the Conan local cache, " \
-                                                   "please provide '--url' or '--server' arguments " \
-                                                   "to retrieve the information from Artifactory."
+            assert self._url "Missing information in the Conan local cache, " \
+                             "please provide '--url' or '--server' arguments " \
+                             "to retrieve the information from Artifactory."
 
             request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
