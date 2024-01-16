@@ -120,7 +120,7 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
         token = api_request("get", f"{url}/api/security/encryptedPassword", user, password)
 
     # Check token is valid
-    api_request("get", f"{url}/api/v1/system/ping", user, token)
+    api_request("get", f"{url}/api/system/ping", user, token)
 
     new_server = {"name": name,
                   "url": url,
