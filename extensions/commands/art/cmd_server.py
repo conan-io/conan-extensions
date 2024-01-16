@@ -91,7 +91,7 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("url", help="URL of the artifactory server")
     subparser.add_argument("--user", help="user name for the repository")
     subparser.add_argument("--password", help="password for the user name")
-    subparser.add_argument("--token", help="token for the user name")
+    subparser.add_argument("--token", help="Token for the artifactory server")
 
     args = parser.parse_args(*args)
 
