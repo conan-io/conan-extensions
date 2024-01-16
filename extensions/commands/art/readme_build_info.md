@@ -192,8 +192,8 @@ options:
   --project PROJECT    Project key for the Build Info in Artifactory
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory.
-  --user USER          User name for the Artifactory repository.
-  --password PASSWORD  Password for the Artifactory repository.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
   --dependencies       Whether to copy the build's dependencies or not. Default: false.
   --comment COMMENT    An optional comment describing the reason for promotion. Default: ''
 ```

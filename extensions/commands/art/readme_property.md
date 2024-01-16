@@ -60,8 +60,8 @@ options:
                        -vstatus, -v or -vverbose, -vv or -vdebug, -vvv or -vtrace
   --server SERVER      Server name of the Artifactory to get the build info from
   --url URL            Artifactory url, like: https://<address>/artifactory
-  --user USER          User name for the Artifactory repository.
-  --password PASSWORD  Password for the Artifactory repository.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
   --property PROPERTY  Property to add, like --property="build.name=buildname" --property="build.number=1"
   --no-recursive       Will not recursively set properties.
 ```
