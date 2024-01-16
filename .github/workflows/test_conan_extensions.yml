@@ -8,7 +8,7 @@ jobs:
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.CONAN_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
-      CONAN_ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
       ART_URL: ${{ secrets.ART_URL }}
     steps:
     - uses: actions/checkout@v3
