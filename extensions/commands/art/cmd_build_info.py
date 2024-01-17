@@ -360,7 +360,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
-    subparser.add_argument("repository", help="Repository to look artifacts for.")
+    subparser.add_argument("remote", help="Conan remote to look for artifacts in.")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
@@ -369,11 +369,14 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
+    remote_url = conan_api.remotes.get(args.remote)["url"]
+    repository_name = remote_url.split("/")[-1]
+
     data = load_json(args.json)
 
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    bi = _BuildInfo(data, args.build_name, args.build_number, repository_name,
                     with_dependencies=args.with_dependencies, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
