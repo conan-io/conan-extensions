@@ -369,7 +369,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    remote_url = conan_api.remotes.get(args.remote)["url"]
+    remote_url = conan_api.remotes.get(args.remote).url
     repository_name = remote_url.split("/")[-1]
 
     data = load_json(args.json)
