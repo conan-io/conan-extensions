@@ -95,6 +95,9 @@ def server_add(conan_api: ConanAPI, parser, subparser, *args):
 
     args = parser.parse_args(*args)
 
+    if args.password and args.token:
+        raise ConanException("--password and --token arguments cannot be used at the same time. Please specify either --password OR --token.")
+
     token = None
 
     if not args.user:

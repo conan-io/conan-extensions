@@ -98,4 +98,6 @@ def assert_server_or_url_user_password(args):
     if args.url:
         if not (args.user and (args.password or args.token)):
             raise ConanException("Specify --user and --password/--token to use with the --url flag to contact Artifactory.")
+        if args.password and args.token:
+            raise ConanException("--password and --token arguments cannot be used at the same time. Please specify either --password OR --token.")
     assert args.server or (args.url and args.user and (args.password or args.token))
