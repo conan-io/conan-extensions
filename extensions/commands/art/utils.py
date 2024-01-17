@@ -92,10 +92,12 @@ def api_request(method, request_url, user=None, password=None, json_data=None,
 
 def assert_server_or_url_user_password(args):
     if args.server and args.url:
-        raise ConanException("--server and --url (with --user & --password) flags cannot be used together.")
+        raise ConanException("--server and --url (with --user & --password/--token)) flags cannot be used together.")
     if not args.server and not args.url:
-        raise ConanException("Specify --server or --url (with --user & --password) flags to contact Artifactory.")
+        raise ConanException("Specify --server or --url (with --user & --password/--token) flags to contact Artifactory.")
     if args.url:
-        if not args.user or not args.password:
-            raise ConanException("Specify --user and --password to use with the --url flag to contact Artifactory.")
-    assert args.server or (args.url and args.user and args.password)
+        if not (args.user and (args.password or args.token)):
+            raise ConanException("Specify --user and --password/--token to use with the --url flag to contact Artifactory.")
+        if args.password and args.token:
+            raise ConanException("--password and --token arguments cannot be used at the same time. Please specify either --password OR --token.")
+    assert args.server or (args.url and args.user and (args.password or args.token))

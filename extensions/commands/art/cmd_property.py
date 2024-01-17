@@ -50,6 +50,7 @@ def _add_default_arguments(subparser):
     subparser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
     subparser.add_argument("--user", help="User name for the Artifactory repository.")
     subparser.add_argument("--password", help="Password for the Artifactory repository.")
+    subparser.add_argument("--token", help="Token for the Artifactory server")
     subparser.add_argument("--property", action='append',
                            help='Property to add, like --property="build.name=buildname" --property="build.number=1"')
 
