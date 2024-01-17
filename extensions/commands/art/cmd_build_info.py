@@ -360,7 +360,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
-    subparser.add_argument("repository", help="Repository to look artifacts for.")
+    subparser.add_argument("repository", help="Artifactory repository name where artifacts are located -not the conan remote name-.")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
@@ -428,8 +428,8 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("build_name", help="BuildInfo name to promote.")
     subparser.add_argument("build_number", help="BuildInfo number to promote.")
-    subparser.add_argument("source_repo", help="Source repo for promotion.")
-    subparser.add_argument("target_repo", help="Target repo for promotion.")
+    subparser.add_argument("source_repo", help="Artifactory repository to get artifacts from.")
+    subparser.add_argument("target_repo", help="Artifactory repository to promote artifacts to.")
 
     subparser.add_argument("--dependencies", help="Whether to copy the build's dependencies or not. Default: false.",
                            action='store_true', default=False)
@@ -571,7 +571,7 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("json", help="BuildInfo JSON.")
 
-    subparser.add_argument("repository", help="Repository where artifacts are located.")
+    subparser.add_argument("repository", help="Artifactory repository where artifacts are located.")
 
     subparser.add_argument("bundle_name", help="The created bundle name.")
     subparser.add_argument("bundle_version", help="The created bundle version.")
