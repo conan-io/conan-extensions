@@ -399,7 +399,7 @@ def test_server_list_empty():
 @pytest.mark.requires_credentials
 def test_add_server_token():
     """
-    Test server add with token, list, remove commands
+    Test server add with token
     """
 
     # Make sure artifactory repos are empty before starting the test
