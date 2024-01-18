@@ -66,7 +66,7 @@ positional arguments:
   json                 Conan generated JSON output file.
   build_name           Build name property for BuildInfo.
   build_number         Build number property for BuildInfo.
-  repository           Repository to look artifacts for.
+  repository           Artifactory repository name where artifacts are located -not the conan remote name-.
 
 options:
   -h, --help           show this help message and exit
@@ -93,7 +93,7 @@ Creates an Artifactory Release Bundle from the information of the Build Info
 
 positional arguments:
   json                 BuildInfo JSON.
-  repository           Repository where artifacts are located.
+  repository           Artifactory repository where artifacts are located.
   bundle_name          The created bundle name.
   bundle_version       The created bundle version.
   sign_key_name        Signing Key name.
@@ -181,8 +181,8 @@ Promote the BuildInfo from the source to the target repository.
 positional arguments:
   build_name           BuildInfo name to promote.
   build_number         BuildInfo number to promote.
-  source_repo          Source repo for promotion.
-  target_repo          Target repo for promotion.
+  source_repo          Artifactory repository to get artifacts from.
+  target_repo          Artifactory repository to promote artifacts to.
 
 options:
   -h, --help           show this help message and exit
