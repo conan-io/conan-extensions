@@ -1,13 +1,10 @@
 import sys
 import tempfile
-import textwrap
 import os
-
-from tools import load, save, run
 
 import pytest
 
-from tools import load, save, run
+from tools import run
 
 
 @pytest.fixture(autouse=True)
@@ -39,5 +36,6 @@ def test_lipo_create():
     run("conan create . -tf="" -s arch=x86_64")
     run("conan install --requires=mylibrary/1.0 --deployer=full_deploy -s arch=armv8")
     run("conan install --requires=mylibrary/1.0 --deployer=full_deploy -s arch=x86_64")
-    run("conan bin:lipo full_deploy -a x86_64 -a armv8")
-
+    run("conan bin:lipo full_deploy --output-folder=universal")
+    out = run("lipo universal/mylibrary/1.0/Release/armv8.x86_64/lib/libmylibrary.a -info")
+    assert 'x86_64 arm64' in out
