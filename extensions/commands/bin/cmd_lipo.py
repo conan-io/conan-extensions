@@ -50,8 +50,7 @@ def lipo_create(conan_api: ConanAPI, parser, subparser, *args):
     Create lipo binaries from the results of a Conan full_deploy. It expects a folder structure as: 
     <input_path>/<name>/<version>/<build_type>/<architecture>
     """
-    subparser.add_argument(
-        "input_path", help="Root path for the Conan deployment.")
+    subparser.add_argument("input_path", help="Root path for the Conan deployment.")
     subparser.add_argument("--output-folder", help="Optional root path for the output."
                            "If not specified, output will be generated in a 'universal' folder inside input_path.",
                            default=None)
