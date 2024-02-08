@@ -8,6 +8,35 @@ from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 
 
+# These are for optimization only, to avoid unnecessarily reading files.
+_binary_exts = ['.a', '.dylib']
+_regular_exts = [
+    '.h', '.hpp', '.hxx', '.c', '.cc', '.cxx', '.cpp', '.m', '.mm', '.txt', '.md', '.html', '.jpg', '.png'
+]
+
+def is_macho_binary(file_path):
+    """
+    Determines if file_path is a Mach-O binary or fat binary
+    """
+    ext = os.path.splitext(file_path)[1]
+    if ext in _binary_exts:
+        return True
+    if ext in _regular_exts:
+        return False
+    with open(file_path, "rb") as f:
+        header = f.read(4)
+        if header == b'\xcf\xfa\xed\xfe':
+            # cffaedfe is Mach-O binary
+            return True
+        elif header == b'\xca\xfe\xba\xbe':
+            # cafebabe is Mach-O fat binary
+            return True
+        elif header == b'!<arch>\n':
+            # ar archive
+            return True
+    return False
+
+
 @conan_command(group="Binary manipulation")
 def lipo(conan_api: ConanAPI, parser, *args):
     """
@@ -40,35 +69,6 @@ def lipo_create(conan_api: ConanAPI, parser, subparser, *args):
         raise ConanException(
             f"The input path '{args.input_path}' is not valid or does not exist.")
 
-    # These are for optimization only, to avoid unnecessarily reading files.
-    _binary_exts = ['.a', '.dylib']
-    _regular_exts = [
-        '.h', '.hpp', '.hxx', '.c', '.cc', '.cxx', '.cpp', '.m', '.mm', '.txt', '.md', '.html', '.jpg', '.png'
-    ]
-
-    def is_macho_binary(file_path):
-        """
-        Determines if file_path is a Mach-O binary or fat binary
-        """
-        ext = os.path.splitext(file_path)[1]
-        if ext in _binary_exts:
-            return True
-        if ext in _regular_exts:
-            return False
-        with open(file_path, "rb") as f:
-            header = f.read(4)
-            if header == b'\xcf\xfa\xed\xfe':
-                # cffaedfe is Mach-O binary
-                return True
-            elif header == b'\xca\xfe\xba\xbe':
-                # cafebabe is Mach-O fat binary
-                return True
-            elif header == b'!<arch>\n':
-                # ar archive
-                return True
-        return False
-
-    # Function to process each build_type directory
     def process_build_type(build_type_path, output_build_type_path, valid_architectures):
         if valid_architectures:
             architectures = [d for d in build_type_path.iterdir() if d.is_dir() and d.name in valid_architectures]
@@ -85,8 +85,7 @@ def lipo_create(conan_api: ConanAPI, parser, subparser, *args):
         combined_arch_name = ".".join(sorted([d.name for d in architectures]))
 
         # Identify all files in the first architecture to check if they are Mach-O binaries
-        first_arch_files = list(architectures[0].glob(
-            "**/*"))  # Recursively find all files
+        first_arch_files = list(architectures[0].glob("**/*"))  # Recursively find all files
         for file in first_arch_files:
             if file.is_file():
                 relative_path = file.relative_to(build_type_path)
