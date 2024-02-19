@@ -1,24 +1,34 @@
 on: [pull_request, workflow_dispatch]
 
 jobs:
-  conan_stable_linux:
+  conan_linux:
     runs-on: ubuntu-20.04
     env:
       CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.CONAN_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
-      ART_URL: "https://conanv2beta.jfrog.io/artifactory"
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+      ART_URL: ${{ secrets.ART_URL }}
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.6
+        python-version: 3.8
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest git+https://github.com/conan-io/conan.git@release/2.0
-    - name: Conan latest - Python 3.6
+        pip install pytest "cyclonedx-python-lib>=3.1.5,<5.0.0"
+    - name: Install Conan latest
+      run: |
+        pip install conan
+    - name: Run tests - Conan latest / Python 3.8
+      run: |
+        pytest -v tests
+    - name: Install Conan develop
+      run: |
+        pip install git+https://github.com/conan-io/conan.git@release/2.0
+    - name: Run tests - Conan develop / Python 3.8
       run: |
         pytest -v tests

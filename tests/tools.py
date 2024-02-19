@@ -1,15 +1,16 @@
 import subprocess
 
 
-def run(cmd, error=False):
+def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    print(f"Running: {cmd}")
     process = subprocess.Popen(cmd, 
-                               stdout=subprocess.PIPE, 
-                               stderr=subprocess.PIPE, 
+                               stdout=stdout,
+                               stderr=stderr,
                                shell=True)
 
     out, err = process.communicate()
-    out = out.decode("utf-8")
-    err = err.decode("utf-8")
+    out = out.decode("utf-8") if stdout else ""
+    err = err.decode("utf-8") if stderr else ""
     ret = process.returncode
 
     output = err + out
@@ -18,6 +19,7 @@ def run(cmd, error=False):
     if ret == 0 and error:
         raise Exception(
             "Cmd succeded (failure expected): {}\n{}".format(cmd, output))
+    print(f"Output: {output}")
     return output
 
 

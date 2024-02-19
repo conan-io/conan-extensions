@@ -1,4 +1,5 @@
 # Conan Extensions
+
 This repository contains extensions for Conan, such as [custom commands](https://docs.conan.io/2/reference/extensions/custom_commands.html)
 and [deployers](https://docs.conan.io/2/reference/extensions/deployers.html),
 useful for different purposes, like [Artifactory](https://jfrog.com/artifactory) tasks, conan-center-index, etc.
@@ -16,7 +17,6 @@ conan config install https://github.com/conan-io/conan-extensions.git
 
 Afterwards, running `conan --help` should show you all the custom commands available.
 
-
 ### Custom Commands
 
 These are the currently supported custom commands:
@@ -31,7 +31,23 @@ Commands useful in Conan Center Index or its forks
 
 #### [Artifactory](extensions/commands/art/)
 
-Commands useful for managing BuildInfos and properties in Artifactory
+Commands useful for managing [JFrog Build Infos](https://www.buildinfo.org/) and properties in Artifactory.
+
+#### [SBOM](extensions/commands/sbom)
+
+Commands to create Software Bill of Materials.
+
+### [Deployers](extensions/deployers)
+
+These are the current custom deployers. Recall they are experimental and can experience breaking changes, use them as a base to create your own under your control for stability.
+
+#### [Runtime Zipper](extensions/deployers/runtime_zip_deploy.py)
+
+Makes a ZIP with all the executables and runtimes
+
+#### [Licenses Zipper](extensions/deployers/licenses.py)
+
+Makes a ZIP with all the licenses from the graph
 
 ### Testing
 

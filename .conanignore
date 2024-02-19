@@ -1,5 +1,6 @@
 .idea/*
 .github/*
+.venv/*
 venv/*
 tests/*
 .gitignore
@@ -7,6 +8,8 @@ LICENSE
 *README.md*
 *.DS_Store*
 *.pytest_cache*
+.*cache
 tmp/*
 tmp2/*
+.vscode/*
 .idea/*

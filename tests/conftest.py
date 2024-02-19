@@ -1,6 +1,7 @@
 import os
 import pytest
 
+
 def pytest_collection_modifyitems(items):
     for item in items:
         if "requires_credentials" in item.keywords:
