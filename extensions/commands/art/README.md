@@ -99,3 +99,35 @@ conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_re
 conan art:build-info upload mybuildname_aggregated.json <url> --user=<user> --password="<pass>"
 conan art:property build-info-add mybuildname_aggregated.json <url> <repo> --user=<user> --password="<pass>"
 ```
+
+#### [conan art:promote_graph](cmd_promote_graph.py)
+
+```
+$ conan art:promote-graph -h
+usage: conan promote-graph [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER]
+                           [--password PASSWORD] [--token TOKEN]
+                           origin destination list
+
+Promote a pkglist file from an origin repository to a destination repository, without downloading the packages locally
+
+positional arguments:
+  origin                Artifactory origin repository.
+  destination           Artifactory destination repository.
+  list                  Package list file to promote
+
+options:
+  -h, --help            show this help message and exit
+  -v [V]                Level of detail of the output. Valid options from less verbose to more verbose:
+                        -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
+                        -vvv or -vtrace
+  -cc CORE_CONF, --core-conf CORE_CONF
+                        Global configuration for Conan
+  --server SERVER       Server name of the Artifactory to get the build info from
+  --url URL             Artifactory url, like: https://<address>/artifactory
+  --user USER           user name for the repository
+  --password PASSWORD   password for the user name
+  --token TOKEN         token for the repository
+```
+
+Uses a pkglist file to promote a package from one repository to another, without downloading the packages locally.
+Needs a Pro license to work.
