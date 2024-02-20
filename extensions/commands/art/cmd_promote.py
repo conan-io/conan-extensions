@@ -51,19 +51,22 @@ def _promote_path(url, user, password, origin, destination, path):
 
 
 @conan_command(group="Artifactory")
-def promote_graph(conan_api: ConanAPI, parser, *args):
+def promote(conan_api: ConanAPI, parser, *args):
     """
-    Promote a pkglist file from an origin repository to a destination repository, without downloading the packages locally
+    Promote a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
     """
-    parser.add_argument("origin", help="Artifactory origin repository.")
-    parser.add_argument("destination", help="Artifactory destination repository.")
-    parser.add_argument("list", help="Package list file to promote")
 
-    parser.add_argument("--server", help="Server name of the Artifactory to get the build info from")
-    parser.add_argument("--url", help="Artifactory url, like: https://<address>/artifactory")
-    parser.add_argument("--user", help="user name for the repository")
-    parser.add_argument("--password", help="password for the user name")
-    parser.add_argument("--token", help="token for the repository")
+    parser.add_argument("list", help="Package list file to promote")
+    parser.add_argument("--from", help="Artifactory origin repository name", required=True, dest="origin")
+    parser.add_argument("--to", help="Artifactory destination repository name", required=True, dest="destination")
+
+    parser.add_argument("--remote", help="Remote name to use for the origin repositories", default=None)
+
+    parser.add_argument("--server", help="Server name of the Artifactory server to promote from if using art:property commands")
+    parser.add_argument("--url", help="Artifactory server url, like: https://<address>/artifactory")
+    parser.add_argument("--user", help="User name for the repository")
+    parser.add_argument("--password", help="Password for the user name (instead of token)")
+    parser.add_argument("--token", help="Token for the repository (instead of password)")
 
     args = parser.parse_args(*args)
 
@@ -71,23 +74,32 @@ def promote_graph(conan_api: ConanAPI, parser, *args):
     if not url.endswith("/"):
         url += "/"
 
-    # Only artifactory pro edition supports this feature
-    response = _request(url, user, password, "get", "api/system/version")
-    if response["license"] == "Artifactory Community Edition for C/C++":
-        raise ConanException("Direct graph promotion is only supported in Artifactory Pro. As an alternative, use conan download + conan upload with the pkglist feature")
-
     listfile = os.path.realpath(args.list)
     multi_package_list = MultiPackagesList.load(listfile)
 
     remotes = list(multi_package_list.lists.keys())
-    if len(remotes) > 1:
-        raise ConanException(f"Expected every package to come from the same origin repository in {args.origin}")
+    if len(remotes) > 1 and args.remote is None:
+        raise ConanException(f"Expected every package to come from the same origin repository in {args.origin}, "
+                             f"use --remote to disambiguate")
 
-    origin_remote = remotes[0]
+    if args.remote is not None:
+        origin_remote = args.remote
+        if origin_remote not in remotes:
+            raise ConanException(f"Remote {origin_remote} not found in the package list")
+    else:
+        origin_remote = remotes[0]
+
     if origin_remote == "Local Cache":
-        raise ConanException(f"Package list must come from the remote associated with {args.origin}, but found from local cache")
+        raise ConanException(f"Package list must come from the remote associated with {args.origin}, "
+                             f"but found from local cache")
 
     assert_server_or_url_user_password(args)
+
+    # Only artifactory pro edition supports this feature
+    response = _request(url, user, password, "get", "api/system/version")
+    if response["license"] == "Artifactory Community Edition for C/C++":
+        raise ConanException("Direct graph promotion is only supported in Artifactory Pro. "
+                             "As an alternative, use conan download + conan upload with the pkglist feature")
 
     pkglist = multi_package_list[origin_remote]
 

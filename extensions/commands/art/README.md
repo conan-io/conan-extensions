@@ -85,34 +85,40 @@ conan art:build-info promote mybuildname_aggregated 1 origin-artifactory-repo de
 
 Now, both release and debug binaries from that pacakge ae available in the destination repository with just one command.
 
-#### [conan art:promote_graph](cmd_promote_graph.py)
+#### [conan art:promote](cmd_promote.py)
 
 ```
-$ conan art:promote-graph -h
-usage: conan promote-graph [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER]
-                           [--password PASSWORD] [--token TOKEN]
-                           origin destination list
+$ conan art:promote -h
+usage: conan promote [-h] [-v [V]] [-cc CORE_CONF] --from ORIGIN --to
+                     DESTINATION [--remote REMOTE] [--server SERVER]
+                     [--url URL] [--user USER] [--password PASSWORD]
+                     [--token TOKEN]
+                     list
 
-Promote a pkglist file from an origin repository to a destination repository, without downloading the packages locally
+Promote a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
 
 positional arguments:
-  origin                Artifactory origin repository.
-  destination           Artifactory destination repository.
   list                  Package list file to promote
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
-  -v [V]                Level of detail of the output. Valid options from less verbose to more verbose:
-                        -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
+  -v [V]                Level of detail of the output. Valid options from less
+                        verbose to more verbose: -vquiet, -verror, -vwarning,
+                        -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
                         -vvv or -vtrace
   -cc CORE_CONF, --core-conf CORE_CONF
                         Global configuration for Conan
-  --server SERVER       Server name of the Artifactory to get the build info from
-  --url URL             Artifactory url, like: https://<address>/artifactory
-  --user USER           user name for the repository
-  --password PASSWORD   password for the user name
-  --token TOKEN         token for the repository
+  --from ORIGIN         Artifactory origin repository name
+  --to DESTINATION      Artifactory destination repository name
+  --remote REMOTE       Remote name to use for the origin repositories
+  --server SERVER       Server name of the Artifactory server to promote from
+                        if using art:property commands
+  --url URL             Artifactory server url, like:
+                        https://<address>/artifactory
+  --user USER           User name for the repository
+  --password PASSWORD   Password for the user name (instead of token)
+  --token TOKEN         Token for the repository (instead of password)
 ```
 
-Uses a pkglist file to promote a package from one repository to another, without downloading the packages locally.
+Uses a pkglist file to promote a package from one Artifactory repository to another, without downloading the packages locally.
 Needs a Pro license to work.
