@@ -53,7 +53,7 @@ def _promote_path(url, user, password, origin, destination, path):
 @conan_command(group="Artifactory")
 def promote(conan_api: ConanAPI, parser, *args):
     """
-    Promote a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
+    Promote Conan recipes and packages in a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
     """
 
     parser.add_argument("list", help="Package list file to promote")
