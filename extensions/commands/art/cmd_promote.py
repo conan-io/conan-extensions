@@ -60,7 +60,7 @@ def promote(conan_api: ConanAPI, parser, *args):
     parser.add_argument("--from", help="Artifactory origin repository name", required=True, dest="origin")
     parser.add_argument("--to", help="Artifactory destination repository name", required=True, dest="destination")
 
-    parser.add_argument("--remote", help="Remote name to use for the origin repositories", default=None)
+    parser.add_argument("--remote", help="Promote packages from this remote (to disambiguate in case of packages from different repos)", default=None)
 
     parser.add_argument("--server", help="Server name of the Artifactory server to promote from if using art:property commands")
     parser.add_argument("--url", help="Artifactory server url, like: https://<address>/artifactory")
