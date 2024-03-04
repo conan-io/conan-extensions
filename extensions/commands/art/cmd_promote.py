@@ -15,9 +15,11 @@ from cmd_server import get_url_user_password
 
 def _get_export_path_from_rrev(rrev):
     recipe_ref = RecipeReference.loads(rrev)
-    path = f"_/{recipe_ref.name}/{recipe_ref.version}"
+    user = recipe_ref.user or "_"
+    channel = recipe_ref.channel or "_"
+    path = f"{user}/{recipe_ref.name}/{recipe_ref.version}/{channel}"
     if recipe_ref.revision:
-        path += f"/_/{recipe_ref.revision}/export/"
+        path += f"/{recipe_ref.revision}/export/"
     return path
 
 
@@ -25,7 +27,10 @@ def _get_path_from_pref(pref):
     package_ref = PkgReference.loads(pref)
     recipe_ref = package_ref.ref
 
-    path = f"_/{recipe_ref.name}/{recipe_ref.version}/_/{recipe_ref.revision}/package/{package_ref.package_id}"
+    user = recipe_ref.user or "_"
+    channel = recipe_ref.channel or "_"
+
+    path = f"{user}/{recipe_ref.name}/{recipe_ref.version}/{channel}/{recipe_ref.revision}/package/{package_ref.package_id}"
     if package_ref.revision:
         path += f"/{package_ref.revision}"
     return path
