@@ -95,12 +95,13 @@ usage: conan promote [-h] [-v [V]] [-cc CORE_CONF] --from ORIGIN --to
                      [--token TOKEN]
                      list
 
-Promote a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
+Promote Conan recipes and packages in a pkglist file from an origin Artifactory repository to a destination repository,
+without downloading the packages locally
 
 positional arguments:
   list                  Package list file to promote
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v [V]                Level of detail of the output. Valid options from less
                         verbose to more verbose: -vquiet, -verror, -vwarning,
@@ -110,7 +111,8 @@ optional arguments:
                         Global configuration for Conan
   --from ORIGIN         Artifactory origin repository name
   --to DESTINATION      Artifactory destination repository name
-  --remote REMOTE       Remote name to use for the origin repositories
+  --remote REMOTE       Promote packages from this remote (to disambiguate in
+                        case of packages from different repos)
   --server SERVER       Server name of the Artifactory server to promote from
                         if using art:property commands
   --url URL             Artifactory server url, like:
