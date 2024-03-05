@@ -37,10 +37,12 @@ def _get_path_from_ref(ref):
         recipe_ref = RecipeReference.loads(ref)
         package_ref = None
 
-    rrev_path = f"/_/{recipe_ref.revision}" if recipe_ref.revision else ""
+    user = recipe_ref.user if recipe_ref.user else "_"
+    channel = recipe_ref.channel if recipe_ref.channel else "_"
+    rrev_path = f"/{recipe_ref.revision}" if recipe_ref.revision else ""
     pkgid_path = f"/package/{package_ref.package_id}" if package_ref and package_ref.package_id else ""
     prev_path = f"/{package_ref.revision}" if package_ref and package_ref.revision else ""
-    return f"_/{recipe_ref.name}/{recipe_ref.version}{rrev_path}{pkgid_path}{prev_path}"
+    return f"{user}/{recipe_ref.name}/{recipe_ref.version}/{channel}{rrev_path}{pkgid_path}{prev_path}"
 
 
 def _add_default_arguments(subparser):
