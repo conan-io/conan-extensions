@@ -22,8 +22,8 @@ def conan_test():
         os.environ.clear()
         os.environ.update(old_env)
 
-
-def test_convert_txt():
+@pytest.fixture(autouse=True)
+def create_dummy_recipe_and_file_tree():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
     run("conan --help")
@@ -53,6 +53,24 @@ def test_convert_txt():
     os.mkdir("recipes/pkgb/all")
     save("recipes/pkgb/all/conanfile.py", conanfile % "pkgb")
 
+def test_path_arg():
     run("conan cci:export-all-versions -p recipes")
 
     assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 6
+
+def test_list_arg():
+    list_yml = """
+        recipes:
+          - pkga
+          - pkgb
+    """
+
+    save("list.yml", list_yml)
+
+    run("conan cci:export-all-versions -l list.yml")
+    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 6
+
+def test_name_arg():
+    run("conan cci:export-all-versions -n pkga")
+    assert len(os.listdir(os.path.join(os.environ.get("CONAN_HOME"), "p"))) == 4
+
