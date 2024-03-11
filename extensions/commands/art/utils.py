@@ -62,17 +62,21 @@ class UnexpectedResponseException(ConanException):
 
 
 def api_request(method, request_url, user=None, password=None, json_data=None,
-                sign_key_name=None):
+                sign_key_name=None, plain_data=None):
     headers = {}
+    if json_data and plain_data:
+        raise ConanException("Cannot send both json and plain data in the same request")
     if json_data:
         headers.update({"Content-Type": "application/json"})
+    if plain_data:
+        headers.update({"Content-Type": "text/plain"})
     if sign_key_name:
         headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
     requests_method = getattr(requests, method)
     if user and password:
         response = requests_method(request_url, auth=(
-            user, password), data=json_data, headers=headers)
+            user, password), data=json_data or plain_data, headers=headers)
     else:
         response = requests_method(request_url)
 
