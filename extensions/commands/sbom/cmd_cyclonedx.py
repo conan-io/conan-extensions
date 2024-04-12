@@ -62,7 +62,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         # if loading dependencies is performed outside the actual conan-command in global/module scope.
         print('The sbom extension needs an additional package, please run:',
               # keep in synk with the instructions in `README.md`
-              "pip install 'cyclonedx-python-lib>=5.0.0,<6",
+              "pip install 'cyclonedx-python-lib>=5.0.0,<6'",
               sep='\n', file=sys.stderr)
         sys.exit(1)
 
