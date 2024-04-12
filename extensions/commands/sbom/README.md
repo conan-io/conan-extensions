@@ -12,7 +12,7 @@ The command requires the package `cyclonedx-python-lib`.
 You can install it via
 <!-- keep in sync with the error message that asks for requirements/dependencies in `cmd_cyclonedx.py` -->
 ```shellSession
-$ pip install 'cyclonedx-python-lib>=3.1.5,!=4.*,<6'
+$ pip install 'cyclonedx-python-lib>=5.0.0,<6'
 ```
 
 Usage:
