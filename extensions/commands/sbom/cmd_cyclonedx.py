@@ -2,7 +2,7 @@ from importlib import import_module
 from functools import partial
 import os.path
 import sys
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
@@ -50,7 +50,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         sys.exit(1)
 
     try:
-        from cyclonedx.factory.license import LicenseFactory
+        from cyclonedx.factory.license import License, LicenseFactory
         from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
@@ -71,7 +71,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     def package_type_to_component_type(pt: str) -> ComponentType:
         return ComponentType.APPLICATION if pt == "application" else ComponentType.LIBRARY
 
-    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]):
+    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]) -> Optional[Iterable[License]]:
         """
         see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
         """
@@ -79,7 +79,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             return None
         if not isinstance(ls, (tuple, set, list)):
             ls = [ls]
-        return [LicenseFactory().make_from_string(i) for i in ls]  # noqa
+        return [LicenseFactory().make_from_string(i) for i in ls]
 
     def package_url(node: 'Node') -> Optional[PackageURL]:
         """
@@ -101,7 +101,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     def create_component(node: 'Node') -> Component:
         purl = package_url(node)
         component = Component(
-            type=package_type_to_component_type(node.conanfile.package_type),  # noqa
+            type=package_type_to_component_type(node.conanfile.package_type),
             name=node.name or f'UNKNOWN.{id(node)}',
             author=node.conanfile.author if node.conanfile.author else "Conan",
             version=node.conanfile.version,
@@ -112,16 +112,16 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         )
         if node.conanfile.homepage:
             component.external_references.add(ExternalReference(
-                type=ExternalReferenceType.WEBSITE,  # noqa
+                type=ExternalReferenceType.WEBSITE,
                 url=XsUri(node.conanfile.homepage),
-            ))  # noqa
+            ))
         return component
 
     def me_as_tool() -> Tool:
         tool = Tool(name="conan extension sbom:cyclonedx")
         tool.external_references.add(ExternalReference(
-            type=ExternalReferenceType.WEBSITE,  # noqa
-            url=XsUri("https://github.com/conan-io/conan-extensions")))  # noqa
+            type=ExternalReferenceType.WEBSITE,
+            url=XsUri("https://github.com/conan-io/conan-extensions")))
         return tool
 
     # region COPY FROM conan: cli/commands/graph.py
@@ -159,5 +159,5 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     for node in deps_graph.nodes[1:]:  # node 0 is the root
         bom.components.add(components[node])
     for dep in deps_graph.nodes:
-        bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])  # noqa
+        bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
     return bom
