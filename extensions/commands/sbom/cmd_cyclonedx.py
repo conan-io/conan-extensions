@@ -50,10 +50,11 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         sys.exit(1)
 
     try:
-        from cyclonedx.factory.license import License, LicenseFactory
+        from cyclonedx.factory.license import LicenseFactory
         from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
+        from cyclonedx.model.license import License
         from packageurl import PackageURL
     except ModuleNotFoundError:
         # Assert on RUNTIME of the actual conan-command, that all requirements exist.
