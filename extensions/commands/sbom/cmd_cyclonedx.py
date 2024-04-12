@@ -45,6 +45,10 @@ formatter["text"] = format_text
 def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
+    if sys.version_info < (3, 8):
+        print('Python 3.8 or newer is required.')
+        sys.exit(1)
+
     try:
         from cyclonedx.factory.license import LicenseFactory
         from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
