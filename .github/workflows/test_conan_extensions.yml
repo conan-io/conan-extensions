@@ -32,3 +32,19 @@ jobs:
     - name: Run tests - Conan develop / Python 3.8
       run: |
         pytest -v tests
+
+  conan_windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - name: Install Conan latest
+      run: |
+        pip install -U pip
+        pip install conan
+    - name: Run Windows-specific tests - Conan latest / Python 3.8
+      run: |
+        pytest -v -m win tests
