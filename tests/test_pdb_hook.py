@@ -1,9 +1,11 @@
-import pytest
 import os
 import tempfile
-from tools import run
 import json
 import platform
+
+import pytest
+
+from tools import run
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +24,7 @@ def conan_test():
         os.environ.update(old_env)
 
 
-@pytest.mark.skipif(platform.system() != "Windows", reason="Only for Windows with msvc")
+@pytest.mark.win32
 def test_copy_pdb_hook():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f'conan config install {repo}')
@@ -42,4 +44,3 @@ def test_copy_pdb_hook():
     package_id = next(iter(revision_info['packages']))
     path = run(fr'conan cache path lib/1.0:{package_id}').strip()
     assert os.path.isfile(os.path.join(path, 'bin', 'lib.pdb'))
-
