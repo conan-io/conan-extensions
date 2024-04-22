@@ -47,4 +47,4 @@ jobs:
         pip install pytest conan
     - name: Run Windows-specific tests - Conan latest / Python 3.8
       run: |
-        pytest -v -m win tests
+        pytest -v -m win32 tests
