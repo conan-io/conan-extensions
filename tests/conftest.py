@@ -1,4 +1,6 @@
 import os
+import sys
+
 import pytest
 
 
@@ -14,3 +16,12 @@ def pytest_collection_modifyitems(items):
             ):
                 item.add_marker(pytest.mark.skip(reason="Missing required credentials environment variables"))
                 print(f"Skipping test {item.nodeid}. Missing required credentials environment variables.")
+
+ALL_OS = set("darwin linux win32".split())
+
+
+def pytest_runtest_setup(item):
+    supported_platforms = ALL_OS.intersection(mark.name for mark in item.iter_markers())
+    plat = sys.platform
+    if supported_platforms and plat not in supported_platforms:
+        pytest.skip("cannot run on platform {}".format(plat))
