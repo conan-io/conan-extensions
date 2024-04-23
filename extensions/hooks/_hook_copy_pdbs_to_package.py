@@ -20,7 +20,7 @@ def post_package(conanfile):
     try:
         conanfile.run(
             r'"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -format json',
-            stdout=output)
+            stdout=output, scope="")
     except ConanException:
         raise ConanException(
             "Failed to locate dumpbin.exe which is needed to locate the PDBs and copy them to package folder.")
