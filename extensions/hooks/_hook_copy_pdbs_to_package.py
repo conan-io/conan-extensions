@@ -34,7 +34,7 @@ def post_package(conanfile):
         pdb_path = re.search(r"'.*\.pdb'", dumpbin)
         if pdb_path:
             pdb_path = pdb_path.group()[1:-1]
-        # Copy the corresponding pdb file from the build to the package folder
-        conanfile.output.info(
-            f"copying {os.path.basename(pdb_path)} from {os.path.dirname(pdb_path)} to {os.path.dirname(dll_path)}")
-        copy(conanfile, os.path.basename(pdb_path), os.path.dirname(pdb_path), os.path.dirname(dll_path))
+            # Copy the corresponding pdb file from the build to the package folder
+            conanfile.output.info(
+                f"copying {os.path.basename(pdb_path)} from {os.path.dirname(pdb_path)} to {os.path.dirname(dll_path)}")
+            copy(conanfile, os.path.basename(pdb_path), os.path.dirname(pdb_path), os.path.dirname(dll_path))
