@@ -53,7 +53,7 @@ Makes a ZIP with all the licenses from the graph
 
 #### [PDBs](extensions/hooks/_hook_copy_pdbs_to_package.py)
 
-Post pacakge hook that copies PDBs to the package folder.
+Post package hook that copies PDBs to the package folder.
 
 ### Testing
 

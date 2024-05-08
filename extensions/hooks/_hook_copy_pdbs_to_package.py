@@ -4,7 +4,7 @@ import json
 import os
 import re
 from io import StringIO
-from conans.errors import ConanException
+from conan.errors import ConanException
 
 
 def post_package(conanfile):
