@@ -5,15 +5,14 @@ For more information on how to debug using the hook check the [documentation](ht
 
 ### Installing the hook
 
-The hook can be installed with a `conan config install` with all the conan extensions, but it is recommended to install
-just the hook with:
+To install just the hooks from this repository, without the other extensions, use the command:
 
 `conan config install https://github.com/conan-io/conan-extensions.git -sf=extensions/hooks -tf=extensions/hooks`
 
 The hook is made so it won't run by default, as it can increase the package size significantly. As explained in the
 [hooks documentation](https://docs.conan.io/2/reference/extensions/hooks.html), we need to change the name of our hook to start with `hook_`.
 To locate the path where the hook was placed, run the command `conan config home` to find
-your local cache path and go to the `extensions/hooks` folder to rename the `_hook_copy_pdbs_to_package.py` file.
+your local cache path and go to the `extensions/hooks/pdbs` folder to rename the `_hook_copy_pdbs_to_package.py` file.
 Be aware that this hook will run everytime a `package()` method is run, to disable the hook just rename the hook back
 to start with `_hook_`.
 
