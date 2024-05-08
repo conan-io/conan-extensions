@@ -1,20 +1,20 @@
-## PDBs hook
-This hook copies the PDBs from their original location in the build folder to the package folder.
-This is required for debugging libraries with Visual Studio when the original source files aren't present.
-For more information on how to debug using the hook check the [documentation](https://docs.conan.io/2/examples/dev_flow/debug/debugging_visual.html)
-
-### Installing the hook
+## Installing hooks
 
 To install just the hooks from this repository, without the other extensions, use the command:
 
 `conan config install https://github.com/conan-io/conan-extensions.git -sf=extensions/hooks -tf=extensions/hooks`
 
-The hook is made so it won't run by default, as it can increase the package size significantly. As explained in the
-[hooks documentation](https://docs.conan.io/2/reference/extensions/hooks.html), we need to change the name of our hook to start with `hook_`.
+Some hooks are made so they won't be run by default, so we need to change the name of the hook
+we want to use to start with `hook_`. As explained in the
+[hooks documentation](https://docs.conan.io/2/reference/extensions/hooks.html).
 To locate the path where the hook was placed, run the command `conan config home` to find
-your local cache path and go to the `extensions/hooks/pdbs` folder to rename the `_hook_copy_pdbs_to_package.py` file.
-Be aware that this hook will run everytime a `package()` method is run, to disable the hook just rename the hook back
-to start with `_hook_`.
+your local cache path and go to the `extensions/hooks` folder to rename the desired hook. Be aware that
+the hooks will run everytime they are called unless disabled, which can be done by renaming the hook back to start with `_hook_`.
+
+## PDBs hook
+This hook copies the PDBs from their original location in the build folder to the package folder.
+This is required for debugging libraries with Visual Studio when the original source files aren't present.
+For more information on how to debug using the hook check the [documentation](https://docs.conan.io/2/examples/dev_flow/debug/debugging_visual.html)
 
 ### PDBs
 
