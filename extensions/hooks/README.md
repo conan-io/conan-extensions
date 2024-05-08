@@ -4,7 +4,7 @@ To install just the hooks from this repository, without the other extensions, us
 
 `conan config install https://github.com/conan-io/conan-extensions.git -sf=extensions/hooks -tf=extensions/hooks`
 
-Some hooks are made so they won't be run by default, so we need to change the name of the hook
+The hooks are named so they won't be run by default, so we need to change the name of the hook
 we want to use to start with `hook_`. As explained in the
 [hooks documentation](https://docs.conan.io/2/reference/extensions/hooks.html).
 To locate the path where the hook was placed, run the command `conan config home` to find
