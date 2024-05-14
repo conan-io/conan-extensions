@@ -15,7 +15,7 @@ from conan.tools.scm import Version
 
 from utils import NotFoundException, api_request, assert_server_or_url_user_password, load_json
 from cmd_property import get_properties, set_properties
-from cmd_server import get_url_user_password
+from cmd_server import get_url_user_password, _get_server
 
 
 def get_buildinfo(build_name, build_number, url, user, password, project=None):
@@ -110,7 +110,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
 class _BuildInfo:
 
     def __init__(self, graph, name, number, repository, with_dependencies=False, 
-                 url=None, user=None, password=None):
+                 include_all=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
@@ -120,6 +120,7 @@ class _BuildInfo:
         self._password = password
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
+        self._include_all = include_all
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -242,8 +243,8 @@ class _BuildInfo:
             if ref:
                 transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
 
-                # only add the nodes that were marked as built
-                if node.get("binary") == "Build":
+                # only add the nodes that were marked as built, unless --all option was passed
+                if node.get("binary") == "Build" or self._include_all:
 
                     # recipe module
                     module = {
@@ -260,7 +261,6 @@ class _BuildInfo:
                             all_dependencies.extend(deps_artifacts)
 
                         module.update({"dependencies": all_dependencies})
-
                     ret.append(module)
 
                     # package module
@@ -279,9 +279,7 @@ class _BuildInfo:
                                 all_dependencies.extend(deps_artifacts)
 
                             module.update({"dependencies": all_dependencies})
-
                         ret.append(module)
-
         return ret
 
     def header(self):
@@ -338,6 +336,7 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
     subparser.add_argument("--user", help="User name for the Artifactory server.")
     subparser.add_argument("--password", help="Password for the Artifactory server.")
     subparser.add_argument("--token", help="Token for the Artifactory server.")
+    subparser.add_argument("--all", action="store_true", default=False, help="Add all packages in conan generated JSON.")
     return subparser
 
 
@@ -374,7 +373,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
-                    with_dependencies=args.with_dependencies, url=url, user=user, password=password)
+                    with_dependencies=args.with_dependencies, include_all=args.all, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
 
