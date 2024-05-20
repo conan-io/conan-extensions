@@ -31,7 +31,7 @@ def post_package(conanfile):
         dumpbin_output = StringIO()
         conanfile.run(rf'"{dumpbin_path}" /PDBPATH {dll_path}', stdout=dumpbin_output)
         dumpbin = str(dumpbin_output.getvalue())
-        pdb_path = re.search(r"'.*\.pdb'", dumpbin)
+        pdb_path = re.search(r"[“'\"].*\.pdb[”'\"]", dumpbin)
         if pdb_path:
             pdb_path = pdb_path.group()[1:-1]
             # Copy the corresponding pdb file from the build to the package folder
