@@ -44,8 +44,8 @@ options:
   --project PROJECT     Project key for the Build Info in Artifactory
   --server SERVER       Server name of the Artifactory to get the build info from.
   --url URL             Artifactory url, like: https://<address>/artifactory.
-  --user USER           User name for the repository.
-  --password PASSWORD   Password for the user name.
+  --user USER           User name for the Artifactory server.
+  --password PASSWORD   Password for the Artifactory server.
   --build-info BUILD_INFO
                         Name and number for the Build Info already published in Artifactory. You can
                         add multiple Builds like --build-info=build_name,build_number --build-
@@ -66,7 +66,7 @@ positional arguments:
   json                 Conan generated JSON output file.
   build_name           Build name property for BuildInfo.
   build_number         Build number property for BuildInfo.
-  repository           Repository to look artifacts for.
+  repository           Artifactory repository name where artifacts are located -not the conan remote name-.
 
 options:
   -h, --help           show this help message and exit
@@ -76,8 +76,8 @@ options:
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory. This may be not necessary
                        if all the information for the Conan artifacts is present in the local cache.
-  --user USER          User name for the repository.
-  --password PASSWORD  Password for the user name.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
   --with-dependencies  Whether to add dependencies information or not. Default: false.
 ```
 
@@ -93,7 +93,7 @@ Creates an Artifactory Release Bundle from the information of the Build Info
 
 positional arguments:
   json                 BuildInfo JSON.
-  repository           Repository where artifacts are located.
+  repository           Artifactory repository where artifacts are located.
   bundle_name          The created bundle name.
   bundle_version       The created bundle version.
   sign_key_name        Signing Key name.
@@ -105,8 +105,8 @@ options:
                        -vdebug, -vvv or -vtrace
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory.
-  --user USER          User name for the repository.
-  --password PASSWORD  Password for the user name.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
 ```
 
 ### ``conan art:build-info delete``
@@ -131,8 +131,8 @@ options:
   --project PROJECT     Project key for the Build Info in Artifactory
   --server SERVER       Server name of the Artifactory to get the build info from.
   --url URL             Artifactory url, like: https://<address>/artifactory.
-  --user USER           User name for the repository.
-  --password PASSWORD   Password for the user name.
+  --user USER           User name for the Artifactory server.
+  --password PASSWORD   Password for the Artifactory server.
   --build-number BUILD_NUMBER
                         BuildInfo numbers to promote. You can add several build-numbers for the same
                         build-name, like: --build-number=1 --build-number=2.
@@ -163,8 +163,8 @@ options:
   --project PROJECT    Project key for the Build Info in Artifactory
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory.
-  --user USER          User name for the repository.
-  --password PASSWORD  Password for the user name.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
 ```
 
 ### ``conan art:build-info promote``
@@ -181,8 +181,8 @@ Promote the BuildInfo from the source to the target repository.
 positional arguments:
   build_name           BuildInfo name to promote.
   build_number         BuildInfo number to promote.
-  source_repo          Source repo for promotion.
-  target_repo          Target repo for promotion.
+  source_repo          Artifactory repository to get artifacts from.
+  target_repo          Artifactory repository to promote artifacts to.
 
 options:
   -h, --help           show this help message and exit
@@ -192,8 +192,8 @@ options:
   --project PROJECT    Project key for the Build Info in Artifactory
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory.
-  --user USER          User name for the repository.
-  --password PASSWORD  Password for the user name.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
   --dependencies       Whether to copy the build's dependencies or not. Default: false.
   --comment COMMENT    An optional comment describing the reason for promotion. Default: ''
 ```
@@ -219,6 +219,6 @@ options:
   --project PROJECT    Project key for the Build Info in Artifactory
   --server SERVER      Server name of the Artifactory to get the build info from.
   --url URL            Artifactory url, like: https://<address>/artifactory.
-  --user USER          User name for the repository.
-  --password PASSWORD  Password for the user name.
+  --user USER          User name for the Artifactory server.
+  --password PASSWORD  Password for the Artifactory server.
 ```

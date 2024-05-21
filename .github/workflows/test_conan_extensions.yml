@@ -8,26 +8,43 @@ jobs:
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.CONAN_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
-      ART_URL: "https://conanv2beta.jfrog.io/artifactory"
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+      ART_URL: ${{ secrets.ART_URL }}
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.6
+        python-version: 3.8
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest "cyclonedx-python-lib>=3.1.5,<5.0.0"
+        pip install pytest "cyclonedx-python-lib>=5.0.0,<6"
     - name: Install Conan latest
       run: |
         pip install conan
-    - name: Run tests - Conan latest / Python 3.6
+    - name: Run tests - Conan latest / Python 3.8
       run: |
         pytest -v tests
     - name: Install Conan develop
       run: |
         pip install git+https://github.com/conan-io/conan.git@release/2.0
-    - name: Run tests - Conan develop / Python 3.6
+    - name: Run tests - Conan develop / Python 3.8
       run: |
         pytest -v tests
+
+  conan_windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - name: Install dependencies and Conan latest
+      run: |
+        pip install -U pip
+        pip install pytest conan
+    - name: Run Windows-specific tests - Conan latest / Python 3.8
+      run: |
+        pytest -v -m win32 tests

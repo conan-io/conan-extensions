@@ -45,12 +45,16 @@ formatter["text"] = format_text
 def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     """Create a CycloneDX Software Bill of Materials (SBOM)"""
 
+    if sys.version_info < (3, 8):
+        print('Python 3.8 or newer is required.')
+        sys.exit(1)
+
     try:
         from cyclonedx.factory.license import LicenseFactory
-        from cyclonedx.model import (ExternalReference, ExternalReferenceType,
-                                     LicenseChoice, Tool, XsUri)
+        from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
+        from cyclonedx.model.license import License
         from packageurl import PackageURL
     except ModuleNotFoundError:
         # Assert on RUNTIME of the actual conan-command, that all requirements exist.
@@ -58,24 +62,17 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         # if loading dependencies is performed outside the actual conan-command in global/module scope.
         print('The sbom extension needs an additional package, please run:',
               # keep in synk with the instructions in `README.md`
-              "pip install 'cyclonedx-python-lib>=3.1.5,<5.0.0'",
+              "pip install 'cyclonedx-python-lib>=5.0.0,<6'",
               sep='\n', file=sys.stderr)
         sys.exit(1)
 
     if TYPE_CHECKING:
         from conans.client.graph.graph import Node
 
-    def cyclonedx_major_version_is_4() -> bool:
-        try:
-            LicenseChoice(license=LicenseFactory().make_from_string("MIT"))
-            return True
-        except TypeError:  # argument in version 3 is named license_
-            return False
-
     def package_type_to_component_type(pt: str) -> ComponentType:
         return ComponentType.APPLICATION if pt == "application" else ComponentType.LIBRARY
 
-    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]) -> Optional[Iterable[LicenseChoice]]:
+    def licenses(ls: Optional[Union[Tuple[str, ...], Set[str], List[str], str]]) -> Optional[Iterable[License]]:
         """
         see https://cyclonedx.org/docs/1.4/json/#components_items_licenses
         """
@@ -83,10 +80,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             return None
         if not isinstance(ls, (tuple, set, list)):
             ls = [ls]
-        if cyclonedx_major_version_is_4():
-            return [LicenseChoice(license=LicenseFactory().make_from_string(i)) for i in ls]  # noqa
-        else:
-            return [LicenseChoice(license_=LicenseFactory().make_from_string(i)) for i in ls]
+        return [LicenseFactory().make_from_string(i) for i in ls]
 
     def package_url(node: 'Node') -> Optional[PackageURL]:
         """
@@ -107,43 +101,28 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     def create_component(node: 'Node') -> Component:
         purl = package_url(node)
-        if cyclonedx_major_version_is_4():
-            component = Component(
-                type=package_type_to_component_type(node.conanfile.package_type),  # noqa
-                name=node.name or f'UNKNOWN.{id(node)}',
-                version=node.conanfile.version,
-                licenses=licenses(node.conanfile.license),
-                bom_ref=purl.to_string() if purl else None,
-                purl=purl,
-                description=node.conanfile.description
-            )
-        else:
-            component = Component(
-                component_type=package_type_to_component_type(node.conanfile.package_type),
-                name=node.name or f'UNKNOWN.{id(node)}',
-                version=node.conanfile.version,
-                licenses=licenses(node.conanfile.license),
-                bom_ref=purl.to_string() if purl else None,
-                purl=purl,
-                description=node.conanfile.description
-            )
-        if node.conanfile.homepage and cyclonedx_major_version_is_4():  # bug in cyclonedx 3 enforces hashes
+        component = Component(
+            type=package_type_to_component_type(node.conanfile.package_type),
+            name=node.name or f'UNKNOWN.{id(node)}',
+            author=node.conanfile.author if node.conanfile.author else "Conan",
+            version=node.conanfile.version,
+            licenses=licenses(node.conanfile.license),
+            bom_ref=purl.to_string() if purl else None,
+            purl=purl,
+            description=node.conanfile.description
+        )
+        if node.conanfile.homepage:
             component.external_references.add(ExternalReference(
-                type=ExternalReferenceType.WEBSITE,  # noqa
+                type=ExternalReferenceType.WEBSITE,
                 url=XsUri(node.conanfile.homepage),
-            ))  # noqa
+            ))
         return component
 
     def me_as_tool() -> Tool:
-        tool = Tool(name="conan extension recipe:create-sbom")
-        if cyclonedx_major_version_is_4():
-            tool.external_references.add(ExternalReference(
-                type=ExternalReferenceType.WEBSITE,  # noqa
-                url=XsUri("https://github.com/conan-io/conan-extensions")))  # noqa
-        else:
-            tool.external_references.add(ExternalReference(
-                reference_type=ExternalReferenceType.WEBSITE,
-                url=XsUri("https://github.com/conan-io/conan-extensions")))
+        tool = Tool(name="conan extension sbom:cyclonedx")
+        tool.external_references.add(ExternalReference(
+            type=ExternalReferenceType.WEBSITE,
+            url=XsUri("https://github.com/conan-io/conan-extensions")))
         return tool
 
     # region COPY FROM conan: cli/commands/graph.py
@@ -180,7 +159,6 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     bom.metadata.tools.add(me_as_tool())
     for node in deps_graph.nodes[1:]:  # node 0 is the root
         bom.components.add(components[node])
-    if cyclonedx_major_version_is_4():
-        for dep in deps_graph.nodes:
-            bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])  # noqa
+    for dep in deps_graph.nodes:
+        bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
     return bom

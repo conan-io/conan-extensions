@@ -49,6 +49,12 @@ Makes a ZIP with all the executables and runtimes
 
 Makes a ZIP with all the licenses from the graph
 
+### HOOKS
+
+#### [PDBs](extensions/hooks/_hook_copy_pdbs_to_package.py)
+
+Post package hook that copies PDBs to the package folder.
+
 ### Testing
 
 To validate a new extension, it's possible to write a test that exercises its usage.
