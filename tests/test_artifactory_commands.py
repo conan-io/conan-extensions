@@ -1,7 +1,10 @@
 import os
+import json
 import tempfile
 
-from tools import run
+from tools import run, save
+from conan.tools.scm import Version
+from conan import conan_version
 
 import pytest
 
@@ -207,6 +210,40 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+
+
+@pytest.mark.requires_credentials
+def test_build_info_create_from_cached_deps():
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Create dependency packages and upload them
+    run("conan new cmake_lib -d name=libc -d version=1.0 --force")
+    run("conan create . -tf=''")
+    run("conan new cmake_lib -d name=liba -d version=1.0 -d requires=libc/1.0 --force")
+    run("conan create . -tf=''")
+
+    run("conan upload '*' --dry-run -c -r extensions-stg")
+
+    # libc node in graph is cached
+    run("conan install . --format json > install_release.json")
+
+    run(f'conan art:build-info create install_release.json bi_release 1 extensions-stg --server artifactory --with-dependencies > bi_release.json')
+
+    with open("bi_release.json", "r") as file:
+        build_info = json.load(file)
+
+    assert len(build_info.get("modules")) == 0
+
+    run(f'conan art:build-info create install_release.json bi_release 1 extensions-stg --server artifactory --with-dependencies --add-cached-deps > bi_release.json')
+
+    with open("bi_release.json", "r") as file:
+        build_info = json.load(file)
+
+    assert len(build_info.get("modules")) == 2
 
 
 @pytest.mark.requires_credentials
