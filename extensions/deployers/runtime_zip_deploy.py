@@ -1,5 +1,7 @@
-import os, shutil
+import os
+import shutil
 import zipfile
+
 
 # USE **KWARGS to be robust against changes
 def deploy(graph, output_folder, **kwargs):
@@ -9,7 +11,8 @@ def deploy(graph, output_folder, **kwargs):
         if d.package_folder is None:
             continue
         # look for .dlls and .exes in the bin folder
-        for dir in [d.cpp_info.bindir, d.cpp_info.libdir]:
+        search_dirs = (d.cpp_info.bindirs or []) + (d.cpp_info.libdirs or [])
+        for dir in search_dirs:
             search_dir = os.path.join(d.package_folder, dir)
             if not os.path.isdir(search_dir):
                 continue
