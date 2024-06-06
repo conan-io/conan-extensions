@@ -4,7 +4,7 @@ import json
 
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
-from conans.errors import ConanException
+from conan.errors import ConanException
 from conans.util.dates import timestamp_now
 from conans.util.sha import sha256
 
