@@ -66,6 +66,7 @@ positional arguments:
   json                 Conan generated JSON output file.
   build_name           Build name property for BuildInfo.
   build_number         Build number property for BuildInfo.
+  build_url            Build url property for BuildInfo.
   repository           Artifactory repository name where artifacts are located -not the conan remote name-.
 
 options:
