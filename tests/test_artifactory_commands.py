@@ -68,7 +68,7 @@ def test_build_info_create_no_deps():
     # Generate recipe to work with
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
-    # Create release pacakges & build info and upload them
+    # Create release packages & build info and upload them
     run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
@@ -119,6 +119,73 @@ def test_build_info_create_no_deps():
     # Finally clean the artifactory repo (Deleting the build infos does not remove pacakges from repos)
     run('conan remove mypkg* -c -r extensions-prod')
 
+
+@pytest.mark.requires_credentials
+def test_build_info_create_with_build_url():
+
+    build_name = "mybuildinfo"
+    build_number = "1"
+    build_url = "https://foo.org"
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    
+    # Generate recipe to work with
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+
+    # Create release packages & build info and upload them
+    run("conan create . --format json -tf='' -s build_type=Release > create_release.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --build-url={build_url} extensions-stg > {build_name}_release.json')
+    run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+
+    # Create debug packages & build info and upload them
+    run("conan create . --format json -tf='' -s build_type=Debug > create_debug.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} --build-url={build_url} extensions-stg > {build_name}_debug.json')
+    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Aggregate the release and debug build infos into a new one to later do the promotion
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} > {build_name}_aggregated.json')
+    run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+
+    # Check the build infos are uploaded
+    out = run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
+    assert '"name" : "mybuildinfo_release"' in out
+    assert f'"url" : "{build_url}"' in out
+    out = run(f'conan art:build-info get {build_name}_debug {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    assert '"name" : "mybuildinfo_debug"' in out
+    assert f'"url" : "{build_url}"' in out
+    out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --server artifactory')
+    assert '"name" : "mybuildinfo_aggregated"' in out
+    assert f'"url" : "{build_url}"' in out
+
+    run(f'conan art:build-info promote {build_name}_aggregated {build_number} extensions-stg extensions-prod --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Clean cache to make sure package comes from artifactory later
+    run('conan remove mypkg* -c')
+
+    # we have to remove the package from the source repo because in the Conan promotion we copy
+    # Conan promotions must always be copy, and the clean must be handled manually
+    # otherwise you can end up deleting recipe artifacts that other packages use
+    run('conan remove mypkg* -c -r extensions-stg')
+
+    run('conan list "*#*:*#*" -r extensions-prod')
+
+    run('conan list "*#*:*#*" -r extensions-stg')
+
+    # Check that we can install from the prod repo after the promotion
+    run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Release')
+    run('conan install --requires=mypkg/1.0 -r extensions-prod -s build_type=Debug')
+
+    # Check that build-infos can be removed from arifactory
+    run(f'conan art:build-info delete {build_name}_release --server artifactory --build-number={build_number} --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_debug --server artifactory --build-number={build_number} --delete-all --delete-artifacts')
+    run(f'conan art:build-info delete {build_name}_aggregated --url="{os.getenv("ART_URL")}" --build-number={build_number} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
+
+    # Finally clean the artifactory repo (Deleting the build infos does not remove pacakges from repos)
+    run('conan remove mypkg* -c -r extensions-prod')
 
 @pytest.mark.requires_credentials
 def test_build_info_create_deps():

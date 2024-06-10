@@ -287,13 +287,22 @@ class _BuildInfo:
         return ret
 
     def header(self):
-        return {"version": "1.0.1",
-                "name": self._name,
-                "number": self._number,
+        header = {
+            "version": "1.0.1",
+            "name": self._name,
+            "number": self._number,
+            "agent": {},
+            "started": _get_formatted_time(),
+            "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"}
+        }
+
+        if self._build_url is not None:
+            build_url_json = {
                 "url": self._build_url,
-                "agent": {},
-                "started": _get_formatted_time(),
-                "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"}}
+            }
+            header = {**build_url_json, **header}
+
+        return header
 
     def create(self):
         bi = self.header()
@@ -363,7 +372,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
-    subparser.add_argument("build_url", help="Build url property for BuildInfo.")
+    subparser.add_argument("--build-url", help="Build url property for BuildInfo.", default=None, action="store")
     subparser.add_argument("repository", help="Artifactory repository name where artifacts are located -not the conan remote name-.")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
