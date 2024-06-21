@@ -109,7 +109,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, with_dependencies=False, 
+    def __init__(self, graph, name, number, build_url, repository, with_dependencies=False, 
                  add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
@@ -117,6 +117,7 @@ class _BuildInfo:
         self._repository = repository
         self._url = url
         self._user = user
+        self._build_url = build_url
         self._password = password
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
@@ -286,12 +287,22 @@ class _BuildInfo:
         return ret
 
     def header(self):
-        return {"version": "1.0.1",
-                "name": self._name,
-                "number": self._number,
-                "agent": {},
-                "started": _get_formatted_time(),
-                "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"}}
+        header = {
+            "version": "1.0.1",
+            "name": self._name,
+            "number": self._number,
+            "agent": {},
+            "started": _get_formatted_time(),
+            "buildAgent": {"name": "conan", "version": f"{str(conan_version)}"}
+        }
+
+        if self._build_url is not None:
+            build_url_json = {
+                "url": self._build_url,
+            }
+            header = {**build_url_json, **header}
+
+        return header
 
     def create(self):
         bi = self.header()
@@ -361,6 +372,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("json", help="Conan generated JSON output file.")
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
+    subparser.add_argument("--build-url", help="Build url property for BuildInfo.", default=None, action="store")
     subparser.add_argument("repository", help="Artifactory repository name where artifacts are located -not the conan remote name-.")
 
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
@@ -378,7 +390,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    bi = _BuildInfo(data, args.build_name, args.build_number, args.build_url, args.repository,
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
