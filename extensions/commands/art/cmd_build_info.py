@@ -109,7 +109,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, build_url, repository, with_dependencies=False, 
+    def __init__(self, graph, name, number, repository, build_url=None, with_dependencies=False, 
                  add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
@@ -390,7 +390,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
 
     # remove the 'conanfile' node
     data["graph"]["nodes"].pop("0")
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.build_url, args.repository,
+    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+                    build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
