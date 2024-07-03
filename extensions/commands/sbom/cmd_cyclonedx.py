@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def format_cyclonedx(formatter_module: str, formatter_class: str, bom: 'Bom') -> None:
     module = import_module(formatter_module)
     klass = getattr(module, formatter_class)
-    serialized = klass(bom).output_as_string()
+    serialized = klass(bom).output_as_string(indent=2)
     cli_out_write(serialized)
 
 
@@ -66,8 +66,6 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
               sep='\n', file=sys.stderr)
         sys.exit(1)
 
-    if TYPE_CHECKING:
-        from conans.client.graph.graph import Node
 
     def package_type_to_component_type(pt: str) -> ComponentType:
         return ComponentType.APPLICATION if pt == "application" else ComponentType.LIBRARY
@@ -82,7 +80,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             ls = [ls]
         return [LicenseFactory().make_from_string(i) for i in ls]
 
-    def package_url(node: 'Node') -> Optional[PackageURL]:
+    def package_url(node) -> Optional[PackageURL]:
         """
         Creates a PURL following https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
         """
@@ -99,7 +97,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             }
         ) if node.name else None
 
-    def create_component(node: 'Node') -> Component:
+    def create_component(node) -> Component:
         purl = package_url(node)
         component = Component(
             type=package_type_to_component_type(node.conanfile.package_type),
