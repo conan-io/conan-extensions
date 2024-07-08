@@ -245,7 +245,7 @@ class _BuildInfo:
                 transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
                 binary = node.get("binary")
 
-                if ref and ((binary == "Build") or (binary in ["Cache", "Download"] and self._add_cached_deps)):
+                if ref and ((binary == "Build") or (binary in ["Cache", "Download", "Update"] and self._add_cached_deps)):
 
                     # recipe module
                     module = {
