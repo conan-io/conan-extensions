@@ -5,7 +5,6 @@ import os
 import re
 from io import StringIO
 from conan.errors import ConanException
-from conans.util.env import get_env
 
 
 def post_package(conanfile):
@@ -19,7 +18,7 @@ def post_package(conanfile):
     # Find dumpbin path
     output = StringIO()
     try:
-        program_files = get_env("ProgramFiles(x86)") or get_env("ProgramFiles")
+        program_files = os.environ.get("ProgramFiles(x86)") or os.environ.get("ProgramFiles")  # fallback for 32-bit windows
         conanfile.run(
             rf'"{program_files}\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -format json',
             stdout=output, scope="")
