@@ -28,11 +28,11 @@ def deploy(graph, output_folder, **kwargs):
         for f in os.listdir(search_dir):
             src = os.path.join(search_dir)
             # Let's kep the name and version so we know which belongs to whats
-            dst = os.path.join(tmp_dir, str(d.ref))
+            dst = os.path.join(tmp_dir, str(d.ref.name), str(d.ref.version))
             out.debug(src)
             out.debug(dst)
             copy(conanfile, f, src, dst) # Using the conan help because it make's parent folders
-            files.append(os.path.join(str(d.ref),f))
+            files.append(os.path.join(str(d.ref.name), str(d.ref.version), f))
 
     out.trace(files)
     with zipfile.ZipFile(os.path.join(output_folder, 'licenses.zip'), 'w') as licenses_zip:
