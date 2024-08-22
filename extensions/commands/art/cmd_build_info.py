@@ -17,7 +17,6 @@ from utils import NotFoundException, api_request, assert_server_or_url_user_pass
 from cmd_property import get_properties, set_properties
 from cmd_server import get_url_user_password
 
-# test comment
 
 def get_buildinfo(build_name, build_number, url, user, password, project=None):
     request_url = f"{url}/api/build/{build_name}/{build_number}"
