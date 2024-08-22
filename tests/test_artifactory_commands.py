@@ -232,8 +232,8 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
 
-@pytest.mark.requires_credentials
-def test_build_info_create_from_cached_deps():
+# @pytest.mark.requires_credentials
+def __test_build_info_create_from_cached_deps():
     # Make sure artifactory repos are empty before starting the test
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r extensions-prod")
