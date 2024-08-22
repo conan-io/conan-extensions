@@ -25,7 +25,7 @@ jobs:
         pip install conan
     - name: Run tests - Conan latest / Python 3.8
       run: |
-        pytest -v tests
+        pytest -n 0 -v tests
     - name: Install Conan develop
       run: |
         pip install git+https://github.com/conan-io/conan.git@release/2.0
@@ -47,4 +47,4 @@ jobs:
         pip install pytest conan
     - name: Run Windows-specific tests - Conan latest / Python 3.8
       run: |
-        pytest -v -m win32 tests
+        pytest -n 0 -v -m win32 tests
