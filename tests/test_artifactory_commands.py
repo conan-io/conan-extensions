@@ -57,6 +57,7 @@ def conan_test():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(1)
 def test_build_info_create_no_deps():
 
     build_name = "mybuildinfo"
@@ -121,6 +122,7 @@ def test_build_info_create_no_deps():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(2)
 def test_build_info_create_with_build_url():
 
     build_name = "mybuildinfo"
@@ -141,6 +143,7 @@ def test_build_info_create_with_build_url():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(3)
 def test_build_info_create_deps():
     #         +-------+
     #         | libc  |
@@ -232,8 +235,9 @@ def test_build_info_create_deps():
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
 
-# @pytest.mark.requires_credentials
-def __test_build_info_create_from_cached_deps():
+@pytest.mark.requires_credentials
+@pytest.mark.order(4)
+def test_build_info_create_from_cached_deps():
     # Make sure artifactory repos are empty before starting the test
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r extensions-prod")
@@ -267,6 +271,7 @@ def __test_build_info_create_from_cached_deps():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(5)
 def test_fail_if_not_uploaded():
     """
     In order to create the Build Info we need the hashes of the artifacts that are uploaded
@@ -287,6 +292,7 @@ def test_fail_if_not_uploaded():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(5)
 def test_build_info_project():
     """
     Test that build info is correctly manages using a project in Artifactory
@@ -329,6 +335,7 @@ def test_build_info_project():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(7)
 def test_build_info_dependency_different_repo():
     """
     Test that build info is correctly generated for a package with dependencies in a different repo in Artifactory
@@ -382,6 +389,7 @@ def test_build_info_dependency_different_repo():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(8)
 def test_server_complete():
     """
     Test server add, list, remove commands
@@ -411,6 +419,7 @@ def test_server_complete():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(9)
 def test_server_add_error():
     """
     Test server add error when adding a server with same name
@@ -434,6 +443,7 @@ def test_server_add_error():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(10)
 def test_server_remove_error():
     """
     Test server remove errors when there is no server with the provided name
@@ -444,6 +454,7 @@ def test_server_remove_error():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(11)
 def test_server_list_empty():
     """
     Test server list output when no servers are configured
@@ -454,6 +465,7 @@ def test_server_list_empty():
 
 
 @pytest.mark.requires_credentials
+@pytest.mark.order(12)
 def test_add_server_token():
     """
     Test server add with token
