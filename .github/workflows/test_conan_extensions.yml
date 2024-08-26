@@ -19,19 +19,21 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest pytest-order "cyclonedx-python-lib>=5.0.0,<6"
+        pip install pytest pytest-xdist "cyclonedx-python-lib>=5.0.0,<6"
     - name: Install Conan latest
       run: |
         pip install conan
     - name: Run tests - Conan latest / Python 3.8
       run: |
-        pytest -v tests
+        pytest -v -m unmarked tests
+        pytest -v -m requires_credentials -n 0 tests
     - name: Install Conan develop
       run: |
         pip install git+https://github.com/conan-io/conan.git@release/2.0
     - name: Run tests - Conan develop / Python 3.8
       run: |
-        pytest -v tests
+        pytest -v -m unmarked tests
+        pytest -v -m requires_credentials -n 0 tests
 
   conan_windows:
     runs-on: windows-latest
@@ -44,7 +46,7 @@ jobs:
     - name: Install dependencies and Conan latest
       run: |
         pip install -U pip
-        pip install pytest pytest-order conan
+        pip install pytest conan
     - name: Run Windows-specific tests - Conan latest / Python 3.8
       run: |
         pytest -v -m win32 tests

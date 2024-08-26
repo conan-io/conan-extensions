@@ -6,7 +6,9 @@ import pytest
 
 def pytest_collection_modifyitems(items):
     for item in items:
-        if "requires_credentials" in item.keywords:
+        if not any(item.iter_markers()):
+            item.add_marker("unmarked")
+        elif "requires_credentials" in item.keywords:
             if (
                 not os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
                 or not os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
