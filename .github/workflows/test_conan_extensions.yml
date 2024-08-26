@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install -U pip
-        pip install pytest pytest-order "cyclonedx-python-lib>=5.0.0,<6"
+        pip install pytest "cyclonedx-python-lib>=5.0.0,<6"
     - name: Install Conan latest
       run: |
         pip install conan
@@ -44,7 +44,7 @@ jobs:
     - name: Install dependencies and Conan latest
       run: |
         pip install -U pip
-        pip install pytest pytest-order conan
+        pip install pytest conan
     - name: Run Windows-specific tests - Conan latest / Python 3.8
       run: |
         pytest -v -m win32 tests
