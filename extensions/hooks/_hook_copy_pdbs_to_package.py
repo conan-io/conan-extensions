@@ -18,23 +18,32 @@ def post_package(conanfile):
     # Find dumpbin path
     output = StringIO()
     try:
+        program_files = os.environ.get("ProgramFiles(x86)") or os.environ.get("ProgramFiles")  # fallback for 32-bit windows
         conanfile.run(
-            r'"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -format json',
+            rf'"{program_files}\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -format json',
             stdout=output, scope="")
+        match = re.search(r'\[(.*?)\]', str(output.getvalue()), re.DOTALL)
+        dumpbin_path = json.loads(f'[{match.group(1)}]')[0]
     except ConanException:
         raise ConanException(
             "Failed to locate dumpbin.exe which is needed to locate the PDBs and copy them to package folder.")
-    dumpbin_path = json.loads(str(output.getvalue()))[0]
 
     for dll_path in package_dll:
         # Use dumpbin to get the pdb path from each dll
         dumpbin_output = StringIO()
-        conanfile.run(rf'"{dumpbin_path}" /PDBPATH {dll_path}', stdout=dumpbin_output)
+        pdbpath_flag = "-PDBPATH" if conanfile.win_bash else "/PDBPATH"
+        conanfile.run(rf'"{dumpbin_path}" {pdbpath_flag} "{dll_path}"', stdout=dumpbin_output)
         dumpbin = str(dumpbin_output.getvalue())
         pdb_path = re.search(r"[“'\"].*\.pdb[”'\"]", dumpbin)
         if pdb_path:
             pdb_path = pdb_path.group()[1:-1]
-            # Copy the corresponding pdb file from the build to the package folder
-            conanfile.output.info(
-                f"copying {os.path.basename(pdb_path)} from {os.path.dirname(pdb_path)} to {os.path.dirname(dll_path)}")
-            copy(conanfile, os.path.basename(pdb_path), os.path.dirname(pdb_path), os.path.dirname(dll_path))
+            pdb_file = os.path.basename(pdb_path)
+            src_path = os.path.dirname(pdb_path)
+            dst_path = os.path.dirname(dll_path)
+            if src_path != dst_path:  # if pdb is not allready in the package folder, then copy
+                # Copy the corresponding pdb file from the build to the package folder
+                conanfile.output.info(
+                    f"copying {pdb_file} from {src_path} to {dst_path}")
+                copy(conanfile, os.path.basename(pdb_path), os.path.dirname(pdb_path), os.path.dirname(dll_path))
+            else:
+                conanfile.output.info(f"PDB file {pdb_file} already in destination folder {dst_path}, skipping copy")
