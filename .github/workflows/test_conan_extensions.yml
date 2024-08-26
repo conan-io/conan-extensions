@@ -26,14 +26,14 @@ jobs:
     - name: Run tests - Conan latest / Python 3.8
       run: |
         pytest -v -m unmarked tests
-        pytest -v -m requires_credentials -n 0 tests
+        pytest -v -m requires_credentials -n 1 tests
     - name: Install Conan develop
       run: |
         pip install git+https://github.com/conan-io/conan.git@release/2.0
     - name: Run tests - Conan develop / Python 3.8
       run: |
         pytest -v -m unmarked tests
-        pytest -v -m requires_credentials -n 0 tests
+        pytest -v -m requires_credentials -n 1 tests
 
   conan_windows:
     runs-on: windows-latest
