@@ -389,7 +389,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     data = load_json(args.json)
 
     # remove the 'conanfile' node
-    data["graph"]["nodes"].pop("0")
+    if data["graph"]["nodes"]["0"]["ref"] == "conanfile":
+        data["graph"]["nodes"].pop("0")
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
