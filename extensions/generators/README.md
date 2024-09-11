@@ -10,7 +10,7 @@ Reference: https://docs.ros.org/en/foxy/How-To-Guides/Ament-CMake-Documentation.
 
 
 ```sh
-$ conan install --requires=fmt/10.0.0 --generator Ament
+$ conan install --requires=fmt/10.0.0 --generator Ament --output-folder install
 ...
 ======== Finalizing install (deploy, generators) ========
 cli: Writing generators to /home/danimtb/ros2-examples/conan_consumer
