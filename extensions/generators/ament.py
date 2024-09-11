@@ -745,7 +745,10 @@ class Ament(object):
 
     def generate_direct_dependency(self, ament_ref_name, ref_name, ref_version, ref_description, ref_license):
         root_folder = self._conanfile.folders.base_source
+        print("ROOT FOLDER: ", root_folder)
         output_folder = self._conanfile.generators_folder
+        print("OUTPUT FOLDER: ", output_folder)
+        print("FOLDERS: ", self._conanfile.folders.__dict__)
         print("Generating Ament files at:", output_folder)
         paths_content = [
             (os.path.join(root_folder, ament_ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
