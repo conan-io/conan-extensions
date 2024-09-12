@@ -154,8 +154,7 @@ def test_build_info_create_exppkg():
     # Create release packages & build info and upload them
     run("conan export-pkg . --format json -s build_type=Release > create_release.json")
     run("conan upload mypkg_ext/1.0 -c -r extensions-stg")
-    out = run(
-        f'conan art:build-info create create_release.json {build_name}_release {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" extensions-stg')
+    out = run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --server=artifactory extensions-stg')
     build_info = json.loads(out)
     assert len(build_info['modules']) == 2
 
