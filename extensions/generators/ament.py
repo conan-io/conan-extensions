@@ -650,7 +650,7 @@ ament_prepend_unique_value AMENT_PREFIX_PATH "$AMENT_CURRENT_PREFIX"
 """
 
 library_path_dsv = """\
-prepend-non-duplicate;LD_LIBRARY_PATH;lib
+prepend-non-duplicate;LD_LIBRARY_PATH;{run_paths}
 """
 
 library_path_sh = """\
@@ -736,14 +736,16 @@ class Ament(object):
             ref_version = require.ref.version
             ref_description = dep.description or "unknown"
             ref_license = dep.license or "unknown"
+            run_paths = self.get_run_paths(require, dep)
+            print("RUN PATHS: ", run_paths)
 
-            self.generate_direct_dependency(ament_ref_name, ref_name, ref_version, ref_description, ref_license)
+            self.generate_direct_dependency(ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths)
             print(f"{ref_name} dependencies:", dep.dependencies.items())
             for req, _ in dep.dependencies.items():
                 self.generate_transitive_dependency(ament_ref_name, req.ref.name)
                 print(f"{ref_name} dependency: ", req.ref.name)
 
-    def generate_direct_dependency(self, ament_ref_name, ref_name, ref_version, ref_description, ref_license):
+    def generate_direct_dependency(self, ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths):
         root_folder = self._conanfile.folders.base_source
         print("ROOT FOLDER: ", root_folder)
         output_folder = self._conanfile.generators_folder
@@ -758,25 +760,25 @@ class Ament(object):
             (os.path.join(output_folder, ament_ref_name, "share", "ament_index", "resource_index", "packages", ament_ref_name), ""),
             (os.path.join(output_folder, ament_ref_name, "share", "ament_index", "resource_index", "parent_prefix_path", ament_ref_name), "/opt/ros/humble"),
             (os.path.join(output_folder, ament_ref_name, "share", "colcon-core", "packages", ament_ref_name), ""),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "local_setup.bash"), local_setup_bash),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "local_setup.dsv"), local_setup_dsv.format(ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "local_setup.sh"), local_setup_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "local_setup.zsh"), local_setup_zsh),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.bash"), package_bash.format(ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.dsv"), package_dsv.format(ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.ps1"), package_ps1.format(ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.sh"), package_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "package.zsh"), package_zsh.format(ref_name=ament_ref_name)),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "ament_prefix_path.dsv"), ament_prefix_path_dsv),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "ament_prefix_path.sh"), ament_prefix_path_sh),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "library_path.dsv"), library_path_dsv),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "library_path.sh"), library_path_sh),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "path.dsv"), path_dsv),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "environment", "path.sh"), path_sh),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.dsv"), cmake_prefix_path_dsv),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.ps1"), cmake_prefix_path_ps1),
-            (os.path.join(output_folder, ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.sh"), cmake_prefix_path_sh),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "local_setup.bash"), local_setup_bash),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "local_setup.dsv"), local_setup_dsv.format(ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "local_setup.sh"), local_setup_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "local_setup.zsh"), local_setup_zsh),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.bash"), package_bash.format(ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.dsv"), package_dsv.format(ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.ps1"), package_ps1.format(ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.sh"), package_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "package.zsh"), package_zsh.format(ref_name=ament_ref_name)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "ament_prefix_path.dsv"), ament_prefix_path_dsv),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "ament_prefix_path.sh"), ament_prefix_path_sh),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "library_path.dsv"), library_path_dsv.format(run_paths=run_paths)),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "library_path.sh"), library_path_sh),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "path.dsv"), path_dsv),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "environment", "path.sh"), path_sh),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.dsv"), cmake_prefix_path_dsv),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.ps1"), cmake_prefix_path_ps1),
+            (os.path.join(output_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.sh"), cmake_prefix_path_sh),
         ]
         for path, content in paths_content:
             save(self._conanfile, path, content)
@@ -795,3 +797,25 @@ class Ament(object):
 
     def generate_transitive_dependency(self, ament_ref_name, require_name):
         self.generate_cmake_files(ament_ref_name, require_name)
+
+    def get_run_paths(self, require, dependency):
+        run_paths = []  # "lib"
+
+        def _get_cpp_info_libdirs(req, dep):
+            paths = []
+            if require.run:  # Only if the require is run (shared or application to be run)
+                cpp_info = dep.cpp_info.aggregated_components()
+                for d in cpp_info.libdirs:
+                    if os.path.exists(d):
+                      paths.insert(0, d)
+            return paths
+
+        run_paths[:0] = _get_cpp_info_libdirs(require, dependency)
+
+        for r, d in dependency.dependencies.items():
+            run_paths[:0] = _get_cpp_info_libdirs(r, d)
+
+        if run_paths:
+          return ";".join(run_paths)
+        else:
+          return ["lib"]  # default value
