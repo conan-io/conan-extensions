@@ -489,5 +489,3 @@ def test_build_info_create_exppkg():
     out = run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --server=artifactory extensions-stg')
     build_info = json.loads(out)
     assert len(build_info['modules']) == 2
-
-    run('conan remove mypkg_ext* -c -r extensions-stg')
