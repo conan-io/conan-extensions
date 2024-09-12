@@ -713,6 +713,13 @@ gitignore = """\
 
 
 class Ament(object):
+    """
+    Generator to serve as integration for Robot Operating System 2 development workspaces.
+    It is able to generate files in the similar way Ament does by injecting the Conan-retrieved library's information
+    into the proper directories and files.
+    The directory tree is then recognized by Colcon so packages in the workspace can be built and run using the Conan
+    package's libraries from the Conan cache.
+    """
 
     def __init__(self, conanfile):
         self.cmakedeps = CMakeDeps(conanfile)
@@ -720,11 +727,6 @@ class Ament(object):
         self.cmakedeps_files = None
 
     def generate(self):
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\package_run_dependencies\package_dep : poco;ament_lint_auto;ament_lint_common
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\packages\package_dep : 
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\parent_prefix_path\package_dep : /opt/ros/humble
-        # conan_library-consumer\install\package_dep\share\colcon-core\packages\package_dep : poco
-        # conan_library-consumer\install\package_dep\share\package_dep\cmake\package_depConfig.cmake
         self.cmakedeps_files = self.cmakedeps.content
 
         for require, dep in self._conanfile.dependencies.items():
@@ -737,20 +739,33 @@ class Ament(object):
             ref_description = dep.description or "unknown"
             ref_license = dep.license or "unknown"
             run_paths = self.get_run_paths(require, dep)
-            print("RUN PATHS: ", run_paths)
 
             self.generate_direct_dependency(ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths)
             print(f"{ref_name} dependencies:", dep.dependencies.items())
             for req, _ in dep.dependencies.items():
-                self.generate_transitive_dependency(ament_ref_name, req.ref.name)
-                print(f"{ref_name} dependency: ", req.ref.name)
+                self.generate_cmake_files(ament_ref_name, req.ref.name)
 
     def generate_direct_dependency(self, ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths):
+        """
+        Generate correct directory structure for a direct dependency.
+        -> conan_<require>: Mock dependency inside workspace.
+        -> install/conan_<require>/share/conan_<require>: Common package files.
+        -> install/conan_<require>/share/colcon-core: To mark package as installed for Colcon.
+        -> install/conan_<require>/ament_index/conan_<require>: To mark package as installed for Ament.
+        -> install/conan_<require>/ament_index/conan_<require>/environment: Files to set up the running environment.
+        -> install/conan_<require>/ament_index/conan_<require>/hook: Files to set up the building environment.
+
+        @param ament_ref_name: Name of the dependency with the 'conan_' prefix.
+        @param ref_name: Name of the Conan reference.
+        @param ref_version: Version of the Conan reference.
+        @param ref_description: Description of the recipe.
+        @param ref_license: License of the recipe.
+        @param run_paths: List of libdirs to inject into the environment files.
+        @return:
+        """
         root_folder = self._conanfile.folders.base_source
-        print("ROOT FOLDER: ", root_folder)
+        print("Creating Conan dependency folders at: ", os.path.join(root_folder, ament_ref_name))
         output_folder = self._conanfile.generators_folder
-        print("OUTPUT FOLDER: ", output_folder)
-        print("FOLDERS: ", self._conanfile.folders.__dict__)
         print("Generating Ament files at:", output_folder)
         paths_content = [
             (os.path.join(root_folder, ament_ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
@@ -786,6 +801,13 @@ class Ament(object):
         self.generate_cmake_files(ament_ref_name, ref_name)
 
     def generate_cmake_files(self, ament_ref_name, require_name):
+        """
+        Generate CMakeDeps files inside install/<ament_ref_name>/share/<require_name>/cmake directory
+        Fox example : install/conan_boost/share/bzip2/cmake
+
+        @param ament_ref_name: name of the direct dependency
+        @param require_name: name of the transitive dependency
+        """
         output_folder = self._conanfile.generators_folder
         for generator_file, content in self.cmakedeps_files.items():
             print(f"CMakeDeps generator file name: {generator_file}")
@@ -795,15 +817,20 @@ class Ament(object):
               file_path = os.path.join(output_folder, ament_ref_name, "share", require_name, "cmake", generator_file)
               save(self._conanfile, file_path, content)
 
-    def generate_transitive_dependency(self, ament_ref_name, require_name):
-        self.generate_cmake_files(ament_ref_name, require_name)
+    @staticmethod
+    def get_run_paths(require, dependency):
+        """
+        Collects the libdirs of each dependency into a list in inverse order
 
-    def get_run_paths(self, require, dependency):
-        run_paths = []  # "lib"
+        @param require: conanfile object
+        @param dependency: requires node structure of the graph
+        @return: list of library dirs of dependencies in inverse order
+        """
+        run_paths = []
 
         def _get_cpp_info_libdirs(req, dep):
             paths = []
-            if require.run:  # Only if the require is run (shared or application to be run)
+            if req.run:  # Only if the require is run (shared or application to be run)
                 cpp_info = dep.cpp_info.aggregated_components()
                 for d in cpp_info.libdirs:
                     if os.path.exists(d):
@@ -816,6 +843,6 @@ class Ament(object):
             run_paths[:0] = _get_cpp_info_libdirs(r, d)
 
         if run_paths:
-          return ";".join(run_paths)
+            return ";".join(run_paths)
         else:
-          return ["lib"]  # default value
+            return ["lib"]  # default value
