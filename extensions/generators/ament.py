@@ -63,7 +63,7 @@ local_setup_sh = """\
 
 # since this file is sourced use either the provided AMENT_CURRENT_PREFIX
 # or fall back to the destination set at configure time
-#: ${{AMENT_CURRENT_PREFIX:="{output_folder}/install/{ref_name}"}}
+#: ${{AMENT_CURRENT_PREFIX:="{output_folder}/{ref_name}"}}
 if [ ! -d "$AMENT_CURRENT_PREFIX" ]; then
   if [ -z "$COLCON_CURRENT_PREFIX" ]; then
     echo "The compile time prefix path '$AMENT_CURRENT_PREFIX' doesn't " \
@@ -534,7 +534,7 @@ _colcon_prepend_unique_value() {{
 # since a plain shell script can't determine its own path when being sourced
 # either use the provided COLCON_CURRENT_PREFIX
 # or fall back to the build time prefix (if it exists)
-_colcon_package_sh_COLCON_CURRENT_PREFIX="{output_folder}/install/{ref_name}"
+_colcon_package_sh_COLCON_CURRENT_PREFIX="{output_folder}/{ref_name}"
 if [ -z "$COLCON_CURRENT_PREFIX" ]; then
   if [ ! -d "$_colcon_package_sh_COLCON_CURRENT_PREFIX" ]; then
     echo "The build time path \\"$_colcon_package_sh_COLCON_CURRENT_PREFIX\\" doesn't exist. Either source a script for a different shell or set the environment variable \\"COLCON_CURRENT_PREFIX\\" explicitly." 1>&2
@@ -650,7 +650,7 @@ ament_prepend_unique_value AMENT_PREFIX_PATH "$AMENT_CURRENT_PREFIX"
 """
 
 library_path_dsv = """\
-prepend-non-duplicate;LD_LIBRARY_PATH;lib
+prepend-non-duplicate;LD_LIBRARY_PATH;{run_paths}
 """
 
 library_path_sh = """\
@@ -713,6 +713,13 @@ gitignore = """\
 
 
 class Ament(object):
+    """
+    Generator to serve as integration for Robot Operating System 2 development workspaces.
+    It is able to generate files in the similar way Ament does by injecting the Conan-retrieved library's information
+    into the proper directories and files.
+    The directory tree is then recognized by Colcon so packages in the workspace can be built and run using the Conan
+    package's libraries from the Conan cache.
+    """
 
     def __init__(self, conanfile):
         self.cmakedeps = CMakeDeps(conanfile)
@@ -720,12 +727,14 @@ class Ament(object):
         self.cmakedeps_files = None
 
     def generate(self):
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\package_run_dependencies\package_dep : poco;ament_lint_auto;ament_lint_common
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\packages\package_dep : 
-        # conan_library-consumer\install\package_dep\share\ament_index\resource_index\parent_prefix_path\package_dep : /opt/ros/humble
-        # conan_library-consumer\install\package_dep\share\colcon-core\packages\package_dep : poco
-        # conan_library-consumer\install\package_dep\share\package_dep\cmake\package_depConfig.cmake
         self.cmakedeps_files = self.cmakedeps.content
+
+        output_folder = self._conanfile.generators_folder
+        if not output_folder.endswith("install"):
+          self._conanfile.output.warning("The output folder for the Ament generator should be always 'install'. Make sure you are using '--output-folder install' in your 'conan install' command")
+        root_folder = os.path.sep.join(output_folder.split(os.path.sep)[:-1])  # This should be the workspace root folder
+        self._conanfile.output.info(f"ROS2 workspace root folder: {root_folder}")
+        self._conanfile.output.info(f"ROS2 workspace install folder: {output_folder}")
 
         for require, dep in self._conanfile.dependencies.items():
             if not require.direct:
@@ -736,56 +745,111 @@ class Ament(object):
             ref_version = require.ref.version
             ref_description = dep.description or "unknown"
             ref_license = dep.license or "unknown"
+            run_paths = self.get_run_paths(require, dep)
 
-            self.generate_direct_dependency(ament_ref_name, ref_name, ref_version, ref_description, ref_license)
-            print(f"{ref_name} dependencies:", dep.dependencies.items())
+            self.generate_direct_dependency(root_folder, output_folder, ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths)
+            dependencies = ", ".join([dep.ref.name for _, dep in dep.dependencies.items()])
+            self._conanfile.output.info(f"{ref_name} dependencies: {dependencies}")
             for req, _ in dep.dependencies.items():
-                self.generate_transitive_dependency(ament_ref_name, req.ref.name)
-                print(f"{ref_name} dependency: ", req.ref.name)
+                self.generate_cmake_files(output_folder, ament_ref_name, req.ref.name)
 
-    def generate_direct_dependency(self, ament_ref_name, ref_name, ref_version, ref_description, ref_license):
-        output_folder = self._conanfile.generators_folder
+    def generate_direct_dependency(self, root_folder, install_folder, ament_ref_name, ref_name, ref_version, ref_description, ref_license, run_paths):
+        """
+        Generate correct directory structure for a direct dependency.
+        -> conan_<require>: Mock dependency inside workspace.
+        -> install/conan_<require>/share/conan_<require>: Common package files.
+        -> install/conan_<require>/share/colcon-core: To mark package as installed for Colcon.
+        -> install/conan_<require>/ament_index/conan_<require>: To mark package as installed for Ament.
+        -> install/conan_<require>/ament_index/conan_<require>/environment: Files to set up the running environment.
+        -> install/conan_<require>/ament_index/conan_<require>/hook: Files to set up the building environment.
+
+        @param ament_ref_name: Name of the dependency with the 'conan_' prefix.
+        @param ref_name: Name of the Conan reference.
+        @param ref_version: Version of the Conan reference.
+        @param ref_description: Description of the recipe.
+        @param ref_license: License of the recipe.
+        @param run_paths: List of libdirs to inject into the environment files.
+        @return:
+        """
+        direct_dependency_folder = os.path.join(root_folder, ament_ref_name)
+        self._conanfile.output.info(f"Creating Conan direct dependency folder at: {direct_dependency_folder}")
+
         paths_content = [
-            (os.path.join(ament_ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
-            (os.path.join(ament_ref_name, ".gitignore"), gitignore),
-            (os.path.join(ament_ref_name, "CMakeLists.txt"), cmakelists_txt.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", "ament_index", "resource_index", "package_run_dependencies", ament_ref_name), "ament_lint_auto;ament_lint_common"),
-            (os.path.join("install", ament_ref_name, "share", "ament_index", "resource_index", "packages", ament_ref_name), ""),
-            (os.path.join("install", ament_ref_name, "share", "ament_index", "resource_index", "parent_prefix_path", ament_ref_name), "/opt/ros/humble"),
-            (os.path.join("install", ament_ref_name, "share", "colcon-core", "packages", ament_ref_name), ""),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "local_setup.bash"), local_setup_bash),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "local_setup.dsv"), local_setup_dsv.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "local_setup.sh"), local_setup_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "local_setup.zsh"), local_setup_zsh),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.bash"), package_bash.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.dsv"), package_dsv.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.ps1"), package_ps1.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.sh"), package_sh.format(output_folder=output_folder, ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "package.zsh"), package_zsh.format(ref_name=ament_ref_name)),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "ament_prefix_path.dsv"), ament_prefix_path_dsv),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "ament_prefix_path.sh"), ament_prefix_path_sh),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "library_path.dsv"), library_path_dsv),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "library_path.sh"), library_path_sh),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "path.dsv"), path_dsv),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "environment", "path.sh"), path_sh),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.dsv"), cmake_prefix_path_dsv),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.ps1"), cmake_prefix_path_ps1),
-            (os.path.join("install", ament_ref_name, "share", ref_name, "hook", "cmake_prefix_path.sh"), cmake_prefix_path_sh),
+            (os.path.join(direct_dependency_folder, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
+            (os.path.join(direct_dependency_folder, ".gitignore"), gitignore),
+            (os.path.join(direct_dependency_folder, "CMakeLists.txt"), cmakelists_txt.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", "ament_index", "resource_index", "package_run_dependencies", ament_ref_name), "ament_lint_auto;ament_lint_common"),
+            (os.path.join(install_folder, ament_ref_name, "share", "ament_index", "resource_index", "packages", ament_ref_name), ""),
+            (os.path.join(install_folder, ament_ref_name, "share", "ament_index", "resource_index", "parent_prefix_path", ament_ref_name), "/opt/ros/humble"),
+            (os.path.join(install_folder, ament_ref_name, "share", "colcon-core", "packages", ament_ref_name), ""),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "local_setup.bash"), local_setup_bash),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "local_setup.dsv"), local_setup_dsv.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "local_setup.sh"), local_setup_sh.format(output_folder=install_folder, ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "local_setup.zsh"), local_setup_zsh),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.bash"), package_bash.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.dsv"), package_dsv.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.ps1"), package_ps1.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.sh"), package_sh.format(output_folder=install_folder, ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.xml"), package_xml.format(ref_name=ament_ref_name, ref_version=ref_version, ref_description=ref_description, ref_license=ref_license)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "package.zsh"), package_zsh.format(ref_name=ament_ref_name)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "ament_prefix_path.dsv"), ament_prefix_path_dsv),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "ament_prefix_path.sh"), ament_prefix_path_sh),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "library_path.dsv"), library_path_dsv.format(run_paths=run_paths)),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "library_path.sh"), library_path_sh),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "path.dsv"), path_dsv),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "environment", "path.sh"), path_sh),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.dsv"), cmake_prefix_path_dsv),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.ps1"), cmake_prefix_path_ps1),
+            (os.path.join(install_folder, ament_ref_name, "share", ament_ref_name, "hook", "cmake_prefix_path.sh"), cmake_prefix_path_sh),
         ]
         for path, content in paths_content:
             save(self._conanfile, path, content)
 
-        self.generate_cmake_files(ament_ref_name, ref_name)
+        self.generate_cmake_files(install_folder, ament_ref_name, ref_name)
 
-    def generate_cmake_files(self, ament_ref_name, require_name):
+    def generate_cmake_files(self, install_folder, ament_ref_name, require_name):
+        """
+        Generate CMakeDeps files inside install/<ament_ref_name>/share/<require_name>/cmake directory
+        Fox example : install/conan_boost/share/bzip2/cmake
+
+        @param ament_ref_name: name of the direct dependency
+        @param require_name: name of the transitive dependency
+        """
+        self._conanfile.output.info(f"Generating CMake files for {require_name} dependency")
         for generator_file, content in self.cmakedeps_files.items():
-            print(f"CMakeDeps generator file name: {generator_file}")
             # Create CMake files in install/<ament_ref_name>/share/<require_name>/cmake directory
             if require_name in generator_file.lower() or "cmakedeps_macros.cmake" in generator_file.lower():
+              self._conanfile.output.info(f"Generating CMake file {generator_file}")
               # FIXME: This is a way to save only the require_name related cmake files (and helper cmake files), however, names might not match!!
-              file_path = os.path.join("install", ament_ref_name, "share", require_name, "cmake", generator_file)
+              file_path = os.path.join(install_folder, ament_ref_name, "share", require_name, "cmake", generator_file)
               save(self._conanfile, file_path, content)
 
-    def generate_transitive_dependency(self, ament_ref_name, require_name):
-        self.generate_cmake_files(ament_ref_name, require_name)
+    @staticmethod
+    def get_run_paths(require, dependency):
+        """
+        Collects the libdirs of each dependency into a list in inverse order
+
+        @param require: conanfile object
+        @param dependency: requires node structure of the graph
+        @return: list of library dirs of dependencies in inverse order
+        """
+        run_paths = []
+
+        def _get_cpp_info_libdirs(req, dep):
+            paths = []
+            if req.run:  # Only if the require is run (shared or application to be run)
+                cpp_info = dep.cpp_info.aggregated_components()
+                for d in cpp_info.libdirs:
+                    if os.path.exists(d):
+                      paths.insert(0, d)
+            return paths
+
+        run_paths[:0] = _get_cpp_info_libdirs(require, dependency)
+
+        for r, d in dependency.dependencies.items():
+            run_paths[:0] = _get_cpp_info_libdirs(r, d)
+
+        if run_paths:
+            return ";".join(run_paths)
+        else:
+            return ["lib"]  # default value
