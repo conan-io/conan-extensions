@@ -41,9 +41,9 @@ def fuzz(conan_api: ConanAPI, parser, *args):
         channel = ""
         if args.channel:
             channel = f"--channel {args.channel}"
-        cli_options = " ".join([f'-o {k}={v}' for k, v in options.items()])
+        cli_options = " ".join([f'-o "&:{k}={v}"' for k, v in options.items()])
         try:
-            conan_api.command.run(f"create {args.recipe} -r conancenter {name} {version} {user} {channel} {cli_options} --build missing --format=json")
+            conan_api.command.run(f"create {args.recipe} -r conancenter {name} {version} {user} {channel} {cli_options} --build missing -c tools.files.download:verify=False --format=json")
             results.append((options, True))
         except:
             results.append((options, False))
