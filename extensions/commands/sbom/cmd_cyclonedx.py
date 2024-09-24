@@ -154,7 +154,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
                                                          remotes, args.update)
     # endregion COPY
 
-    def filter_context(node): return not args.no_build_requires or node.context != CONTEXT_BUILD
+    def filter_context(n): return not args.no_build_requires or n.context != CONTEXT_BUILD
 
     components = {node: create_component(node) for node in deps_graph.nodes if filter_context(node)}
     bom = Bom()
