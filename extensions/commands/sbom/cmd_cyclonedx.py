@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write
+from conan.api.subapi.graph import CONTEXT_BUILD
 from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command
 from conan.errors import ConanException
@@ -128,6 +129,8 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
     # FIXME: Process the ``--build-require`` argument
     parser.add_argument("--build-require", action='store_true', default=False,
                         help='Whether the provided path is a build-require')
+    parser.add_argument("--no-build-requires", action='store_true', default=False,
+                        help='Omit the build requirements from the SBOM')
     args = parser.parse_args(*args)
     validate_common_graph_args(args)
     cwd = os.getcwd()
@@ -151,12 +154,16 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
                                                          remotes, args.update)
     # endregion COPY
 
-    components = {node: create_component(node) for node in deps_graph.nodes}
+    def filter_context(node): return not args.no_build_requires or node.context != CONTEXT_BUILD
+
+    components = {node: create_component(node) for node in deps_graph.nodes if filter_context(node)}
     bom = Bom()
     bom.metadata.component = components[deps_graph.root]
     bom.metadata.tools.add(me_as_tool())
     for node in deps_graph.nodes[1:]:  # node 0 is the root
-        bom.components.add(components[node])
+        if filter_context(node):
+            bom.components.add(components[node])
     for dep in deps_graph.nodes:
-        bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies])
+        if filter_context(dep):
+            bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies if filter_context(dep_dep.dst)])
     return bom
