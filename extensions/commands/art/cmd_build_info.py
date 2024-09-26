@@ -479,8 +479,6 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
 
     if response:
         cli_out_write(response)
-    else:
-        cli_out_write("Build info promoted successfully.")
 
 
 
@@ -544,8 +542,6 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
 
     if response:
         cli_out_write(response)
-    else:
-        cli_out_write("Build info deleted successfully.")
 
 
 @conan_subcommand()
@@ -627,6 +623,3 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     if response:
         cli_out_write(response)
-    else:
-        cli_out_write("Release Bundle created successfully.")
-
