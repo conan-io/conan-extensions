@@ -188,8 +188,9 @@ def test_build_info_create_deps():
     run("conan create . --format json -tf='' -s build_type=Release --build=missing > create_release.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
-    run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
-    
+    out = run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+    assert "Build info uploaded successfully." in out
+
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
@@ -227,7 +228,8 @@ def test_build_info_create_deps():
     # conan art:build-info create-bundle ${build_name}_aggregated.json develop full_bundle 1.0 ${ART_URL} test_key_pair --user=${CONAN_LOGIN_USERNAME_DEVELOP} --password="${CONAN_PASSWORD_DEVELOP}"
 
     # Remove build-infos to clean artifactory
-    run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
+    out = run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
+    assert "Build info deleted successfully." in out
     run(f'conan art:build-info delete {build_name}_debug --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
     run(f'conan art:build-info delete {build_name}_aggregated --build-number={build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --delete-all --delete-artifacts')
 
