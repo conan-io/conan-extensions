@@ -23,6 +23,7 @@ def conan_test():
         os.environ.clear()
         os.environ.update(old_env)
 
+
 def test_deploy_licenses():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
@@ -38,6 +39,8 @@ def test_deploy_licenses():
 
             def package(self):
                 save(self, os.path.join(self.package_folder, "licenses", "hello.txt"), "example licenses")
+                save(self, os.path.join(self.package_folder, "licenses", "extra", "license2.txt"), "example licenses")
+                save(self, os.path.join(self.package_folder, "licenses", "extra", "tooling", "license.txt"), "example licenses")
         """)
     
     # Let's build a application to bundle
@@ -48,3 +51,5 @@ def test_deploy_licenses():
     run("conan install --requires hello/0.1 --deployer=licenses")
     shutil.unpack_archive("licenses.zip", "zip_contents")
     assert os.path.isfile(os.path.join("zip_contents", "hello", "0.1", "hello.txt"))
+    assert os.path.isfile(os.path.join("zip_contents", "hello", "0.1", "extra", "license2.txt"))
+    assert os.path.isfile(os.path.join("zip_contents", "hello", "0.1", "extra", "tooling", "license.txt"))
