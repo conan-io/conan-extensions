@@ -188,8 +188,9 @@ def test_build_info_create_deps():
     run("conan create . --format json -tf='' -s build_type=Release --build=missing > create_release.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg --server artifactory --with-dependencies > {build_name}_release.json')
-    run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
-    
+    out = run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+    assert "Build info uploaded successfully." in out
+
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')

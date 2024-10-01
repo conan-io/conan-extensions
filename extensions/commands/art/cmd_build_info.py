@@ -435,7 +435,10 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     if args.project is not None:
         request_url = f"{request_url}?project={args.project}"
     response = api_request("put", request_url, user, password, json_data=json.dumps(build_info_json))
-    cli_out_write(response)
+    if response:
+        cli_out_write(response)
+    else:
+        cli_out_write("Build info uploaded successfully.")
 
 
 @conan_subcommand()
@@ -474,7 +477,9 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
         request_url = f"{request_url}?project={args.project}"
     response = api_request("post", request_url, user, password, json_data=json.dumps(promotion_json))
 
-    cli_out_write(response)
+    if response:
+        cli_out_write(response)
+
 
 
 @conan_subcommand()
@@ -535,7 +540,8 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     request_url = f"{url}/api/build/delete"
     response = api_request("post", request_url, user, password, json_data=json.dumps(delete_json))
 
-    cli_out_write(response)
+    if response:
+        cli_out_write(response)
 
 
 @conan_subcommand()
@@ -615,4 +621,5 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     response = api_request("post", request_url, user, password, json_data=json.dumps(bundle_json),
                            sign_key_name=args.sign_key_name)
 
-    cli_out_write(response)
+    if response:
+        cli_out_write(response)
