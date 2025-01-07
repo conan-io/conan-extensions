@@ -254,12 +254,17 @@ class _BuildInfo:
                         "artifacts": self.get_artifacts(node, "recipe")
                     }
 
+                    def is_node_type(node, node_type):
+                        assert node_type in ["recipe", "package"]
+                        return (node_type == "package" and node.get("package_folder")) or (node_type == "recipe" and node.get("recipe_folder"))
+
                     if self._with_dependencies:
                         all_dependencies = []
                         for require_id in transitive_dependencies:
-                            deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
-                                                                is_dependency=True)
-                            all_dependencies.extend(deps_artifacts)
+                            if is_node_type(nodes.get(require_id), "recipe"):
+                                deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
+                                                                    is_dependency=True)
+                                all_dependencies.extend(deps_artifacts)
 
                         module.update({"dependencies": all_dependencies})
 
@@ -276,9 +281,10 @@ class _BuildInfo:
                         if self._with_dependencies:
                             all_dependencies = []
                             for require_id in transitive_dependencies:
-                                deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
-                                                                    is_dependency=True)
-                                all_dependencies.extend(deps_artifacts)
+                                if is_node_type(nodes.get(require_id), "package"):
+                                    deps_artifacts = self.get_artifacts(nodes.get(require_id), "package",
+                                                                        is_dependency=True)
+                                    all_dependencies.extend(deps_artifacts)
 
                             module.update({"dependencies": all_dependencies})
 
