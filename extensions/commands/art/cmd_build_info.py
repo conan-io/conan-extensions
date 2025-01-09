@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write
+from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
@@ -110,7 +110,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
 class _BuildInfo:
 
     def __init__(self, graph, name, number, repository, build_url=None, with_dependencies=False, 
-                 add_cached_deps=False, url=None, user=None, password=None, skip_missing_sources=False):
+                 add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
@@ -122,7 +122,6 @@ class _BuildInfo:
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
         self._add_cached_deps = add_cached_deps
-        self._skip_missing_sources = skip_missing_sources
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -143,12 +142,18 @@ class _BuildInfo:
 
         def _get_local_artifacts():
             local_artifacts = []
-            binary_skipped = node.get("binary") == "Skip"
-            no_pkg_folder = node.get("package_folder") is None
-            if binary_skipped and no_pkg_folder:
-                raise ConanException(f"Package not found for {node.get('ref')} as it is marked as 'Skip'. "
-                                     f"Use conf tools.graph:skip_binaries=False to force its download for the "
-                                     f"conan create/install command.")
+            # print(f"{node.get('ref')}: {artifact_type}")
+            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+            if artifacts_folder is None:
+                ConanOutput().warning(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
+                                      "Check that you have all the packages installed in the Conan cache when creating "
+                                      "the Build Info.")
+                if artifact_type == "package" and node.get("binary") == "Skip":
+                    ConanOutput().warning(f"Package {node.get('ref')} is marked as 'Skip'. "
+                                          "Use conf tools.graph:skip_binaries=False to force its download for the "
+                                          "conan create/install command so it can be included in the Build Info.")
+                return local_artifacts
+
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
             dl_folder = artifacts_folder.parents[0] / "d"
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
@@ -175,9 +180,8 @@ class _BuildInfo:
                         artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
 
                     local_artifacts.append(artifact_info)
-            
-            missing_files = set(artifacts_names) - processed_files
-            return (local_artifacts, missing_files)
+
+            return local_artifacts
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
@@ -216,22 +220,9 @@ class _BuildInfo:
 
             return artifact_info
 
-        artifacts, missing = _get_local_artifacts()
-
-        if 'conan_sources.tgz' in missing and not self._skip_missing_sources:
-            # check if we have the conan_sources in Artifactory, if it's not there
-            # maybe the package comes from an installation that did not build the package
-            # so we don't fail if we can't find conan_sources.tgz
-            sources_artifact = _get_remote_artifacts("conan_sources.tgz")
-            if sources_artifact:
-                artifacts.append(sources_artifact)
-
-        if not artifacts:
-            raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
-                                  "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
+        artifacts = _get_local_artifacts()
 
         # complete the information for the artifacts:
-
         if is_dependency:
             requested_by = _get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
             for artifact in artifacts:
@@ -389,8 +380,6 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                            "but also the ones that are used from the cache but not built. Default: false.",
                            action='store_true', default=False)
 
-    subparser.add_argument("--skip-missing-sources", help="", action='store_true', default=False)
-
     args = parser.parse_args(*args)
 
     url, user, password = get_url_user_password(args)
@@ -402,8 +391,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
-                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password,
-                    skip_missing_sources=args.skip_missing_sources)
+                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password
+                    )
 
     cli_out_write(bi.create())
 

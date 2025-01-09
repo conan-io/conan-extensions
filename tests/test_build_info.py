@@ -24,9 +24,9 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def test_skip_binaries():
+def test_static_library_skip_binaries():
     """
-    Test skip binaries behavior
+    Test skip binaries behavior with static and shared libraries
     """
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
@@ -50,8 +50,30 @@ def test_skip_binaries():
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
-    out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies --skip-missing-sources", error=True)
-    "Package not found" in out
+    out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+    assert "WARN: There are missing artifacts" in out
+    assert "WARN: Package liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 is marked as 'Skip'" in out
+    build_info = json.loads(load("bi.json"))
+    assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
+    # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
+    dependencies_ids = [f"{dep['id'].split(':')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
+    assert len(dependencies_ids) == 2  # liba package files are not present as binary is skipped
+    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conaninfo.txt" in dependencies_ids
+    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conanmanifest.txt" in dependencies_ids
 
     run("conan create . -o libb/1.0:shared=True -c tools.graph:skip_binaries=False -f json > create.json")
-    run("conan art:build-info create create.json build_name 1 repo --with-dependencies --skip-missing-sources > bi.json")
+    graph = json.loads(load("create.json"))["graph"]
+    assert graph["nodes"]["3"]["binary"] == "Cache"
+    assert graph["nodes"]["3"]["package_folder"] is not None
+    out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+    assert "WARN: There are missing artifacts" not in out
+    assert "WARN: Package liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 is marked as 'Skip'" not in out
+    build_info = json.loads(load("bi.json"))
+    assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
+    # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
+    dependencies_ids = [f"{dep['id'].split(':')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
+    assert len(dependencies_ids) == 4  # liba package files now should be present
+    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conaninfo.txt" in dependencies_ids
+    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conanmanifest.txt" in dependencies_ids
+    assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conaninfo.txt" in dependencies_ids
+    assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conanmanifest.txt" in dependencies_ids
