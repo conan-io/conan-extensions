@@ -51,8 +51,8 @@ def test_static_library_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts" in out
-    assert "WARN: Package liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 is marked as 'Skip'" in out
+    assert "WARN: There are missing artifacts for the liba/1.0" in out
+    assert "WARN: Package marked as 'Skip' for liba/1.0" in out
     build_info = json.loads(load("bi.json"))
     assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
     # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
@@ -66,8 +66,8 @@ def test_static_library_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Cache"
     assert graph["nodes"]["3"]["package_folder"] is not None
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts" not in out
-    assert "WARN: Package liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 is marked as 'Skip'" not in out
+    assert "WARN: There are missing artifacts for liba/1.0" not in out
+    assert "WARN: Package marked as 'Skip' for liba/1.0" not in out
     build_info = json.loads(load("bi.json"))
     assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
     # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
@@ -117,8 +117,8 @@ def test_tool_require_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
     out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts" in out
-    assert "WARN: Package meson/1.0#52c72e09403d2234a918c0c419c152d9 is marked as 'Skip'" in out
+    assert "WARN: There are missing artifacts for the meson/1.0" in out
+    assert "WARN: Package marked as 'Skip' for meson/1.0" in out
     bi = load("bi.json")
     build_info = json.loads(bi)
     # Check libb recipe depends on meson recipe
