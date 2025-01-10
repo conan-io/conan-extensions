@@ -77,3 +77,51 @@ def test_static_library_skip_binaries():
     assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conanmanifest.txt" in dependencies_ids
     assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conaninfo.txt" in dependencies_ids
     assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conanmanifest.txt" in dependencies_ids
+
+
+def test_tool_require_skip_binaries():
+    """
+    Test skip binaries behavior on tool require added as cache dependency
+    """
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    run("conan profile detect")
+
+    conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Meson(ConanFile):
+            name = "meson"
+            version = 1.0
+            package_type = "application"
+
+            def package_info(self):
+                self.cpp_info.includedirs = []
+                self.cpp_info.libdirs = []
+                self.cpp_info.bindirs = []
+        """)
+    save(os.path.join(os.curdir, "conanfile.py"), conanfile)
+    run("conan create .")
+
+    run("conan new cmake_lib -d name=libb -d version=1.0 --force")
+    conanfile = load("conanfile.py")
+    conanfile = conanfile.replace('package_type = "library"',
+                                  'package_type = "static-library"\n    tool_requires = "meson/1.0"')
+    save("conanfile.py", conanfile)
+    run("conan create .")
+
+    run("conan new cmake_lib -d name=libc -d version=1.0 -d requires=libb/1.0 --force")
+
+    run("conan create . -f json > create.json")
+    graph = json.loads(load("create.json"))["graph"]
+    assert graph["nodes"]["3"]["binary"] == "Skip"
+    assert graph["nodes"]["3"]["package_folder"] is None
+    out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
+    assert "WARN: There are missing artifacts" in out
+    assert "WARN: Package meson/1.0#52c72e09403d2234a918c0c419c152d9 is marked as 'Skip'" in out
+    bi = load("bi.json")
+    build_info = json.loads(bi)
+    # Check libb recipe depends on meson recipe
+    assert "meson" in build_info["modules"][2]["dependencies"][0]["id"]
+    # Check libb package has no dependencies (meson package not in cache bc is was skipped as not needed)
+    assert len(build_info["modules"][3]["dependencies"]) == 0

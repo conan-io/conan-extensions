@@ -148,9 +148,9 @@ class _BuildInfo:
                 ConanOutput().warning(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
                                       "Check that you have all the packages installed in the Conan cache when creating "
                                       "the Build Info.")
-                if artifact_type == "package" and node.get("binary") == "Skip":
+                if artifact_type == "package" and node.get("binary") == "Skip":  #and not node.get("pacakge_type") == "application":
                     ConanOutput().warning(f"Package {node.get('ref')} is marked as 'Skip'. "
-                                          "Use conf tools.graph:skip_binaries=False to force its download for the "
+                                          "Using conf tools.graph:skip_binaries=False might force its download for the "
                                           "conan create/install command so it can be included in the Build Info.")
                 return local_artifacts
 
