@@ -142,7 +142,6 @@ class _BuildInfo:
 
         def _get_local_artifacts():
             local_artifacts = []
-            # print(f"{node.get('ref')}: {artifact_type}")
             artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
             if artifacts_folder is None:
                 ConanOutput().warning(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "

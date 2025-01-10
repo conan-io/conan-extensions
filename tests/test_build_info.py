@@ -54,12 +54,12 @@ def test_static_library_skip_binaries():
     assert "WARN: There are missing artifacts for the liba/1.0" in out
     assert "WARN: Package marked as 'Skip' for liba/1.0" in out
     build_info = json.loads(load("bi.json"))
-    assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
-    # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
-    dependencies_ids = [f"{dep['id'].split(':')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
+    assert "libc/1.0" in build_info["modules"][1]["id"].split(":")[0]  # libc package
+    # Remove package id and rrev leave them as "<name>/<version> :: <file>" to make the asserts platform agnostic
+    dependencies_ids = [f"{dep['id'].split('#')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
     assert len(dependencies_ids) == 2  # liba package files are not present as binary is skipped
-    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conaninfo.txt" in dependencies_ids
-    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conanmanifest.txt" in dependencies_ids
+    assert "libb/1.0 :: conaninfo.txt" in dependencies_ids
+    assert "libb/1.0 :: conanmanifest.txt" in dependencies_ids
 
     run("conan create . -o libb/1.0:shared=True -c tools.graph:skip_binaries=False -f json > create.json")
     graph = json.loads(load("create.json"))["graph"]
@@ -71,12 +71,12 @@ def test_static_library_skip_binaries():
     build_info = json.loads(load("bi.json"))
     assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
     # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
-    dependencies_ids = [f"{dep['id'].split(':')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
+    dependencies_ids = [f"{dep['id'].split('#')[0]} ::{dep['id'].split('::')[-1]}" for dep in build_info["modules"][1]["dependencies"]]
     assert len(dependencies_ids) == 4  # liba package files now should be present
-    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conaninfo.txt" in dependencies_ids
-    assert "libb/1.0#be341ee6c860d01aa8e8458e482d1293 :: conanmanifest.txt" in dependencies_ids
-    assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conaninfo.txt" in dependencies_ids
-    assert "liba/1.0#ca2698d8aec856e057f4513f6c3cb2d1 :: conanmanifest.txt" in dependencies_ids
+    assert "libb/1.0 :: conaninfo.txt" in dependencies_ids
+    assert "libb/1.0 :: conanmanifest.txt" in dependencies_ids
+    assert "liba/1.0 :: conaninfo.txt" in dependencies_ids
+    assert "liba/1.0 :: conanmanifest.txt" in dependencies_ids
 
 
 def test_tool_require_skip_binaries():
