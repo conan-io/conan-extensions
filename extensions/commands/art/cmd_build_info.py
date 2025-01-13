@@ -142,16 +142,13 @@ class _BuildInfo:
 
         def _get_local_artifacts():
             local_artifacts = []
+            missing_artifacts = []
             artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
-            if artifacts_folder is None:
-                ConanOutput().warning(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
-                                      "Check that you have all the packages installed in the Conan cache when creating "
-                                      "the Build Info.")
-                if artifact_type == "package" and node.get("binary") == "Skip":  #and not node.get("pacakge_type") == "application":
-                    ConanOutput().warning(f"Package marked as 'Skip' for {node.get('ref')}. "
-                                          "Using conf tools.graph:skip_binaries=False might force its download for the "
-                                          "conan create/install command so it can be included in the Build Info.")
-                return local_artifacts
+            if artifacts_folder is None and artifact_type == "package" and node.get("binary") == "Skip":
+                ConanOutput().warning(f"Package marked as 'Skip' for {node.get('ref')}. "
+                                      "Using -c a:tools.graph:skip_binaries=False might force its download for the "
+                                      "conan create/install command so it can be included in the Build Info.")
+                return (local_artifacts, missing_artifacts)
 
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
             dl_folder = artifacts_folder.parents[0] / "d"
@@ -180,7 +177,8 @@ class _BuildInfo:
 
                     local_artifacts.append(artifact_info)
 
-            return local_artifacts
+            missing_files = set(artifacts_names) - processed_files
+            return (local_artifacts, missing_files)
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
@@ -219,7 +217,20 @@ class _BuildInfo:
 
             return artifact_info
 
-        artifacts = _get_local_artifacts()
+        artifacts, missing = _get_local_artifacts()
+
+        if 'conan_sources.tgz' in missing:
+            # check if we have the conan_sources in Artifactory, if it's not there
+            # maybe the package comes from an installation that did not build the package
+            # so we don't fail if we can't find conan_sources.tgz
+            sources_artifact = _get_remote_artifacts("conan_sources.tgz")
+            if sources_artifact:
+                artifacts.append(sources_artifact)
+
+        folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+        if not artifacts and folder:
+            raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
+                                 "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
 
         # complete the information for the artifacts:
         if is_dependency:

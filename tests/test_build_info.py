@@ -5,17 +5,23 @@ import os
 
 import pytest
 
-from tools import load, save, run
+from tools import load, save, replace_in_file, run
 
 
 @pytest.fixture(autouse=True)
 def conan_test():
     old_env = dict(os.environ)
-    env_vars = {"CONAN_HOME": tempfile.mkdtemp(suffix='conans')}
+    conan_home = tempfile.mkdtemp(suffix='conans')
+    env_vars = {"CONAN_HOME": conan_home}
     os.environ.update(env_vars)
     current = tempfile.mkdtemp(suffix="conans")
     cwd = os.getcwd()
     os.chdir(current)
+
+    repo = os.path.join(os.path.dirname(__file__), "..")
+    run(f"conan config install {repo}")
+    run("conan profile detect")
+    _patch_cmd_build_info_get_remote_artifacts(conan_home)
     try:
         yield
     finally:
@@ -24,14 +30,19 @@ def conan_test():
         os.environ.update(old_env)
 
 
+def _patch_cmd_build_info_get_remote_artifacts(conan_home):
+    # Patch _get_remote_artifacts() function in cmd_build_info.py file to avoid contacting Artifactory for the test
+    custom_commands_cmd_build_info_path = os.path.join(conan_home, "extensions", "commands", "art", "cmd_build_info.py")
+    replace_in_file(custom_commands_cmd_build_info_path, "def _get_remote_artifacts(artifact):",
+                    "def _get_remote_artifacts(artifact):\n"
+                    "            return None\n"
+                    "        def _patched(artifact):")
+
+
 def test_static_library_skip_binaries():
     """
     Test skip binaries behavior with static and shared libraries
     """
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
-    run("conan profile detect")
-
     run("conan new cmake_lib -d name=liba -d version=1.0")
     conanfile = load("conanfile.py")
     conanfile = conanfile.replace('package_type = "library"', 'package_type = "static-library"')
@@ -50,8 +61,8 @@ def test_static_library_skip_binaries():
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
+
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts for the liba/1.0" in out
     assert "WARN: Package marked as 'Skip' for liba/1.0" in out
     build_info = json.loads(load("bi.json"))
     assert "libc/1.0" in build_info["modules"][1]["id"].split(":")[0]  # libc package
@@ -66,7 +77,6 @@ def test_static_library_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Cache"
     assert graph["nodes"]["3"]["package_folder"] is not None
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts for liba/1.0" not in out
     assert "WARN: Package marked as 'Skip' for liba/1.0" not in out
     build_info = json.loads(load("bi.json"))
     assert "libc/1.0#95c7f81c13006116d5f1abc3f58af7f8" in build_info["modules"][1]["id"].split(":")[0]  # libc package
@@ -83,10 +93,6 @@ def test_tool_require_skip_binaries():
     """
     Test skip binaries behavior on tool require added as cache dependency
     """
-    repo = os.path.join(os.path.dirname(__file__), "..")
-    run(f"conan config install {repo}")
-    run("conan profile detect")
-
     conanfile = textwrap.dedent("""
         from conan import ConanFile
 
@@ -117,7 +123,6 @@ def test_tool_require_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
     out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
-    assert "WARN: There are missing artifacts for the meson/1.0" in out
     assert "WARN: Package marked as 'Skip' for meson/1.0" in out
     bi = load("bi.json")
     build_info = json.loads(bi)
