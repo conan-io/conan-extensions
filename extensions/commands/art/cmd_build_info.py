@@ -230,9 +230,10 @@ class _BuildInfo:
         folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
         if not artifacts and folder:
             raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
-                                 "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
+                                  "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
 
         # complete the information for the artifacts:
+
         if is_dependency:
             requested_by = _get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
             for artifact in artifacts:
@@ -401,8 +402,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
-                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password
-                    )
+                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
     cli_out_write(bi.create())
 
