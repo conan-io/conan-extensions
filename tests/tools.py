@@ -31,8 +31,3 @@ def save(f, content):
 def load(f):
     with open(f, "r") as f:
         return f.read()
-
-def replace_in_file(f, original_text, new_text):
-    content = load(f)
-    content = content.replace(original_text, new_text)
-    save(f, content)

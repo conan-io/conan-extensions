@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from tools import load, save, replace_in_file, run
+from tools import load, save, run
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +21,6 @@ def conan_test():
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
     run("conan profile detect")
-    _patch_cmd_build_info_get_remote_artifacts(conan_home)
     try:
         yield
     finally:
@@ -30,13 +29,13 @@ def conan_test():
         os.environ.update(old_env)
 
 
-def _patch_cmd_build_info_get_remote_artifacts(conan_home):
-    # Patch _get_remote_artifacts() function in cmd_build_info.py file to avoid contacting Artifactory for the test
-    custom_commands_cmd_build_info_path = os.path.join(conan_home, "extensions", "commands", "art", "cmd_build_info.py")
-    replace_in_file(custom_commands_cmd_build_info_path, "def _get_remote_artifacts(artifact):",
-                    "def _get_remote_artifacts(artifact):\n"
-                    "            return None\n"
-                    "        def _patched(artifact):")
+def _fake_conan_sources(graph):
+    # Fake the existence of conan_sources.tgz file to avoid contacting Artifactory for the tests
+    for _, node in graph["nodes"].items():
+        recipe_folder = node.get("recipe_folder")
+        if recipe_folder:
+            fake_sources_tgz_path = os.path.join(os.path.dirname(node.get("recipe_folder")), "d", "conan_sources.tgz")
+            save(fake_sources_tgz_path, "")
 
 
 def test_static_library_skip_binaries():
@@ -63,6 +62,7 @@ def test_static_library_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
 
+    _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
     assert "WARN: Package marked as 'Skip' for lib1/1.0" in out
     build_info = json.loads(load("bi.json"))
@@ -77,6 +77,8 @@ def test_static_library_skip_binaries():
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Cache"
     assert graph["nodes"]["3"]["package_folder"] is not None
+
+    _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
     assert "WARN: Package marked as 'Skip' for lib1/1.0" not in out
     build_info = json.loads(load("bi.json"))
@@ -120,9 +122,12 @@ def test_tool_require_skip_binaries():
     run("conan new cmake_lib -d name=libc -d version=1.0 -d requires=libb/1.0 --force")
 
     run("conan create . -f json > create.json")
+
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
+
+    _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
     assert "WARN: Package marked as 'Skip' for meson/1.0" in out
     bi = load("bi.json")
@@ -136,6 +141,8 @@ def test_tool_require_skip_binaries():
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Cache"
     assert graph["nodes"]["3"]["package_folder"] is not None
+
+    _fake_conan_sources(graph)
     out = run(
         "conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
     assert "WARN: Package marked as 'Skip' for meson/1.0" not in out
