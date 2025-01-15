@@ -9,7 +9,10 @@ from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
-from conans.model.recipe_ref import RecipeReference
+try:
+    from conans.model.recipe_ref import RecipeReference
+except:
+    from conan.internal.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
 
