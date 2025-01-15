@@ -73,7 +73,7 @@ def test_static_library_skip_binaries():
     assert "lib2/1.0 :: conaninfo.txt" in dependencies_ids
     assert "lib2/1.0 :: conanmanifest.txt" in dependencies_ids
 
-    run("conan create . -o lib2/1.0:shared=True -c tools.graph:skip_binaries=False -f json > create.json")
+    run("conan create . -o lib2/1.0:shared=True -c:a tools.graph:skip_binaries=False -f json > create.json")
     graph = json.loads(load("create.json"))["graph"]
     assert graph["nodes"]["3"]["binary"] == "Cache"
     assert graph["nodes"]["3"]["package_folder"] is not None
@@ -131,3 +131,18 @@ def test_tool_require_skip_binaries():
     assert "meson" in build_info["modules"][2]["dependencies"][0]["id"]
     # Check libb package has no dependencies (meson package not in cache bc is was skipped as not needed)
     assert len(build_info["modules"][3]["dependencies"]) == 0
+
+    run("conan create . -c:a tools.graph:skip_binaries=False -f json > create.json")
+    graph = json.loads(load("create.json"))["graph"]
+    assert graph["nodes"]["3"]["binary"] == "Cache"
+    assert graph["nodes"]["3"]["package_folder"] is not None
+    out = run(
+        "conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
+    assert "WARN: Package marked as 'Skip' for meson/1.0" not in out
+    bi = load("bi.json")
+    build_info = json.loads(bi)
+    # Check libb recipe depends on meson recipe
+    assert "meson" in build_info["modules"][2]["dependencies"][0]["id"]
+    # Check libb package now has the meson dependency
+    build_info["modules"][3]["dependencies"]
+    assert len(build_info["modules"][3]["dependencies"]) == 2
