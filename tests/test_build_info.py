@@ -64,7 +64,7 @@ def test_static_library_skip_binaries():
 
     _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: Package marked as 'Skip' for lib1/1.0" in out
+    assert "WARN: Package is marked as 'Skip' for lib1/1.0" in out
     build_info = json.loads(load("bi.json"))
     assert "lib3/1.0" in build_info["modules"][1]["id"].split(":")[0]  # libc package
     # Remove package id and rrev leave them as "<name>/<version> :: <file>" to make the asserts platform agnostic
@@ -80,7 +80,7 @@ def test_static_library_skip_binaries():
 
     _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: Package marked as 'Skip' for lib1/1.0" not in out
+    assert "WARN: Package is marked as 'Skip' for lib1/1.0" not in out
     build_info = json.loads(load("bi.json"))
     assert "lib3/1.0" in build_info["modules"][1]["id"].split(":")[0]  # libc package
     # Remove package id and rrev leave them as "<name>/<version>#rrev :: <file>" to make the asserts platform agnostic
@@ -129,7 +129,7 @@ def test_tool_require_skip_binaries():
 
     _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
-    assert "WARN: Package marked as 'Skip' for meson/1.0" in out
+    assert "WARN: Package is marked as 'Skip' for meson/1.0" in out
     bi = load("bi.json")
     build_info = json.loads(bi)
     # Check libb recipe depends on meson recipe
@@ -145,7 +145,7 @@ def test_tool_require_skip_binaries():
     _fake_conan_sources(graph)
     out = run(
         "conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
-    assert "WARN: Package marked as 'Skip' for meson/1.0" not in out
+    assert "WARN: Package is marked as 'Skip' for meson/1.0" not in out
     bi = load("bi.json")
     build_info = json.loads(bi)
     # Check libb recipe depends on meson recipe

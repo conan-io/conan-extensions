@@ -10,9 +10,9 @@ from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 try:
-    from conans.model.recipe_ref import RecipeReference
-except:
     from conan.internal.model.recipe_ref import RecipeReference
+except:
+    from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
 
@@ -148,9 +148,9 @@ class _BuildInfo:
             missing_artifacts = []
             artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
             if artifacts_folder is None and artifact_type == "package" and node.get("binary") == "Skip":
-                ConanOutput().warning(f"Package marked as 'Skip' for {node.get('ref')}. "
-                                      "Using -c a:tools.graph:skip_binaries=False might force its download for the "
-                                      "conan create/install command so it can be included in the Build Info.")
+                ConanOutput().warning(f"Package is marked as 'Skip' for {node.get('ref')} and will not be included "
+                                      "into the Build Info. If you want to get it included, use "
+                                      "conf -c a:tools.graph:skip_binaries=False in your conan create/install command.")
                 return (local_artifacts, missing_artifacts)
 
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
