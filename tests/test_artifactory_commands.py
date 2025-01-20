@@ -481,7 +481,7 @@ def test_art_promote_timestamps():
 
     class Pkg(ConanFile):
         name = "mypkg"
-        version = "1.0"g
+        version = "1.0"
     """)
     save("./conanfile.py", conanfile)
 
