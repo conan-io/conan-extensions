@@ -488,14 +488,14 @@ def test_art_promote_timestamps():
     run("conan create .")
     out = run("conan list mypkg/1.0:*#* -f=json")
     local_list_json_out = json.loads(out)
-    local_recipe_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["timestamp"]
-    local_package_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+    local_recipe_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    local_package_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
     run("conan upload mypkg/1.0 -c -r extensions-stg")
 
     out = run("conan list mypkg/1.0:*#* -r=extensions-stg -f=json", stderr=None)
     remote_stg_list_json_out = json.loads(out)
-    remote_stg_recipe_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["timestamp"]
-    remote_stg_package_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+    remote_stg_recipe_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    remote_stg_package_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
 
     assert local_recipe_timestamp != remote_stg_recipe_timestamp
     assert local_package_timestamp != remote_stg_package_timestamp
@@ -509,8 +509,8 @@ def test_art_promote_timestamps():
 
     out = run("conan list mypkg/1.0:*#* -r=extensions-prod -f=json", stderr=None)
     remote_prod_list_json_out = json.loads(out)
-    remote_prod_recipe_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["timestamp"]
-    remote_prod_package_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["fe5715e6b3823055d76be6a47914b243"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+    remote_prod_recipe_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    remote_prod_package_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
 
     assert remote_stg_recipe_timestamp == remote_prod_recipe_timestamp
     assert remote_stg_package_timestamp == remote_prod_package_timestamp
