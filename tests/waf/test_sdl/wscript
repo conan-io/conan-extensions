@@ -1,0 +1,22 @@
+def options(opt):
+	opt.load('compiler_cxx')
+
+def configure(conf):
+	conf.load('conan_deps', tooldir='build')
+	conf.load('compiler_cxx')
+
+def build(bld):
+	bld(
+		features = "cxx cxxprogram conan",
+		source = "main.cpp",
+		use = "sdl",
+		target = "app"
+	)
+
+	bld.install_conan_package(
+		'${PREFIX}',
+		use='sdl',
+		recursive = False,
+		include = None,
+		bin = None
+	)
