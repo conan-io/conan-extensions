@@ -471,3 +471,22 @@ def test_add_server_token():
     out_add = run(f'conan art:server add server1 {server_url} --user="{server_user}" --token="{token}"')
 
     assert f"Server 'server1' ({server_url}) added successfully" in out_add
+
+
+@pytest.mark.requires_credentials
+def test_build_info_create_exppkg():
+    build_name = "mybuildinfo"
+    build_number = "1"
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Generate recipe to work with
+    run("conan new basic -d name=mypkg_ext -d version=1.0 --force")
+
+    # Create release packages & build info and upload them
+    run("conan export-pkg . --format json -s build_type=Release > create_release.json")
+    run("conan upload mypkg_ext/1.0 -c -r extensions-stg")
+    out = run(f'conan art:build-info create create_release.json {build_name}_release {build_number} --server=artifactory extensions-stg')
+    build_info = json.loads(out)
+    assert len(build_info['modules']) == 2
