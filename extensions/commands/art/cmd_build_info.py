@@ -147,8 +147,8 @@ class _BuildInfo:
             artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
             if artifacts_folder is None and artifact_type == "package" and node.get("binary") == "Skip":
                 ConanOutput().warning(f"Package is marked as 'Skip' for {node.get('ref')} and will not be included "
-                                      "into the Build Info. If you want to get it included, use "
-                                      "conf -c a:tools.graph:skip_binaries=False in your conan create/install command.")
+                                      "into the Build Info. If you want to get it included, use the conf argument: "
+                                      "'-c:a tools.graph:skip_binaries=False' in your conan create/install command.")
                 return (local_artifacts, missing_artifacts)
 
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
@@ -187,9 +187,11 @@ class _BuildInfo:
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
-            assert self._url, "Missing information in the Conan local cache, " \
-                              "please provide '--url' or '--server' arguments " \
-                              "to retrieve the information from Artifactory."
+            if not self._url:
+                raise ConanException(
+                    "Missing Artifactory URL. The Conan local cache does not contain all the required information. "
+                    "Please provide '--url' or '--server' arguments to retrieve the information from Artifactory."
+                )
 
             remote_path = _get_remote_path(node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
                 node.get('ref'), node.get("package_id"), node.get("prev"))
