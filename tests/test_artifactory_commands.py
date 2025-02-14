@@ -1,6 +1,7 @@
 import os
 import json
 import tempfile
+import textwrap
 
 from tools import run, save
 from conan.tools.scm import Version
@@ -471,3 +472,45 @@ def test_add_server_token():
     out_add = run(f'conan art:server add server1 {server_url} --user="{server_user}" --token="{token}"')
 
     assert f"Server 'server1' ({server_url}) added successfully" in out_add
+
+
+@pytest.mark.requires_credentials
+def test_art_promote_timestamps():
+    conanfile = textwrap.dedent("""
+    from conan import ConanFile
+
+    class Pkg(ConanFile):
+        name = "mypkg"
+        version = "1.0"
+    """)
+    save("./conanfile.py", conanfile)
+
+    run("conan create .")
+    out = run("conan list mypkg/1.0:*#* -f=json")
+    local_list_json_out = json.loads(out)
+    local_recipe_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    local_package_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+
+    out = run("conan list mypkg/1.0:*#* -r=extensions-stg -f=json", stderr=None)
+    remote_stg_list_json_out = json.loads(out)
+    remote_stg_recipe_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    remote_stg_package_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+
+    assert local_recipe_timestamp != remote_stg_recipe_timestamp
+    assert local_package_timestamp != remote_stg_package_timestamp
+
+    save("pkglist.json", out)
+
+    art_url = os.getenv("ART_URL")
+    art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+    art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+    run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
+
+    out = run("conan list mypkg/1.0:*#* -r=extensions-prod -f=json", stderr=None)
+    remote_prod_list_json_out = json.loads(out)
+    remote_prod_recipe_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+    remote_prod_package_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+
+    assert remote_stg_recipe_timestamp == remote_prod_recipe_timestamp
+    assert remote_stg_package_timestamp == remote_prod_package_timestamp
