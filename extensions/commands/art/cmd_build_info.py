@@ -10,7 +10,7 @@ from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
 try:
-    from conan.internal.model.recipe_ref import RecipeReference
+    from conan.api.model import RecipeReference
 except:
     from conans.model.recipe_ref import RecipeReference
 from conan import conan_version

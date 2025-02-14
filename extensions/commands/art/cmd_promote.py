@@ -5,8 +5,7 @@ from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 try:
-    from conan.internal.model.recipe_ref import RecipeReference
-    from conan.internal.model.package_ref import PkgReference
+    from conan.api.model import RecipeReference, PkgReference
 except:
     from conans.model.recipe_ref import RecipeReference
     from conans.model.package_ref import PkgReference
