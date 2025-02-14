@@ -127,6 +127,10 @@ def test_tool_require_skip_binaries():
     assert graph["nodes"]["3"]["binary"] == "Skip"
     assert graph["nodes"]["3"]["package_folder"] is None
 
+    # Set package revision to null to simulate issue https://github.com/conan-io/conan-extensions/issues/170
+    graph["nodes"]["3"]["prev"] = None
+    save("create.json", json.dumps({"graph": graph}))
+
     _fake_conan_sources(graph)
     out = run("conan art:build-info create create.json build_name 1 repo --add-cached-deps --with-dependencies > bi.json")
     assert "WARN: Package is marked as 'Skip' for meson/1.0" in out

@@ -138,10 +138,8 @@ class _BuildInfo:
 
         if artifact_type == "recipe":
             artifacts_names = ["conan_sources.tgz", "conan_export.tgz", "conanfile.py", "conanmanifest.txt"]
-            remote_path = _get_remote_path(node.get('ref'))
         else:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
-            remote_path = _get_remote_path(node.get('ref'), node.get("package_id"), node.get("prev"))
 
         def _get_local_artifacts():
             local_artifacts = []
@@ -172,6 +170,10 @@ class _BuildInfo:
                                      "md5": md5}
 
                     if not is_dependency:
+                        remote_path = _get_remote_path(
+                            node.get('ref')) if artifact_type == "recipe" else _get_remote_path(node.get('ref'),
+                                                                                                node.get("package_id"),
+                                                                                                node.get("prev"))
                         artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
                     else:
                         ref = node.get("ref")
@@ -188,6 +190,9 @@ class _BuildInfo:
             assert self._url, "Missing information in the Conan local cache, " \
                               "please provide '--url' or '--server' arguments " \
                               "to retrieve the information from Artifactory."
+
+            remote_path = _get_remote_path(node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
+                node.get('ref'), node.get("package_id"), node.get("prev"))
 
             request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
