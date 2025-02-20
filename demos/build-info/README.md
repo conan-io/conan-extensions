@@ -1,13 +1,6 @@
 Using Build Info with Conan
 ===========================
 
-Conan extensions
-----------------
-
-The custom commands to manage the Build Info currently are in the conan-extensions repo,
-it's a work in progress (completely experimental at the moment).
-
-
 Demo Pre-Requisites
 -------------------
 
@@ -38,6 +31,9 @@ Two paralell jobs creating Release and Debug, each one with a BuildInfo, then ag
 them
 
 ![Alt build](diagram.png?raw=true)
+
+Running the demo
+----------------
 
 ```
 
