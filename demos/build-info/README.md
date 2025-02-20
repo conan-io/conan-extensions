@@ -23,7 +23,8 @@ To test, you need to have the extensions installed:
 conan config install https://github.com/conan-io/conan-extensions.git
 ```
 
-We will create a BuildInfo with build_name=<config>_build build_number=1
+We will create a BuildInfo with ``build_name=<Release/Debug>_build`` ``build_number=1``
+and then create an aggregated Build Info for both Release and Debug configurations
 
 mypkg depending on liba, liba already in Artifactory, we are only building mypkg.
 
