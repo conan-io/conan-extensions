@@ -39,11 +39,6 @@ jobs:
     - name: Configure Artifactory
       if: env.HAS_ARTIFACTORY_CREDS == 'true'
       run: |
-        until curl -s http://localhost:8081/artifactory/api/system/ping; do
-          echo "Waiting for Artifactory to be ready..."
-          sleep 5
-        done
-
         curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
           -H "Content-Type: application/json" \
           -d "{ \"licenseKey\": \"${{ secrets.ARTIFACTORY_LICENSE }}\" }"
