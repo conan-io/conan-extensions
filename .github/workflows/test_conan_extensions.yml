@@ -23,7 +23,6 @@ jobs:
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
-      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
       ART_URL: http://localhost:8081/artifactory
     steps:
     - uses: actions/checkout@v3
@@ -53,13 +52,6 @@ jobs:
             -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-stg" \
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
-
-    - name: Create Artifactory Project
-      run: |
-        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
-            -X POST "http://localhost:8081/artifactory/api/v1/projects" \
-            -H "Content-Type: application/json" \
-            -d '{ "projectKey": "extensions-testing", "displayName": "extensions-testing", "description": "Project for testing extensions" }'
 
     - name: Set up Python
       uses: actions/setup-python@v4

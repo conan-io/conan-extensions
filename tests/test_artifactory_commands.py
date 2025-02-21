@@ -287,7 +287,8 @@ def test_fail_if_not_uploaded():
     run("conan create . -tf='' -s build_type=Release")
 
 
-@pytest.mark.requires_credentials
+#@pytest.mark.requires_credentials
+@pytest.mark.xfail(reason="Token not configured in CI yet")
 def test_build_info_project():
     """
     Test that build info is correctly manages using a project in Artifactory
