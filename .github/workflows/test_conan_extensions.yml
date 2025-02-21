@@ -36,13 +36,24 @@ jobs:
           echo "HAS_ARTIFACTORY_CREDS=false" >> $GITHUB_ENV
         fi
 
-    - name: Configure Artifactory
+    - name: Wait for Artifactory to be ready
+      run: |
+        until curl -s http://localhost:8081/artifactory/api/system/ping; do
+          echo "Waiting for Artifactory to be ready..."
+          sleep 5
+        done
+
+    - name: Set Artifactory License
       if: env.HAS_ARTIFACTORY_CREDS == 'true'
       run: |
         curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+          -X POST "http://localhost:8081/artifactory/api/system/licenses" \
           -H "Content-Type: application/json" \
           -d "{ \"licenseKey\": \"${{ secrets.ARTIFACTORY_LICENSE }}\" }"
 
+    - name: Create Conan Local Repositories
+      if: env.HAS_ARTIFACTORY_CREDS == 'true'
+      run: |
         curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
             -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-prod" \
             -H "Content-Type: application/json" \
