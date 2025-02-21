@@ -224,8 +224,8 @@ def test_build_info_create_deps():
 
     # run(f'conan install --requires=mypkg/1.0')
 
-    # Promotions using Release Bundles do work with depdendencies, but they are not implemented in the testing Artifactory
-    # conan art:build-info create-bundle ${build_name}_aggregated.json develop full_bundle 1.0 ${ART_URL} test_key_pair --user=${CONAN_LOGIN_USERNAME_DEVELOP} --password="${CONAN_PASSWORD_DEVELOP}"
+    run(f'conan art:build-info bundle-create full_bundle 1.0 --server="artifactory" test_key_pair --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number}')
+    run(f'conan art:build-info bundle-delete full_bundle 1.0 --server="artifactory"')
 
     # Remove build-infos to clean artifactory
     run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
@@ -287,7 +287,8 @@ def test_fail_if_not_uploaded():
     run("conan create . -tf='' -s build_type=Release")
 
 
-@pytest.mark.requires_credentials
+#@pytest.mark.requires_credentials
+@pytest.mark.xfail(reason="Token not configured in CI yet")
 def test_build_info_project():
     """
     Test that build info is correctly manages using a project in Artifactory
@@ -454,7 +455,8 @@ def test_server_list_empty():
     assert "No servers configured. Use `conan art:server add` command to add one." in out
 
 
-@pytest.mark.requires_credentials
+#@pytest.mark.requires_credentials
+@pytest.mark.xfail(reason="Token not configured in CI yet")
 def test_add_server_token():
     """
     Test server add with token

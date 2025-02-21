@@ -4,6 +4,7 @@ import os
 import re
 import hashlib
 from pathlib import Path
+from urllib.parse import urlparse
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import cli_out_write, ConanOutput
@@ -329,27 +330,6 @@ class _BuildInfo:
         return json.dumps(bi, indent=4)
 
 
-def _manifest_from_build_info(build_info, repository, with_dependencies=True):
-    manifest = {"files": []}
-    for module in build_info.get("modules"):
-        for artifact in module.get("artifacts"):
-            manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
-        if with_dependencies:
-            for dependency in module.get("dependencies"):
-                full_reference = dependency.get("id").split("::")[0].strip()
-                filename = dependency.get("id").split("::")[1].strip()
-                rrev = full_reference.split(":")[0]
-                pkgid = None
-                prev = None
-                if ":" in full_reference:
-                    pkgid = full_reference.split(":")[1].split("#")[0]
-                    prev = full_reference.split(":")[1].split("#")[1]
-                full_path = repository + "/" + _get_remote_path(rrev, pkgid, prev) + "/" + filename
-                if not any(d['path'] == full_path for d in manifest["files"]):
-                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
-    return manifest
-
-
 def _check_min_required_conan_version(min_ver):
     if conan_version < Version(min_ver):
         raise ConanException("This custom command is only compatible with " \
@@ -607,38 +587,106 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
 
 @conan_subcommand()
-def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
+def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Creates an Artifactory Release Bundle from the information of the Build Info
+    Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
     """
     _add_default_arguments(subparser, is_bi_create_bundle=True)
 
-    subparser.add_argument("json", help="BuildInfo JSON.")
-
-    subparser.add_argument("repository", help="Artifactory repository where artifacts are located.")
-
     subparser.add_argument("bundle_name", help="The created bundle name.")
     subparser.add_argument("bundle_version", help="The created bundle version.")
-
     subparser.add_argument("sign_key_name", help="Signing Key name.")
+
+    subparser.add_argument("--project", help="Project key for the Release Bundle in Artifactory", default=None)
+    subparser.add_argument("--build-info", help="Name and number for the Build Info already published in Artifactory. "
+                                                "You can add multiple Builds like --build-info=build_name,build_number"
+                                                " --build-info=build_name,build_number",
+                           action="append")
+    subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
+                           action='store_true', default=False)
+
+
+    args = parser.parse_args(*args)
+
+    if not args.build_info:
+        raise ConanException("--build-info is required. Please provide at least one build info in the format 'build_name,build_number'.")
+
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
+
+    # request to the release bundle creation must go to ://address:8082/ without /artifactory
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
+
+    request_url = f"{base_url}/lifecycle/api/v2/release_bundle?async=false"
+    if args.project:
+        request_url += f"&project={args.project}"
+
+    builds = []
+    if args.build_info:
+        for build in args.build_info:
+            try:
+                build_name, build_number = build.split(",")
+                builds.append({
+                    "build_repository": "artifactory-build-info",
+                    "build_name": build_name.strip(),
+                    "build_number": build_number.strip(),
+                    "include_dependencies": args.with_dependencies
+                })
+            except ValueError:
+                raise ConanException("Please, provide the build name and number to use for the Release Bundle in the format: "
+                                    "--build-info=build_name,build_number")        
+
+    bundle_json = {
+        "release_bundle_name": args.bundle_name,
+        "release_bundle_version": args.bundle_version,
+        "skip_docker_manifest_resolution": False,
+        "source_type": "builds",
+        "source": {"builds": builds}
+    }
+
+    response = api_request(
+        "post",
+        request_url,
+        user,
+        password,
+        json_data=json.dumps(bundle_json),
+        sign_key_name=args.sign_key_name
+    )
+
+    if response:
+        cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
+    """
+    _add_default_arguments(subparser, is_bi_create_bundle=True)
+
+    subparser.add_argument("bundle_name", help="The Release Bundle v2 name to delete.")
+    subparser.add_argument("bundle_version", help="The Release Bundle v2 version to delete.")
+    subparser.add_argument("--async", dest="async_param", choices=["true", "false"], default="true", 
+                           help="Determines whether the deletion is asynchronous (true) or synchronous (false). Default is true.")
 
     args = parser.parse_args(*args)
     assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
-    data = load_json(args.json)
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
 
-    manifest = _manifest_from_build_info(data, args.repository, with_dependencies=True)
+    request_url = f"{base_url}/lifecycle/api/v2/release_bundle/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
 
-    bundle_json = {
-        "payload": manifest
-    }
-
-    request_url = f"{url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
-
-    response = api_request("post", request_url, user, password, json_data=json.dumps(bundle_json),
-                           sign_key_name=args.sign_key_name)
+    response = api_request(
+        "delete",
+        request_url,
+        user,
+        password
+    )
 
     if response:
         cli_out_write(response)

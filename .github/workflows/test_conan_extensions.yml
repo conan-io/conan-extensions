@@ -2,36 +2,89 @@ on: [pull_request, workflow_dispatch]
 
 jobs:
   conan_linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    services:
+      artifactory:
+        image: releases-docker.jfrog.io/jfrog/artifactory-pro:latest
+        env:
+          JF_SHARED_DATABASE_TYPE: derby
+          JF_SHARED_DATABASE_ALLOWNONPOSTGRESQL: "true"
+        ports:
+          - 8081:8081
+          - 8082:8082
+        options: >-
+          --health-cmd "curl -f http://localhost:8081/artifactory/api/system/ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --log-driver none
     env:
-      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.CONAN_USER }}
-      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.CONAN_PASSWORD }}
-      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.CONAN_USER }}
-      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.CONAN_PASSWORD }}
-      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
-      ART_URL: ${{ secrets.ART_URL }}
+      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
+      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
+      ART_URL: http://localhost:8081/artifactory
+
     steps:
     - uses: actions/checkout@v3
+
+    - name: Check if Artifactory credentials are available
+      run: |
+        if [[ -n "${{ secrets.ARTIFACTORY_USER }}" && -n "${{ secrets.ARTIFACTORY_USER_PASSWORD }}" ]]; then
+          echo "HAS_ARTIFACTORY_CREDS=true" >> $GITHUB_ENV
+        else
+          echo "HAS_ARTIFACTORY_CREDS=false" >> $GITHUB_ENV
+        fi
+
+    - name: Wait for Artifactory to be ready
+      run: |
+        until curl -s http://localhost:8081/artifactory/api/system/ping; do
+          echo "Waiting for Artifactory to be ready..."
+          sleep 5
+        done
+
+    - name: Set Artifactory License
+      if: env.HAS_ARTIFACTORY_CREDS == 'true'
+      run: |
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+          -X POST "http://localhost:8081/artifactory/api/system/licenses" \
+          -H "Content-Type: application/json" \
+          -d "{ \"licenseKey\": \"${{ secrets.ARTIFACTORY_LICENSE }}\" }"
+
+    - name: Create Conan Local Repositories
+      if: env.HAS_ARTIFACTORY_CREDS == 'true'
+      run: |
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+            -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-prod" \
+            -H "Content-Type: application/json" \
+            -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for production" }'
+
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+            -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-stg" \
+            -H "Content-Type: application/json" \
+            -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: 3.9
+
     - name: Install dependencies
       run: |
         pip install -U pip
         pip install pytest "cyclonedx-python-lib>=5.0.0,<6"
+
     - name: Install Conan latest
-      run: |
-        pip install conan
-    - name: Run tests - Conan latest / Python 3.8
-      run: |
-        pytest -v tests
+      run: pip install conan
+
+    - name: Run tests - Conan latest / Python 3.9
+      run: pytest -v tests
+
     - name: Install Conan develop
-      run: |
-        pip install git+https://github.com/conan-io/conan.git@develop2
-    - name: Run tests - Conan develop / Python 3.8
-      run: |
-        pytest -v tests
+      run: pip install git+https://github.com/conan-io/conan.git@develop2
+
+    - name: Run tests - Conan develop / Python 3.9
+      run: pytest -v tests
 
   conan_windows:
     runs-on: windows-latest
@@ -40,11 +93,10 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: 3.9
     - name: Install dependencies and Conan latest
       run: |
         pip install -U pip
         pip install pytest conan
-    - name: Run Windows-specific tests - Conan latest / Python 3.8
-      run: |
-        pytest -v -m win32 tests
+    - name: Run Windows-specific tests - Conan latest / Python 3.9
+      run: pytest -v -m win32 tests

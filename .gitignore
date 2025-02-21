@@ -135,3 +135,9 @@ dmypy.json
 tests/credentials.py
 tmp*/*
 .idea/*
+demos/build-info/liba
+demos/build-info/mypkg
+demos/build-info/.conanrc
+**/.conan_home/**
+demos/build-info/*.json
+demos/build-info/*.sh
