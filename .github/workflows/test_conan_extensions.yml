@@ -54,6 +54,13 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
 
+    - name: Create Artifactory Project
+      run: |
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+            -X POST "http://localhost:8081/artifactory/api/v1/projects" \
+            -H "Content-Type: application/json" \
+            -d '{ "projectKey": "extensions-testing", "displayName": "extensions-testing", "description": "Project for testing extensions" }'
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
