@@ -330,10 +330,10 @@ class _BuildInfo:
 
 
 def _manifest_from_build_info(build_info, repository, with_dependencies=True):
-    manifest = {"files": []}
+    manifest = {"artifacts": []}
     for module in build_info.get("modules"):
         for artifact in module.get("artifacts"):
-            manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
+            manifest["artifacts"].append({"path": artifact.get("path"), "sha256": artifact.get("sha256")})
         if with_dependencies:
             for dependency in module.get("dependencies"):
                 full_reference = dependency.get("id").split("::")[0].strip()
@@ -345,8 +345,8 @@ def _manifest_from_build_info(build_info, repository, with_dependencies=True):
                     pkgid = full_reference.split(":")[1].split("#")[0]
                     prev = full_reference.split(":")[1].split("#")[1]
                 full_path = repository + "/" + _get_remote_path(rrev, pkgid, prev) + "/" + filename
-                if not any(d['path'] == full_path for d in manifest["files"]):
-                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
+                if not any(d['path'] == full_path for d in manifest["artifacts"]):
+                    manifest["artifacts"].append({"path": full_path, "sha256": dependency.get("sha256")})
     return manifest
 
 
@@ -609,7 +609,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 @conan_subcommand()
 def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Creates an Artifactory Release Bundle from the information of the Build Info
+    Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
     """
     _add_default_arguments(subparser, is_bi_create_bundle=True)
 
@@ -622,6 +622,8 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("sign_key_name", help="Signing Key name.")
 
+    subparser.add_argument("--project", help="Project key for the Release Bundle in Artifactory", default=None)
+
     args = parser.parse_args(*args)
     assert_server_or_url_user_password(args)
 
@@ -632,13 +634,26 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
     manifest = _manifest_from_build_info(data, args.repository, with_dependencies=True)
 
     bundle_json = {
-        "payload": manifest
+        "release_bundle_name": args.bundle_name,
+        "release_bundle_version": args.bundle_version,
+        "source_type": "artifacts",
+        "source": manifest
     }
 
-    request_url = f"{url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
+    print(json.dumps(bundle_json))
 
-    response = api_request("post", request_url, user, password, json_data=json.dumps(bundle_json),
-                           sign_key_name=args.sign_key_name)
+    request_url = f"{url}/lifecycle/api/v2/release_bundle?async=false"
+    if args.project:
+        request_url += f"&project={args.project}"
+
+    response = api_request(
+        "post",
+        request_url,
+        user,
+        password,
+        json_data=json.dumps(bundle_json),
+        sign_key_name=args.sign_key_name
+    )
 
     if response:
         cli_out_write(response)
