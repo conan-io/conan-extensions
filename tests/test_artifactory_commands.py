@@ -224,8 +224,8 @@ def test_build_info_create_deps():
 
     # run(f'conan install --requires=mypkg/1.0')
 
-    # Promotions using Release Bundles do work with depdendencies, but they are not implemented in the testing Artifactory
-    run(f'conan art:build-info create-bundle {build_name}_aggregated.json extensions-stg full_bundle 1.0 --server="artifactory" test_key_pair')
+    run(f'conan art:build-info bundle-create full_bundle 1.0 --server="artifactory" test_key_pair --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number}')
+    run(f'conan art:build-info bundle-delete full_bundle 1.0')
 
     # Remove build-infos to clean artifactory
     run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')

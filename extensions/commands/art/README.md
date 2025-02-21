@@ -12,7 +12,8 @@ These are commands to manage certain Artifactory features:
 - [``conan art:build-info``](readme_build_info.md): Manages JFrog Build Info (https://www.buildinfo.org/).
   - ``append``
   - ``create``
-  - ``create-bundle``
+  - ``bundle-create``
+  - ``bundle-delete``
   - ``delete``
   - ``get``
   - ``promote``
