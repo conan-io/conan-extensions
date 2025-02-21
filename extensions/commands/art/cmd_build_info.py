@@ -587,7 +587,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
 
 @conan_subcommand()
-def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
+def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
     """
@@ -643,9 +643,9 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
         "release_bundle_version": args.bundle_version,
         "skip_docker_manifest_resolution": False,
         "source_type": "builds",
-        "source": builds
+        "source": {"builds": builds}
     }
-    
+
     response = api_request(
         "post",
         request_url,
@@ -653,6 +653,39 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
         password,
         json_data=json.dumps(bundle_json),
         sign_key_name=args.sign_key_name
+    )
+
+    if response:
+        cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
+    """
+    _add_default_arguments(subparser, is_bi_create_bundle=True)
+
+    subparser.add_argument("bundle_name", help="The Release Bundle v2 name to delete.")
+    subparser.add_argument("bundle_version", help="The Release Bundle v2 version to delete.")
+    subparser.add_argument("--async", dest="async_param", choices=["true", "false"], default="true", 
+                           help="Determines whether the deletion is asynchronous (true) or synchronous (false). Default is true.")
+
+    args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
+
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
+
+    request_url = f"{base_url}/lifecycle/api/v2/release_bundle/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
+
+    response = api_request(
+        "delete",
+        request_url,
+        user,
+        password
     )
 
     if response:
