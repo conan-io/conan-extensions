@@ -640,8 +640,6 @@ def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
         "source": manifest
     }
 
-    print(json.dumps(bundle_json))
-
     request_url = f"{url}/lifecycle/api/v2/release_bundle?async=false"
     if args.project:
         request_url += f"&project={args.project}"
