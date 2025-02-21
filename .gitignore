@@ -140,3 +140,4 @@ demos/build-info/mypkg
 demos/build-info/.conanrc
 **/.conan_home/**
 demos/build-info/*.json
+demos/build-info/*.sh
