@@ -29,7 +29,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Configure Artifactory
-      if: ${{ secrets.ARTIFACTORY_USER && secrets.ARTIFACTORY_USER_PASSWORD }}
+      if: ${{ secrets.ARTIFACTORY_USER != '' && secrets.ARTIFACTORY_USER_PASSWORD != '' }}
       run: |
         until curl -s http://localhost:8081/artifactory/api/system/ping; do
           echo "Waiting for Artifactory to be ready..."
