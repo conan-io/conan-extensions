@@ -106,7 +106,10 @@ conan art:build-info upload debug_build.json --server=myartifactory
 conan art:build-info append aggregated_build 1 --server=myartifactory --build-info=release_build,1 --build-info=debug_build,1 > aggregated_build.json
 conan art:build-info upload aggregated_build.json --server=myartifactory
 
-# Still in Beta
 
-conan art:build-info create-bundle aggregated_build.json develop aggregated_bundle 1.0 test_key_pair --server=myartifactory 
+# Release Bundles
+
+conan art:build-info bundle-create aggregated_bundle 1.0 test_key_pair --server=myartifactory --build-info=debug_build,1 --build-info=release_build,1
+
+conan art:build-info bundle-delete aggregated_bundle 1.0 --server=myartifactory
 ```
