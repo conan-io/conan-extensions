@@ -28,8 +28,16 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Check if Artifactory credentials are available
+      run: |
+        if [[ -n "${{ secrets.ARTIFACTORY_USER }}" && -n "${{ secrets.ARTIFACTORY_USER_PASSWORD }}" ]]; then
+          echo "HAS_ARTIFACTORY_CREDS=true" >> $GITHUB_ENV
+        else
+          echo "HAS_ARTIFACTORY_CREDS=false" >> $GITHUB_ENV
+        fi
+
     - name: Configure Artifactory
-      if: ${{ secrets.ARTIFACTORY_USER != '' && secrets.ARTIFACTORY_USER_PASSWORD != '' }}
+      if: env.HAS_ARTIFACTORY_CREDS == 'true'
       run: |
         until curl -s http://localhost:8081/artifactory/api/system/ping; do
           echo "Waiting for Artifactory to be ready..."
