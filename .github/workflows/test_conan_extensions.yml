@@ -19,10 +19,10 @@ jobs:
           --health-retries 10
           --log-driver none
     env:
-      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: testing
-      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_TESTING_PASSWORD }}
-      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: testing
-      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_TESTING_PASSWORD }}
+      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
+      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
       ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
       ART_URL: http://localhost:8081/artifactory
     steps:
@@ -53,13 +53,6 @@ jobs:
             -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-stg" \
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
-
-    - name: Create Testing User with Admin Rights
-      run: |
-        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
-            -X PUT "http://localhost:8081/artifactory/api/security/users/testing" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\": \"testing\", \"email\": \"testing@example.com\", \"password\": \"${{ secrets.ARTIFACTORY_TESTING_PASSWORD }}\", \"admin\": true, \"profileUpdatable\": false}"
 
     # - name: Wait for Conan repositories to be ready
     #   run: |
