@@ -54,23 +54,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
 
-    # - name: Wait for Conan repositories to be ready
-    #   run: |
-    #     for repo in extensions-stg extensions-prod; do
-    #       echo "Waiting for $repo to be ready..."
-    #       while true; do
-    #         status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8081/artifactory/api/conan/$repo/v2/users/authenticate")
-    #         # Not ready if 503
-    #         if [ "$status" -ne 503 ]; then
-    #           echo "$repo is ready with status $status"
-    #           break
-    #         else
-    #           echo "Status for $repo: $status"
-    #           sleep 5
-    #         fi
-    #       done
-    #     done
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
