@@ -17,6 +17,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+          --log-driver none
     env:
       CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER }}
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
@@ -26,6 +27,7 @@ jobs:
       ART_URL: http://localhost:8081/artifactory
     steps:
     - uses: actions/checkout@v3
+
     - name: Wait for Artifactory to be ready
       run: |
         until curl -s http://localhost:8081/artifactory/api/system/ping; do
@@ -52,20 +54,42 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
 
+    - name: Wait for Conan repositories to be ready
+      run: |
+        for repo in extensions-stg extensions-prod; do
+          echo "Waiting for $repo to be ready..."
+          while true; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8081/artifactory/api/conan/$repo/v2/users/authenticate")
+            # Not ready if 503
+            if [ "$status" -ne 503 ]; then
+              echo "$repo is ready with status $status"
+              break
+            else
+              echo "Status for $repo: $status"
+              sleep 5
+            fi
+          done
+        done
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.9
+
     - name: Install dependencies
       run: |
         pip install -U pip
         pip install pytest "cyclonedx-python-lib>=5.0.0,<6"
+
     - name: Install Conan latest
       run: pip install conan
+
     - name: Run tests - Conan latest / Python 3.9
       run: pytest -v tests
+
     - name: Install Conan develop
       run: pip install git+https://github.com/conan-io/conan.git@develop2
+
     - name: Run tests - Conan develop / Python 3.9
       run: pytest -v tests
 
