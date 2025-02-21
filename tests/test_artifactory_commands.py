@@ -454,7 +454,8 @@ def test_server_list_empty():
     assert "No servers configured. Use `conan art:server add` command to add one." in out
 
 
-@pytest.mark.requires_credentials
+#@pytest.mark.requires_credentials
+@pytest.mark.xfail(reason="Token not configured in CI yet")
 def test_add_server_token():
     """
     Test server add with token
