@@ -99,6 +99,9 @@ conan art:build-info upload debug_build.json --server=myartifactory
 
 conan art:build-info bundle-create aggregated_bundle 1.0 test_key_pair --server=myartifactory --build-info=debug_build,1 --build-info=release_build,1
 
+# Promote the bundle to PROD environment
+conan art:build-info bundle-promote aggregated_bundle 1.0 PROD --server=myartifactory
+
 # You can delete the bundle 
 conan art:build-info bundle-delete aggregated_bundle 1.0 --server=myartifactory
 ```

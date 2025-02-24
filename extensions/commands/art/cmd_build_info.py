@@ -690,3 +690,61 @@ def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
 
     if response:
         cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_bundle_promote(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Promotes a Release Bundle v2 version.
+    """
+
+    _add_default_arguments(subparser, is_bi_create_bundle=True)
+    
+    subparser.add_argument("bundle_name", help="The Release Bundle v2 name to promote.")
+    subparser.add_argument("bundle_version", help="The Release Bundle v2 version to promote.")
+    subparser.add_argument("environment", help="Target environment for the promotion (e.g., QA).")
+
+    subparser.add_argument("--sign_key_name", help="Signing Key name to use for signature creation. "
+                           "If you do not specify a key, Artifactory will use the same key that was "
+                           "used when creating this Release Bundle version.", default=None)
+    subparser.add_argument("--operation", choices=["copy", "move"], default="copy",
+                           help="Promotion operation: copy (default) or move.")
+    subparser.add_argument("--included-repo-keys", help="Comma separated list of repository keys to include. "
+                           "If left undefined, all repositories (except those specifically excluded) are included in the promotion.", default="")
+    subparser.add_argument("--excluded-repo-keys", help="Comma separated list of repository keys to exclude.", default="")
+    subparser.add_argument("--async", dest="async_param", choices=["true", "false"], default="true",
+                           help="Determines whether the promotion is asynchronous (true) or synchronous (false).")
+    subparser.add_argument("--project", help="Project key for the Release Bundle promotion", default=None)
+    
+    args = parser.parse_args(*args)
+    assert_server_or_url_user_password(args)
+    url, user, password = get_url_user_password(args)
+    
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
+    
+    request_url = f"{base_url}/lifecycle/api/v2/promotion/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
+    if args.project:
+        request_url += f"&project={args.project}"
+    
+    included_repo_keys = [k.strip() for k in args.included_repo_keys.split(",") if k.strip()] if args.included_repo_keys else []
+    excluded_repo_keys = [k.strip() for k in args.excluded_repo_keys.split(",") if k.strip()] if args.excluded_repo_keys else []
+    
+    payload = {
+        "environment": args.environment,
+        "operation": args.operation,
+        "included_repository_keys": included_repo_keys,
+        "excluded_repository_keys": excluded_repo_keys
+    }
+    
+    response = api_request(
+        "post",
+        request_url,
+        user,
+        password,
+        json_data=json.dumps(payload),
+        sign_key_name=args.sign_key_name
+    )
+    
+    if response:
+        cli_out_write(response)

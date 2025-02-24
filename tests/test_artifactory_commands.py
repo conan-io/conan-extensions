@@ -225,7 +225,11 @@ def test_build_info_create_deps():
     # run(f'conan install --requires=mypkg/1.0')
 
     run(f'conan art:build-info bundle-create full_bundle 1.0 --server="artifactory" test_key_pair --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number}')
-    run(f'conan art:build-info bundle-delete full_bundle 1.0 --server="artifactory"')
+
+    # FIXME: configure testing artifactory so we can run the promotion
+    # run('conan art:build-info bundle-promote full_bundle 1.0 PROD --server=artifactory')
+
+    run('conan art:build-info bundle-delete full_bundle 1.0 --server="artifactory"')
 
     # Remove build-infos to clean artifactory
     run(f'conan art:build-info delete {build_name}_release --build-number={build_number} --server="artifactory" --delete-all --delete-artifacts')
