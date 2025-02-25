@@ -615,9 +615,9 @@ def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    # request to the release bundle creation must go to ://address:8082/ without /artifactory
+    # remove artifactory from the url because we have to use the lifecycle API
     parsed_url = urlparse(url)
-    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     request_url = f"{base_url}/lifecycle/api/v2/release_bundle?async=false"
     if args.project:
@@ -676,8 +676,9 @@ def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
+    # remove artifactory from the url because we have to use the lifecycle API
     parsed_url = urlparse(url)
-    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}:8082"
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     request_url = f"{base_url}/lifecycle/api/v2/release_bundle/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
 
