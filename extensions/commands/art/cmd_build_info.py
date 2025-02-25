@@ -615,11 +615,9 @@ def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    # FIXME: this is to fix the url for the lifecycle
-    # must do it in a better way
+    # remove artifactory from the url because we have to use the lifecycle API
     parsed_url = urlparse(url)
-    request_port = ":8082" if ":8081" in parsed_url.netloc else ""
-    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}{request_port}"
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     request_url = f"{base_url}/lifecycle/api/v2/release_bundle?async=false"
     if args.project:
@@ -678,11 +676,9 @@ def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
 
     url, user, password = get_url_user_password(args)
 
-    # FIXME: this is to fix the url for the lifecycle
-    # must do it in a better way
+    # remove artifactory from the url because we have to use the lifecycle API
     parsed_url = urlparse(url)
-    request_port = ":8082" if ":8081" in parsed_url.netloc else ""
-    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}{request_port}"
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     request_url = f"{base_url}/lifecycle/api/v2/release_bundle/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
 

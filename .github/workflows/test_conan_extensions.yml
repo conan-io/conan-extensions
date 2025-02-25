@@ -23,7 +23,7 @@ jobs:
       CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
       CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
       CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
-      ART_URL: http://localhost:8081/artifactory
+      ART_URL: http://localhost:8082/artifactory
 
     steps:
     - uses: actions/checkout@v3
