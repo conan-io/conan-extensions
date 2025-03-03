@@ -2,8 +2,11 @@ import json
 
 from conan.api.conan_api import ConanAPI
 from conan.cli.command import conan_command, conan_subcommand
-from conans.model.recipe_ref import RecipeReference
-from conans.model.package_ref import PkgReference
+try:
+    from conan.api.model import RecipeReference, PkgReference
+except:
+    from conans.model.recipe_ref import RecipeReference
+    from conans.model.package_ref import PkgReference
 from conan.errors import ConanException
 
 from utils import api_request, assert_server_or_url_user_password

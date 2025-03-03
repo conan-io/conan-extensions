@@ -4,8 +4,11 @@ import os.path
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
-from conans.model.recipe_ref import RecipeReference
-from conans.model.package_ref import PkgReference
+try:
+    from conan.api.model import RecipeReference, PkgReference
+except:
+    from conans.model.recipe_ref import RecipeReference
+    from conans.model.package_ref import PkgReference
 from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
 

@@ -4,12 +4,16 @@ import os
 import re
 import hashlib
 from pathlib import Path
+from urllib.parse import urlparse
 
 from conan.api.conan_api import ConanAPI
-from conan.api.output import cli_out_write
+from conan.api.output import cli_out_write, ConanOutput
 from conan.cli.command import conan_command, conan_subcommand
 from conan.errors import ConanException
-from conans.model.recipe_ref import RecipeReference
+try:
+    from conan.api.model import RecipeReference
+except:
+    from conans.model.recipe_ref import RecipeReference
 from conan import conan_version
 from conan.tools.scm import Version
 
@@ -135,13 +139,19 @@ class _BuildInfo:
 
         if artifact_type == "recipe":
             artifacts_names = ["conan_sources.tgz", "conan_export.tgz", "conanfile.py", "conanmanifest.txt"]
-            remote_path = _get_remote_path(node.get('ref'))
         else:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
-            remote_path = _get_remote_path(node.get('ref'), node.get("package_id"), node.get("prev"))
 
         def _get_local_artifacts():
             local_artifacts = []
+            missing_artifacts = []
+            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+            if artifacts_folder is None and artifact_type == "package" and node.get("binary") == "Skip":
+                ConanOutput().warning(f"Package is marked as 'Skip' for {node.get('ref')} and will not be included "
+                                      "into the Build Info. If you want to get it included, use the conf argument: "
+                                      "'-c:a tools.graph:skip_binaries=False' in your conan create/install command.")
+                return (local_artifacts, missing_artifacts)
+
             artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
             dl_folder = artifacts_folder.parents[0] / "d"
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
@@ -161,6 +171,10 @@ class _BuildInfo:
                                      "md5": md5}
 
                     if not is_dependency:
+                        remote_path = _get_remote_path(
+                            node.get('ref')) if artifact_type == "recipe" else _get_remote_path(node.get('ref'),
+                                                                                                node.get("package_id"),
+                                                                                                node.get("prev"))
                         artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
                     else:
                         ref = node.get("ref")
@@ -168,15 +182,20 @@ class _BuildInfo:
                         artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
 
                     local_artifacts.append(artifact_info)
-            
+
             missing_files = set(artifacts_names) - processed_files
             return (local_artifacts, missing_files)
 
         def _get_remote_artifacts(artifact):
             artifact_info = None
-            assert self._url, "Missing information in the Conan local cache, " \
-                              "please provide '--url' or '--server' arguments " \
-                              "to retrieve the information from Artifactory."
+            if not self._url:
+                raise ConanException(
+                    "Missing Artifactory URL. The Conan local cache does not contain all the required information. "
+                    "Please provide '--url' or '--server' arguments to retrieve the information from Artifactory."
+                )
+
+            remote_path = _get_remote_path(node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
+                node.get('ref'), node.get("package_id"), node.get("prev"))
 
             request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
 
@@ -219,7 +238,8 @@ class _BuildInfo:
             if sources_artifact:
                 artifacts.append(sources_artifact)
 
-        if not artifacts:
+        folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+        if not artifacts and folder:
             raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
                                   "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
 
@@ -308,27 +328,6 @@ class _BuildInfo:
         bi = self.header()
         bi.update({"modules": self.get_modules()})
         return json.dumps(bi, indent=4)
-
-
-def _manifest_from_build_info(build_info, repository, with_dependencies=True):
-    manifest = {"files": []}
-    for module in build_info.get("modules"):
-        for artifact in module.get("artifacts"):
-            manifest["files"].append({"path": artifact.get("path"), "checksum": artifact.get("sha256")})
-        if with_dependencies:
-            for dependency in module.get("dependencies"):
-                full_reference = dependency.get("id").split("::")[0].strip()
-                filename = dependency.get("id").split("::")[1].strip()
-                rrev = full_reference.split(":")[0]
-                pkgid = None
-                prev = None
-                if ":" in full_reference:
-                    pkgid = full_reference.split(":")[1].split("#")[0]
-                    prev = full_reference.split(":")[1].split("#")[1]
-                full_path = repository + "/" + _get_remote_path(rrev, pkgid, prev) + "/" + filename
-                if not any(d['path'] == full_path for d in manifest["files"]):
-                    manifest["files"].append({"path": full_path, "checksum": dependency.get("sha256")})
-    return manifest
 
 
 def _check_min_required_conan_version(min_ver):
@@ -588,38 +587,107 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
 
 @conan_subcommand()
-def build_info_create_bundle(conan_api: ConanAPI, parser, subparser, *args):
+def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Creates an Artifactory Release Bundle from the information of the Build Info
+    Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
     """
     _add_default_arguments(subparser, is_bi_create_bundle=True)
 
-    subparser.add_argument("json", help="BuildInfo JSON.")
-
-    subparser.add_argument("repository", help="Artifactory repository where artifacts are located.")
-
     subparser.add_argument("bundle_name", help="The created bundle name.")
     subparser.add_argument("bundle_version", help="The created bundle version.")
-
     subparser.add_argument("sign_key_name", help="Signing Key name.")
+
+    subparser.add_argument("--project", help="Project key for the Release Bundle in Artifactory", default=None)
+    subparser.add_argument("--build-info", help="Name and number for the Build Info already published in Artifactory. "
+                                                "You can add multiple Builds like --build-info=build_name,build_number"
+                                                " --build-info=build_name,build_number",
+                           action="append")
+    subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
+                           action='store_true', default=False)
+
+
+    args = parser.parse_args(*args)
+
+    if not args.build_info:
+        raise ConanException("--build-info is required. Please provide at least one build info in the format 'build_name,build_number'.")
+
+    assert_server_or_url_user_password(args)
+
+    url, user, password = get_url_user_password(args)
+
+    # remove artifactory from the url because we have to use the lifecycle API
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    request_url = f"{base_url}/lifecycle/api/v2/release_bundle?async=false"
+    if args.project:
+        request_url += f"&project={args.project}"
+
+    builds = []
+    if args.build_info:
+        for build in args.build_info:
+            try:
+                build_name, build_number = build.split(",")
+                builds.append({
+                    "build_repository": "artifactory-build-info",
+                    "build_name": build_name.strip(),
+                    "build_number": build_number.strip(),
+                    "include_dependencies": args.with_dependencies
+                })
+            except ValueError:
+                raise ConanException("Please, provide the build name and number to use for the Release Bundle in the format: "
+                                    "--build-info=build_name,build_number")        
+
+    bundle_json = {
+        "release_bundle_name": args.bundle_name,
+        "release_bundle_version": args.bundle_version,
+        "skip_docker_manifest_resolution": False,
+        "source_type": "builds",
+        "source": {"builds": builds}
+    }
+
+    response = api_request(
+        "post",
+        request_url,
+        user,
+        password,
+        json_data=json.dumps(bundle_json),
+        sign_key_name=args.sign_key_name
+    )
+
+    if response:
+        cli_out_write(response)
+
+
+@conan_subcommand()
+def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
+    """
+    Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
+    """
+    _add_default_arguments(subparser, is_bi_create_bundle=True)
+
+    subparser.add_argument("bundle_name", help="The Release Bundle v2 name to delete.")
+    subparser.add_argument("bundle_version", help="The Release Bundle v2 version to delete.")
+    subparser.add_argument("--async", dest="async_param", choices=["true", "false"], default="true", 
+                           help="Determines whether the deletion is asynchronous (true) or synchronous (false). Default is true.")
 
     args = parser.parse_args(*args)
     assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
 
-    data = load_json(args.json)
+    # remove artifactory from the url because we have to use the lifecycle API
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-    manifest = _manifest_from_build_info(data, args.repository, with_dependencies=True)
+    request_url = f"{base_url}/lifecycle/api/v2/release_bundle/records/{args.bundle_name}/{args.bundle_version}?async={args.async_param}"
 
-    bundle_json = {
-        "payload": manifest
-    }
-
-    request_url = f"{url}/api/release_bundles/from_files/{args.bundle_name}/{args.bundle_version}"
-
-    response = api_request("post", request_url, user, password, json_data=json.dumps(bundle_json),
-                           sign_key_name=args.sign_key_name)
+    response = api_request(
+        "delete",
+        request_url,
+        user,
+        password
+    )
 
     if response:
         cli_out_write(response)

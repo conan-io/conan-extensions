@@ -84,7 +84,7 @@ def api_request(method, request_url, user=None, password=None, json_data=None,
         raise ForbiddenException(response_to_str(response))
     elif response.status_code == 404:
         raise NotFoundException(response_to_str(response))
-    elif response.status_code not in [200, 204]:
+    elif response.status_code not in [200, 201, 204]:
         raise UnexpectedResponseException(response_to_str(response))
 
     return response_to_str(response)

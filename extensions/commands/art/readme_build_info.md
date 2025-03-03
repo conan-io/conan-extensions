@@ -2,16 +2,17 @@
 
 ```
 $ conan art:build-info --help
-usage: conan build-info [-h] [-v [V]] [-cc CORE_CONF] {append,create,create-bundle,delete,get,promote,upload} ...
+usage: conan build-info [-h] [-v [V]] [-cc CORE_CONF] [--out-file OUT_FILE] {append,bundle-create,bundle-delete,create,delete,get,promote,upload} ...
 
 Manages JFrog Build Info (https://www.buildinfo.org/)
 
 positional arguments:
-  {append,create,create-bundle,delete,get,promote,upload}
+  {append,bundle-create,bundle-delete,create,delete,get,promote,upload}
                         sub-command help
     append              Append published build to the build info.
+    bundle-create       Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
+    bundle-delete       Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
     create              Creates BuildInfo from a Conan graph json from a conan install or create.
-    create-bundle       Creates an Artifactory Release Bundle from the information of the Build Info
     delete              Removes builds stored in Artifactory. Useful for cleaning up old build info data.
     get                 Get Build Info information.
     promote             Promote the BuildInfo from the source to the target repository.
@@ -23,6 +24,7 @@ optional arguments:
                         -vvv or -vtrace
   -cc CORE_CONF, --core-conf CORE_CONF
                         Define core configuration, overwriting global.conf values. E.g.: -cc core:non_interactive=True
+  --out-file OUT_FILE   Write the output of the command to the specified file instead of stdout.
 ```
 
 ### ``conan art:build-info append``
@@ -88,11 +90,11 @@ optional arguments:
   --add-cached-deps     It will add not only the Conan packages that are built but also the ones that are used from the cache but not built. Default: false.
 ```
 
-### ``conan art:build-info create-bundle``
+### ``conan art:build-info bundle-create``
 
 ```
-$ conan art:build-info create-bundle --help
-usage: conan build-info create-bundle [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN]
+$ conan art:build-info bundle-create --help
+usage: conan build-info bundle-create [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN]
                                       json repository bundle_name bundle_version sign_key_name
 
 Creates an Artifactory Release Bundle from the information of the Build Info
@@ -115,6 +117,35 @@ optional arguments:
   --user USER           User name for the Artifactory server.
   --password PASSWORD   Password for the Artifactory server.
   --token TOKEN         Token for the Artifactory server.
+```
+
+### ``conan art:build-info bundle-delete``
+
+```
+$ conan art:build-info bundle-delete --help
+usage: conan build-info bundle-delete [-h] [--out-file OUT_FILE] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN]
+                                      [--async {true,false}]
+                                      bundle_name bundle_version
+
+Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
+
+positional arguments:
+  bundle_name           The Release Bundle v2 name to delete.
+  bundle_version        The Release Bundle v2 version to delete.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out-file OUT_FILE   Write the output of the command to the specified file instead of stdout.
+  -v [V]                Level of detail of the output. Valid options from less verbose to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
+                        -vvv or -vtrace
+  -cc CORE_CONF, --core-conf CORE_CONF
+                        Define core configuration, overwriting global.conf values. E.g.: -cc core:non_interactive=True
+  --server SERVER       Server name of the Artifactory to get the build info from.
+  --url URL             Artifactory url, like: https://<address>/artifactory.
+  --user USER           User name for the Artifactory server.
+  --password PASSWORD   Password for the Artifactory server.
+  --token TOKEN         Token for the Artifactory server.
+  --async {true,false}  Determines whether the deletion is asynchronous (true) or synchronous (false). Default is true.
 ```
 
 ### ``conan art:build-info delete``
