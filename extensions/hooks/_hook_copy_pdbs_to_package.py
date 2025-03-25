@@ -20,7 +20,7 @@ def post_package(conanfile):
     try:
         program_files = os.environ.get("ProgramFiles(x86)") or os.environ.get("ProgramFiles")  # fallback for 32-bit windows
         conanfile.run(
-            rf'"{program_files}\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -format json',
+            rf'"{program_files}\Microsoft Visual Studio\Installer\vswhere.exe" -find "**\dumpbin.exe" -products * -format json',
             stdout=output, scope="")
         match = re.search(r'\[(.*?)\]', str(output.getvalue()), re.DOTALL)
         dumpbin_path = json.loads(f'[{match.group(1)}]')[0]
