@@ -1,0 +1,60 @@
+def options(opt):
+	opt.load('compiler_cxx')
+	opt.add_option('--conan-install', action='store_true', help='if true, will call conan install during configuration')
+
+def configure(conf):
+	if not conf.__class__.variant:
+		conf.fatal('must invoke with a variant, such as "configure_arm64_release" instead of "configure"')
+	conf.load_conan()
+	conf.load('compiler_cxx')
+	conf.find_program("flatc", var="FLATC", mandatory=True)
+
+def build(bld):
+	if not bld.variant:
+		bld.fatal(f'must invoke with a variant, such as "{bld.cmd}_arm64_release" instead of "{bld.cmd}"')
+
+	gen_header = bld.path.get_bld().find_or_declare("generated/car_generated.h")
+	bld(
+		rule = "${FLATC} --cpp -o ${TGT[0].parent} ${SRC}",
+		source = "car.fbs",
+		target = gen_header
+	)
+	bld(
+		features = "cxx cxxshlib conan",
+		source = "mylib.cpp",
+		includes = gen_header.parent.abspath(),
+		use = "flatbuffers",
+		target = "mylib"
+	)
+
+#------------------------------------------------------------------------------#
+# Command variant implementations
+import os
+from waflib.Configure import ConfigurationContext
+from waflib.Build import BuildContext, CleanContext, InstallContext, UninstallContext
+for x in [p.split('.profile')[0] for p in os.listdir('variants')]:
+	for y in (BuildContext, CleanContext, InstallContext, UninstallContext):
+		name = y.__name__.replace('Context','').lower()
+		class tmp(y):
+			cmd = name + '_' + x
+			variant = x
+	class _tmp(ConfigurationContext):
+		cmd = 'configure_' + x
+		variant = x
+		def load_conan(self):
+			variant = self.__class__.variant
+			if self.options.conan_install:
+				variants = self.srcnode.find_node('variants')
+				assert variants, 'variants not found in %s' % self.srcnode
+				cmd = [
+					'conan',
+					'install',
+					str(self.srcnode),
+					'-of', str(self.bldnode.find_or_declare(variant)),
+					'-pr:h', str(self.srcnode.find_node('android_ndk.profile')),
+					'-pr:h', str(variants.find_node(variant + '.profile')),
+					'-pr:b', 'default',
+					'--build=missing'
+				]
+				assert not self.exec_command(cmd), f"conan install failed: {cmd}"
+			self.load('conan_deps', tooldir=f'build/{variant}')
