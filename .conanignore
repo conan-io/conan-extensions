@@ -13,3 +13,4 @@ tmp/*
 tmp2/*
 .vscode/*
 .idea/*
+demos/
