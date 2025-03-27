@@ -124,9 +124,6 @@ def test_build_info_create_no_deps():
 @pytest.mark.requires_credentials
 def test_build_info_export_pkg():
 
-    build_name = "mybuildinfo"
-    build_number = "1"
-
     # Configure Artifactory server and credentials
     run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     
@@ -136,11 +133,11 @@ def test_build_info_export_pkg():
     run("conan build .")
 
     # Create release packages & build info and upload them
-    run("conan export-pkg . --format json -tf='' -s build_type=Release > create_release.json")
+    run("conan export-pkg . --format json -tf='' > export.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
-    run(f'conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json')
+    run(f'conan art:build-info create export.json mybuildinfo 1 extensions-stg --server=artifactory > mybuildinfo.json')
 
-    with open(f"{build_name}_release.json", "r") as f:
+    with open(f"mybuildinfo.json", "r") as f:
         data = json.load(f)
 
     assert "modules" in data
