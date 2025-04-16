@@ -352,6 +352,11 @@ def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=Fa
     return subparser
 
 
+def text_formatter(info):
+    if info:
+        cli_out_write(info)
+
+
 @conan_command(group="Artifactory")
 def build_info(conan_api: ConanAPI, parser, *args):
     """
@@ -359,7 +364,7 @@ def build_info(conan_api: ConanAPI, parser, *args):
     """
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates BuildInfo from a Conan graph json from a conan install or create.
@@ -396,10 +401,10 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
-    cli_out_write(bi.create())
+    return bi.create()
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     """
     Uploads BuildInfo json to repository.
@@ -437,12 +442,12 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
         request_url = f"{request_url}?project={args.project}"
     response = api_request("put", request_url, user, password, json_data=json.dumps(build_info_json))
     if response:
-        cli_out_write(response)
+        return response
     else:
-        cli_out_write("Build info uploaded successfully.")
+        return "Build info uploaded successfully."
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     """
     Promote the BuildInfo from the source to the target repository.
@@ -479,11 +484,11 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
     response = api_request("post", request_url, user, password, json_data=json.dumps(promotion_json))
 
     if response:
-        cli_out_write(response)
+        return response
 
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
     """
     Get Build Info information.
@@ -500,10 +505,10 @@ def build_info_get(conan_api: ConanAPI, parser, subparser, *args):
 
     bi_json = get_buildinfo(args.build_name, args.build_number, url, user, password, args.project)
 
-    cli_out_write(bi_json)
+    return bi_json
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     """
     Removes builds stored in Artifactory. Useful for cleaning up old build info data.
@@ -542,10 +547,10 @@ def build_info_delete(conan_api: ConanAPI, parser, subparser, *args):
     response = api_request("post", request_url, user, password, json_data=json.dumps(delete_json))
 
     if response:
-        cli_out_write(response)
+        return response
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     """
     Append published build to the build info.
@@ -585,10 +590,10 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     bi = _BuildInfo(None, args.build_name, args.build_number, None)
     bi_json = bi.header()
     bi_json.update({"modules": all_modules})
-    cli_out_write(json.dumps(bi_json, indent=4))
+    return json.dumps(bi_json, indent=4)
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
     """
     Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
@@ -658,10 +663,10 @@ def build_info_bundle_create(conan_api: ConanAPI, parser, subparser, *args):
     )
 
     if response:
-        cli_out_write(response)
+        return response
 
 
-@conan_subcommand()
+@conan_subcommand(formatters={"text": text_formatter})
 def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
     """
     Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
@@ -692,4 +697,4 @@ def build_info_bundle_delete(conan_api: ConanAPI, parser, subparser, *args):
     )
 
     if response:
-        cli_out_write(response)
+        return response
