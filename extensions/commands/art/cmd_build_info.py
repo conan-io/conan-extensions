@@ -444,7 +444,7 @@ def build_info_upload(conan_api: ConanAPI, parser, subparser, *args):
     if response:
         return response
     else:
-        return "Build info uploaded successfully."
+        ConanOutput().info("Build info uploaded successfully.")
 
 
 @conan_subcommand(formatters={"text": text_formatter})
