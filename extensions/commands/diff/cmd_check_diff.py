@@ -39,13 +39,13 @@ def check_diff(conan_api: ConanAPI, parser, *args):
             conan_api.local.source(path, version=args.v2, remotes=enabled_remotes)
 
         with open(f"diff{args.v1}-{args.v2}.patch", "w") as f:
-            subprocess.run(["diff", old_folder, new_folder], stdout=f, check=True)
+            subprocess.run(["git", "diff", old_folder, new_folder], stdout=f, check=True)
 
         ConanOutput().info(f"diff in diff{args.v1}-{args.v2}.patch")
 
     with open(f"diff{args.v1}-{args.v2}.patch", "r", encoding=args.encoding) as file:
         diff_text = file.read()
-        ConanOutput().info(f"diff readed")
+        ConanOutput().info(f"diff ready")
     name = f"{args.v1}-{args.v2}"
 
     if args.split_diff:
