@@ -6,6 +6,7 @@ import tempfile
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
+from conan.internal.util.files import chdir
 
 def output_json(msg):
     return json.dumps({"greet": msg})
@@ -20,39 +21,44 @@ def check_diff(conan_api: ConanAPI, parser, *args):
     parser.add_argument("-o", "--old", help="Old version")
     parser.add_argument("-n", "--new", help="New version")
     parser.add_argument("-s", "--split_diff", action="store_true")
-    parser.add_argument("--encoding", type="str", default="utf-8", help="Encoding to read diff")
+    parser.add_argument("--encoding", default="utf-8", help="Encoding to read diff")
     args = parser.parse_args(*args)
 
     cwd = os.getcwd()
     path = conan_api.local.get_conanfile_path(args.path, cwd, py=True)
     enabled_remotes = conan_api.remotes.list()
-    if not os.path.exists(f"diff{args.v1}-{args.v2}.patch"):
+    if not os.path.exists(f"diff{args.old}-{args.new}.patch"):
         t = tempfile.mkdtemp(suffix='conans')
 
         old_folder = os.path.join(t, "old")
         new_folder = os.path.join(t, "new")
+        os.mkdir(old_folder)
+        os.mkdir(new_folder)
 
-        with os.chdir(old_folder):
-            conan_api.local.source(path, version=args.v1, remotes=enabled_remotes)
+        ConanOutput().info("old_folder: " + old_folder)
+        ConanOutput().info("new_folder: " + new_folder)
 
-        with os.chdir(new_folder):
-            conan_api.local.source(path, version=args.v2, remotes=enabled_remotes)
+        with chdir(old_folder):
+            conan_api.local.source(path, version=args.old, remotes=enabled_remotes)
 
-        with open(f"diff{args.v1}-{args.v2}.patch", "w") as f:
+        with chdir(new_folder):
+            conan_api.local.source(path, version=args.new, remotes=enabled_remotes)
+
+        with open(f"diff{args.old}-{args.new}.patch", "w") as f:
             subprocess.run(["git", "diff", old_folder, new_folder], stdout=f, check=True)
 
-        ConanOutput().info(f"diff in diff{args.v1}-{args.v2}.patch")
+        ConanOutput().info(f"diff in diff{args.old}-{args.new}.patch")
 
-    with open(f"diff{args.v1}-{args.v2}.patch", "r", encoding=args.encoding) as file:
+    with open(f"diff{args.old}-{args.new}.patch", "r", encoding=args.encoding) as file:
         diff_text = file.read()
         ConanOutput().info(f"diff ready")
-    name = f"{args.v1}-{args.v2}"
+    name = f"{args.old}-{args.new}"
 
     if args.split_diff:
         diff_to_multi_html(name, diff_text)
     else:
         diff_to_single_html(name, diff_text)
-    subprocess.run(["open", os.path.join(cwd, f"diff_{args.v1}-{args.v2}.html")])
+    subprocess.run(["open", os.path.join(cwd, f"diff_{args.old}-{args.new}.html")])
 
 def diff_to_multi_html(name, diff_text):
     file_diffs = {}
