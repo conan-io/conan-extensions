@@ -1,6 +1,7 @@
 import json
 import subprocess
 import os
+import tempfile
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -25,20 +26,20 @@ def check_diff(conan_api: ConanAPI, parser, *args):
     cwd = os.getcwd()
     path = conan_api.local.get_conanfile_path(args.path, cwd, py=True)
     enabled_remotes = conan_api.remotes.list()
-
-    src_dir = os.path.join(args.path, "src") #TODO can break if the src_folder is not defined as "src"
     if not os.path.exists(f"diff{args.v1}-{args.v2}.patch"):
-        if os.path.isdir(src_dir):
-            subprocess.run(["rm", "-rf", src_dir], check=True)
+        t = tempfile.mkdtemp(suffix='conans')
 
-        conan_api.local.source(path, version=args.v1, remotes=enabled_remotes)
-        subprocess.run(["git", "init"], cwd=src_dir, check=True)
-        subprocess.run(["git", "add", "."], cwd=src_dir, check=True)
-        subprocess.run(["git", "commit", "-m", "example"], cwd=src_dir, check=True)
+        old_folder = os.path.join(t, "old")
+        new_folder = os.path.join(t, "new")
 
-        conan_api.local.source(path, version=args.v2, remotes=enabled_remotes)
+        with os.chdir(old_folder):
+            conan_api.local.source(path, version=args.v1, remotes=enabled_remotes)
+
+        with os.chdir(new_folder):
+            conan_api.local.source(path, version=args.v2, remotes=enabled_remotes)
+
         with open(f"diff{args.v1}-{args.v2}.patch", "w") as f:
-            subprocess.run(["git", "diff"], stdout=f, cwd=src_dir, check=True)
+            subprocess.run(["diff", old_folder, new_folder], stdout=f, check=True)
 
         ConanOutput().info(f"diff in diff{args.v1}-{args.v2}.patch")
 
