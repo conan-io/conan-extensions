@@ -17,8 +17,8 @@ def check_diff(conan_api: ConanAPI, parser, *args):
     Command to get the diff between versions
     """
     parser.add_argument("path", help="Path to the conanfile")
-    parser.add_argument("v1", help="Old version")
-    parser.add_argument("v2", help="New version")
+    parser.add_argument("-o", "--old", help="Old version")
+    parser.add_argument("-n", "--new", help="New version")
     parser.add_argument("-s", "--split_diff", action="store_true")
     parser.add_argument("--encoding", type="str", default="utf-8", help="Encoding to read diff")
     args = parser.parse_args(*args)
