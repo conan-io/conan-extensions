@@ -1,13 +1,13 @@
 import json
 import subprocess
 import os
-import tempfile
 
+from conan.errors import ConanException
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 from conan.internal.util.files import chdir
-from conan.api.model import RecipeReference
+from conan.api.model import RecipeReference, ListPattern
 
 def output_json(msg):
     return json.dumps({"greet": msg})
@@ -39,7 +39,31 @@ def check_diff(conan_api: ConanAPI, parser, *args):
 
     def _download_ref_from_remote(reference):
         ref = RecipeReference().loads(reference)
-        conan_api.download.recipe(ref, enabled_remotes[0])
+        full_ref, matching_remote = None, None
+        for remote in enabled_remotes:
+            if ref.revision:
+                no_rrev_ref = RecipeReference().loads(reference)
+                no_rrev_ref.revision = None
+                try:
+                    remote_revisions = conan_api.list.recipe_revisions(no_rrev_ref, remote)
+                    if ref in remote_revisions:
+                        full_ref = ref
+                        matching_remote = remote
+                        break
+                except:
+                    continue
+            else:
+                try:
+                    latest_recipe_revision = conan_api.list.latest_recipe_revision(ref, remote)
+                except:
+                    continue
+                if full_ref is None or (latest_recipe_revision.timestamp > full_ref.timestamp):
+                    full_ref = latest_recipe_revision
+                    matching_remote = remote
+        if full_ref is None or matching_remote is None:
+            raise ConanException(f"No matching reference for {reference} in remotes")
+
+        conan_api.download.recipe(full_ref, matching_remote)
         cache_path = conan_api.cache.export_path(ref)
         return ref, cache_path
 
@@ -75,6 +99,7 @@ def check_diff(conan_api: ConanAPI, parser, *args):
         diff_text = file.read()
         ConanOutput().info(f"diff ready")
     name = f"{old_export_ref.version}-{new_export_ref.version}"
+    #name = f"{old_export_ref.repr_notime().replace("/", "_")}-{new_export_ref.repr_notime().replace("/", "_")}"
 
     if args.split_diff:
         diff_to_multi_html(name, diff_text, old_cache_path[1:], new_cache_path[1:])
