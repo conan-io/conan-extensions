@@ -19,13 +19,14 @@ def check_diff(conan_api: ConanAPI, parser, *args):
     parser.add_argument("v1", help="Old version")
     parser.add_argument("v2", help="New version")
     parser.add_argument("-s", "--split_diff", action="store_true")
+    parser.add_argument("--encoding", type="str", default="utf-8", help="Encoding to read diff")
     args = parser.parse_args(*args)
 
     cwd = os.getcwd()
     path = conan_api.local.get_conanfile_path(args.path, cwd, py=True)
     enabled_remotes = conan_api.remotes.list()
 
-    src_dir = os.path.join(path, "src") #TODO can break if the src_folder is not defined as "src"
+    src_dir = os.path.join(args.path, "src") #TODO can break if the src_folder is not defined as "src"
     if not os.path.exists(f"diff{args.v1}-{args.v2}.patch"):
         if os.path.isdir(src_dir):
             subprocess.run(["rm", "-rf", src_dir], check=True)
@@ -41,7 +42,7 @@ def check_diff(conan_api: ConanAPI, parser, *args):
 
         ConanOutput().info(f"diff in diff{args.v1}-{args.v2}.patch")
 
-    with open(f"diff{args.v1}-{args.v2}.patch", "r", encoding="utf-8") as file:
+    with open(f"diff{args.v1}-{args.v2}.patch", "r", encoding=args.encoding) as file:
         diff_text = file.read()
         ConanOutput().info(f"diff readed")
     name = f"{args.v1}-{args.v2}"
