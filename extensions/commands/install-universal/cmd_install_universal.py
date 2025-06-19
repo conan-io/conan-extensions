@@ -1,9 +1,11 @@
+import copy
 import json
 import os
 import shutil
 from subprocess import run
 import sys
 import tempfile
+from contextlib import redirect_stdout
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -13,6 +15,7 @@ from conan.cli.command import conan_command
 from conan.cli.formatters.graph import format_graph_json
 from conan.cli.printers import print_profiles
 from conan.cli.printers.graph import print_graph_packages, print_graph_basic
+from conan.errors import ConanException
 
 
 @conan_command(group="Consumer", formatters={"json": format_graph_json})
@@ -63,6 +66,45 @@ def install_universal(conan_api: ConanAPI, parser, *args):
     profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
     print_profiles(profile_host, profile_build)
 
+    # Build single architectures
+    do_universal = profile_host.settings["os"] in ["Macos", "iOS", "watchOS", "tvOS", "visionOS"] and "|" in profile_host.settings["arch"]
+    arch_data = {}
+    if do_universal:
+        archs = str(profile_host.settings["arch"]).split("|")
+        for arch in archs:
+            ConanOutput().title(f"Preparing {arch} binaries")
+
+            arch_args = copy.deepcopy(args)
+            arch_args.settings_host = (arch_args.settings_host or []) + [f"arch={arch}"]
+            arch_profile_host, arch_profile_build = conan_api.profiles.get_profiles_from_args(arch_args)
+            print_profiles(arch_profile_host, arch_profile_build)
+
+            # Graph computation (without installation of binaries)
+            gapi = conan_api.graph
+            if path:
+                deps_graph = gapi.load_graph_consumer(path, args.name, args.version, args.user, args.channel,
+                                                      arch_profile_host, arch_profile_build, lockfile, remotes,
+                                                      args.update, is_build_require=args.build_require)
+            else:
+                deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, arch_profile_host,
+                                                      arch_profile_build, lockfile, remotes, args.update)
+
+            print_graph_basic(deps_graph)
+            deps_graph.report_graph_error()
+            gapi.analyze_binaries(deps_graph, args.build, remotes, update=args.update, lockfile=lockfile)
+            print_graph_packages(deps_graph)
+
+            # Installation of binaries and consumer generators
+            conan_api.install.install_binaries(deps_graph=deps_graph, remotes=remotes)
+
+            with tempfile.TemporaryFile(mode="w+") as f:
+                with redirect_stdout(f):
+                    format_graph_json({
+                        "graph": deps_graph,
+                        "conan_api": conan_api})
+                f.seek(0)
+                arch_data[arch] = json.load(f)
+
     # Graph computation (without installation of binaries)
     gapi = conan_api.graph
     if path:
@@ -74,10 +116,9 @@ def install_universal(conan_api: ConanAPI, parser, *args):
                                               profile_build, lockfile, remotes, args.update)
 
     # Handle universal packages
-    if profile_host.settings['os'] in ['Macos', 'iOS', 'watchOS', 'tvOS', 'visionOS'] and '|' in profile_host.settings['arch']:
+    if do_universal:
         for node in deps_graph.ordered_iterate():
-            make_universal_conanfile(node.conanfile, args)
-            print(node.conanfile.name, node.conanfile.generate, node.conanfile.build)
+            make_universal_conanfile(node.conanfile, args, arch_data)
 
     print_graph_basic(deps_graph)
     deps_graph.report_graph_error()
@@ -101,32 +142,23 @@ def install_universal(conan_api: ConanAPI, parser, *args):
             "conan_api": conan_api}
 
 
-def make_universal_conanfile(conanfile, args):
+def make_universal_conanfile(conanfile, args, arch_data):
     def _generate(conanfile):
-        print('generate', conanfile.name)
         pass
     def _build(conanfile):
-        print('build', conanfile.name)
-        archs = str(conanfile.settings.arch).split('|')
-        ref = conanfile.ref
-        for arch in archs:
-            more_args = ''
-            if args.profile_build:
-                more_args += f' -pr:b {args.profile_build[0]}'
-            if args.profile_host:
-                more_args += f' -pr:h {args.profile_host[0]}'
-            for arch in archs:
-                ConanOutput().success(f"Building universal {ref} {arch}")
-                arch_folder = os.path.join(conanfile.build_folder, arch)
-                run(f'conan install --requires={ref}{more_args} -d direct_deploy --deployer-folder "{arch_folder}" -s arch={arch} -b missing', shell=True)
+        pass
+    def _find_arch_package(conanfile, arch):
+        nodes = [n for n in arch_data[arch]["graph"]["nodes"].values() if n["name"] == conanfile.name and n["version"] == conanfile.version]
+        if len(nodes) != 1:
+            raise ConanException(f"Unable to find {arch} package for {conanfile.name}")
+        return nodes[0]
     def _package(conanfile):
-        print('package', conanfile.name)
-        archs = str(conanfile.settings.arch).split('|')
-        lipo_tree(conanfile.package_folder, [os.path.join(conanfile.build_folder, arch, 'direct_deploy', conanfile.name) for arch in archs])
-    if conanfile.settings.get_safe('arch', '') and conanfile.package_type not in ('header-library', 'build-scripts', 'python-require'):
-        setattr(conanfile, 'generate', _generate.__get__(conanfile, type(conanfile)))
-        setattr(conanfile, 'build', _build.__get__(conanfile, type(conanfile)))
-        setattr(conanfile, 'package', _package.__get__(conanfile, type(conanfile)))
+        archs = str(conanfile.settings.arch).split("|")
+        lipo_tree(conanfile.package_folder, [_find_arch_package(conanfile, arch)["package_folder"] for arch in archs])
+    if conanfile.settings.get_safe("arch", "") and conanfile.package_type not in ("header-library", "build-scripts", "python-require"):
+        setattr(conanfile, "generate", _generate.__get__(conanfile, type(conanfile)))
+        setattr(conanfile, "build", _build.__get__(conanfile, type(conanfile)))
+        setattr(conanfile, "package", _package.__get__(conanfile, type(conanfile)))
 
 
 # Lipo support

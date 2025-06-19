@@ -19,11 +19,13 @@ runs lipo when a universal package is needed.
 **This command is in an experimental stage, feedback is welcome.**
 
 **Parameters**
-* supports all arguments used by `conan install`, see `conan install_universal --help`
+* supports all arguments used by `conan install`, see `conan install-universal --help`
 
-Note: many arguments are not correctly passed to the single architecture installs.
-Currently this includes -o and -s settings. The Conan dependency graph does not support
-building multiple architectures so this executes Conan again in a new process.
+Note: this command builds for each architecture with the same commands and some arguments
+may break something. This command currently will always load the local cache with
+universal and single architecture binaries. It does not try to pull universal
+binaries from a remote before handling single architectures, so this could be more
+efficient in the future.
 
 **Profile**
 The multi-architecture must be specified in the host profile.
