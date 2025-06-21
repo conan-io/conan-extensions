@@ -21,11 +21,17 @@ runs lipo when a universal package is needed.
 **Parameters**
 * supports all arguments used by `conan install`, see `conan install-universal --help`
 
-Note: this command builds for each architecture with the same commands and some arguments
-may break something. This command currently will always load the local cache with
-universal and single architecture binaries. It does not try to pull universal
-binaries from a remote before handling single architectures, so this could be more
-efficient in the future.
+This is implemented with the following steps:
+
+1. Calculate the universal packages to build, as with `conan graph build-order`
+2. Build these references for each architecture (ignoring the -b argument and building any
+   required dependencies).
+3. Restart the install with the universal profile and -b 'never'. The recipes are replaced with
+   code to run lipo on the single architecture packages.
+
+Note: this command builds for each architecture with and some arguments
+may break something. This command may load the local cache with
+both universal and single architecture binaries if they need to be built.
 
 **Profile**
 The multi-architecture must be specified in the host profile.

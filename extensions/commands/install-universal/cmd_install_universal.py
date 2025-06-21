@@ -66,44 +66,17 @@ def install_universal(conan_api: ConanAPI, parser, *args):
     profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
     print_profiles(profile_host, profile_build)
 
-    # Build single architectures
+    args_build = args.build
+
+    # Handle universal packages
     do_universal = profile_host.settings["os"] in ["Macos", "iOS", "watchOS", "tvOS", "visionOS"] and "|" in profile_host.settings["arch"]
     arch_data = {}
     if do_universal:
-        archs = str(profile_host.settings["arch"]).split("|")
-        for arch in archs:
-            ConanOutput().title(f"Preparing {arch} binaries")
-
-            arch_args = copy.deepcopy(args)
-            arch_args.settings_host = (arch_args.settings_host or []) + [f"arch={arch}"]
-            arch_profile_host, arch_profile_build = conan_api.profiles.get_profiles_from_args(arch_args)
-            print_profiles(arch_profile_host, arch_profile_build)
-
-            # Graph computation (without installation of binaries)
-            gapi = conan_api.graph
-            if path:
-                deps_graph = gapi.load_graph_consumer(path, args.name, args.version, args.user, args.channel,
-                                                      arch_profile_host, arch_profile_build, lockfile, remotes,
-                                                      args.update, is_build_require=args.build_require)
-            else:
-                deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, arch_profile_host,
-                                                      arch_profile_build, lockfile, remotes, args.update)
-
-            print_graph_basic(deps_graph)
-            deps_graph.report_graph_error()
-            gapi.analyze_binaries(deps_graph, args.build, remotes, update=args.update, lockfile=lockfile)
-            print_graph_packages(deps_graph)
-
-            # Installation of binaries and consumer generators
-            conan_api.install.install_binaries(deps_graph=deps_graph, remotes=remotes)
-
-            with tempfile.TemporaryFile(mode="w+") as f:
-                with redirect_stdout(f):
-                    format_graph_json({
-                        "graph": deps_graph,
-                        "conan_api": conan_api})
-                f.seek(0)
-                arch_data[arch] = json.load(f)
+        universal = build_universal(conan_api, profile_host, profile_build, path, remotes=remotes, overrides=overrides, lockfile=lockfile, args=args)
+        arch_data = universal["arch_data"]
+        args_build = universal["refs"]
+        if not args_build:
+            args_build = ["never"]
 
     # Graph computation (without installation of binaries)
     gapi = conan_api.graph
@@ -115,14 +88,13 @@ def install_universal(conan_api: ConanAPI, parser, *args):
         deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, profile_host,
                                               profile_build, lockfile, remotes, args.update)
 
-    # Handle universal packages
     if do_universal:
         for node in deps_graph.ordered_iterate():
             make_universal_conanfile(node.conanfile, args, arch_data)
 
     print_graph_basic(deps_graph)
     deps_graph.report_graph_error()
-    gapi.analyze_binaries(deps_graph, args.build, remotes, update=args.update, lockfile=lockfile)
+    gapi.analyze_binaries(deps_graph, args_build, remotes, update=args.update, lockfile=lockfile)
     print_graph_packages(deps_graph)
 
     # Installation of binaries and consumer generators
@@ -142,15 +114,68 @@ def install_universal(conan_api: ConanAPI, parser, *args):
             "conan_api": conan_api}
 
 
+def build_universal(conan_api: ConanAPI, profile_host, profile_build, path, remotes, overrides, lockfile, args):
+    # Compute universal package build order
+    gapi = conan_api.graph
+    if path:
+        deps_graph = gapi.load_graph_consumer(path, args.name, args.version, args.user, args.channel,
+                                              profile_host, profile_build, lockfile, remotes,
+                                              args.update, is_build_require=args.build_require)
+    else:
+        deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, profile_host,
+                                              profile_build, lockfile, remotes, args.update)
+    deps_graph.report_graph_error()
+    gapi.analyze_binaries(deps_graph, args.build, remotes, update=args.update, lockfile=lockfile)
+
+    install_graph = conan_api.graph.build_order(deps_graph, "recipe", True,
+                                                profile_args=args)
+    install_order_serialized = install_graph.install_build_order()
+    arch_data = {}
+    refs = [node["ref"] for nodes in install_order_serialized["order"] for node in nodes]
+    if refs:
+        archs = str(profile_host.settings["arch"]).split("|")
+        for arch in archs:
+            ConanOutput().title(f"Preparing {arch} binaries")
+
+            arch_args = copy.deepcopy(args)
+            arch_args.settings_host = (arch_args.settings_host or []) + [f"arch={arch}"]
+            arch_profile_host, arch_profile_build = conan_api.profiles.get_profiles_from_args(arch_args)
+            print_profiles(arch_profile_host, arch_profile_build)
+
+            # Graph computation (without installation of binaries)
+            arch_deps_graph = gapi.load_graph_requires(refs, [], arch_profile_host,
+                                                        arch_profile_build, lockfile, remotes, args.update)
+
+            print_graph_basic(arch_deps_graph)
+            arch_deps_graph.report_graph_error()
+            gapi.analyze_binaries(arch_deps_graph, ["missing"], remotes, update=args.update, lockfile=lockfile)
+            print_graph_packages(arch_deps_graph)
+
+            # Installation of binaries and consumer generators
+            conan_api.install.install_binaries(deps_graph=arch_deps_graph, remotes=remotes)
+
+            with tempfile.TemporaryFile(mode="w+") as f:
+                with redirect_stdout(f):
+                    format_graph_json({
+                        "graph": arch_deps_graph,
+                        "conan_api": conan_api})
+                f.seek(0)
+                arch_data[arch] = json.load(f)["graph"]["nodes"].values()
+
+    return {
+        "arch_data": arch_data,
+        "refs": refs}
+
+
 def make_universal_conanfile(conanfile, args, arch_data):
     def _generate(conanfile):
         pass
     def _build(conanfile):
         pass
     def _find_arch_package(conanfile, arch):
-        nodes = [n for n in arch_data[arch]["graph"]["nodes"].values() if n["name"] == conanfile.name and n["version"] == conanfile.version]
-        if len(nodes) != 1:
-            raise ConanException(f"Unable to find {arch} package for {conanfile.name}")
+        nodes = [n for n in arch_data[arch] if n["name"] == conanfile.name and n["version"] == conanfile.version]
+        if not nodes:
+            raise ConanException(f"Unable to find {conanfile.name} package for {arch}")
         return nodes[0]
     def _package(conanfile):
         archs = str(conanfile.settings.arch).split("|")
