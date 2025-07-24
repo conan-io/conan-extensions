@@ -143,8 +143,14 @@ def build_universal(conan_api: ConanAPI, profile_host, profile_build, path, remo
             print_profiles(arch_profile_host, arch_profile_build)
 
             # Graph computation (without installation of binaries)
-            arch_deps_graph = gapi.load_graph_requires(refs, [], arch_profile_host,
-                                                        arch_profile_build, lockfile, remotes, args.update)
+            if path:
+                # TODO: limit builds that are not necessary for universal
+                arch_deps_graph = gapi.load_graph_consumer(path, args.name, args.version, args.user, args.channel,
+                                                           arch_profile_host, arch_profile_build, lockfile, remotes,
+                                                           False, is_build_require=args.build_require)
+            else:
+                arch_deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, arch_profile_host,
+                                                           arch_profile_build, lockfile, remotes, False)
 
             print_graph_basic(arch_deps_graph)
             arch_deps_graph.report_graph_error()
