@@ -32,12 +32,9 @@ def conan_test():
 def _fake_conan_sources(graph):
     # Fake the existence of conan_sources.tgz file to avoid contacting Artifactory for the tests
     for _, node in graph["nodes"].items():
-        ref = node.get("ref")
-        if ref == "conanfile":
-            continue
-        recipe_folder = run(f"conan cache path {ref}")
+        recipe_folder = node.get("recipe_folder")
         if recipe_folder:
-            fake_sources_tgz_path = os.path.join(os.path.dirname(recipe_folder), "d", "conan_sources.tgz")
+            fake_sources_tgz_path = os.path.join(os.path.dirname(node.get("recipe_folder")), "d", "conan_sources.tgz")
             save(fake_sources_tgz_path, "")
 
 
