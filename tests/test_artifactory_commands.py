@@ -426,6 +426,11 @@ def test_build_info_dependency_from_extra_repo():
     #          | pkg | (from extensions-stg repo)
     #          +-----+
 
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r third-party")
+
     # Create dependency and upload it to the 'third-party' repo
     run("conan new cmake_lib -d name=dep -d version=1.0 --force")
     run("conan create .")
