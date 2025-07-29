@@ -412,6 +412,64 @@ def test_build_info_dependency_different_repo():
 
     run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory')
 
+@pytest.mark.requires_credentials
+def test_build_info_dependency_from_extra_repo():
+    """
+    Tests that the build-info correctly attributes a dependency's path
+    to the --extra-repository it was found in.
+    """
+    #         +-------+
+    #         | dep   | (from third-party repo)
+    #         +-------+
+    #             |
+    #          +--+--+
+    #          | pkg | (from extensions-stg repo)
+    #          +-----+
+
+    # Create dependency and upload it to the 'third-party' repo
+    run("conan new cmake_lib -d name=dep -d version=1.0 --force")
+    run("conan create .")
+    run("conan upload dep/1.0 -c -r third-party")
+    run("conan remove dep/1.0 -c")  # Ensure it's not in the local cache
+
+    # Create consumer package that requires the dependency
+    run("conan new cmake_lib -d name=pkg -d version=1.0 -d requires=dep/1.0 --force")
+    # Create the package, it will download 'dep' from 'third-party'
+    run("conan create . --format=json > create.json")
+    run("conan upload pkg/1.0 -c -r extensions-stg")
+
+    # Create the build-info, specifying the extra repository
+    build_name = "build_with_extra_repo"
+    build_number = "1"
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg '
+        f'--extra-repository third-party --with-dependencies --add-cached-deps '
+        f'--server=artifactory > {build_name}.json')
+
+    # Verify the generated build-info
+    with open(f"{build_name}.json", "r") as f:
+        build_info = json.load(f)
+
+    modules = build_info.get("modules", [])
+    
+    # Find the module for the dependency 'dep/1.0'
+    dep_module = None
+    for module in modules:
+        if module.get("id", "").startswith("dep/1.0"):
+            dep_module = module
+            break
+
+    assert dep_module is not None, "Dependency 'dep/1.0' not found in build-info modules"
+
+    # Check that the path of its artifacts points to the 'third-party' repo
+    for artifact in dep_module.get("artifacts", []):
+        path = artifact.get("path", "")
+        assert path.startswith("third-party/"), \
+            f"Artifact path '{path}' should start with 'third-party/'"
+
+    # Clean up
+    run(f"conan remove '*' -c -r third-party")
+    run(f"conan remove '*' -c -r extensions-stg")
+
 
 @pytest.mark.requires_credentials
 def test_server_complete():
