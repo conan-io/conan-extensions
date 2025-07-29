@@ -130,6 +130,10 @@ class _BuildInfo:
         self._add_cached_deps = add_cached_deps
 
     def _get_origin_repo(self, node):
+        # If no URL is provided, we cannot check remotes, so we assume the main repository.
+        if not self._url:
+            return self._repository
+
         # For artifacts built in this run, use always the main repository.
         if node.get("binary") == "Build":
             return self._repository
