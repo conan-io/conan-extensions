@@ -113,19 +113,47 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, build_url=None, with_dependencies=False, 
+    def __init__(self, graph, name, number, repository, search_repositories, build_url=None, with_dependencies=False,
                  add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
         self._repository = repository
+        self._search_repositories = search_repositories
         self._url = url
         self._user = user
         self._build_url = build_url
         self._password = password
         self._cached_artifact_info = {}
+        self._cached_artifact_origin = {}
         self._with_dependencies = with_dependencies
         self._add_cached_deps = add_cached_deps
+
+    def _get_origin_repo(self, node):
+        # For artifacts built in this run, use always the main repository.
+        if node.get("binary") == "Build":
+            return self._repository
+
+        ref_str = node.get("ref")
+
+        if ref_str in self._cached_artifact_origin:
+            return self._cached_artifact_origin[ref_str]
+
+        # To link artifacts with repos search for the recipe's conanmanifest.txt in all repositories.
+        remote_path = _get_remote_path(ref_str)
+        for repo in self._search_repositories:
+            request_url = f"{self._url}/api/storage/{repo}/{remote_path}/conanmanifest.txt"
+            try:
+                api_request("get", request_url, self._user, self._password)
+                self._cached_artifact_origin[ref_str] = repo
+                return repo
+            except NotFoundException:
+                continue
+
+        # If not found in any remote repository, use the main one as a fallback.
+        self._cached_artifact_origin[ref_str] = self._repository
+        return self._repository
+
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -134,6 +162,8 @@ class _BuildInfo:
         different. For artifacts of modules they have the keys 'name' and 'path'. If they come
         from a dependency they have an 'id' instead of 'name' and they don't have 'path'.
         """
+
+        origin_repo = self._get_origin_repo(node)
 
         assert artifact_type in ["recipe", "package"]
 
@@ -175,7 +205,7 @@ class _BuildInfo:
                             node.get('ref')) if artifact_type == "recipe" else _get_remote_path(node.get('ref'),
                                                                                                 node.get("package_id"),
                                                                                                 node.get("prev"))
-                        artifact_info.update({"name": file_name, "path": f'{self._repository}/{remote_path}/{file_name}'})
+                        artifact_info.update({"name": file_name, "path": f'{origin_repo}/{remote_path}/{file_name}'})
                     else:
                         ref = node.get("ref")
                         pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
@@ -197,7 +227,7 @@ class _BuildInfo:
             remote_path = _get_remote_path(node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
                 node.get('ref'), node.get("package_id"), node.get("prev"))
 
-            request_url = f"{self._url}/api/storage/{self._repository}/{remote_path}/{artifact}"
+            request_url = f"{self._url}/api/storage/{origin_repo}/{remote_path}/{artifact}"
 
             if not self._cached_artifact_info.get(request_url):
                 checksums = None
@@ -218,7 +248,7 @@ class _BuildInfo:
                                  "sha1": checksums.get("sha1"),
                                  "md5": checksums.get("md5")}
 
-                artifact_path = f'{self._repository}/{remote_path}/{artifact}'
+                artifact_path = f'{origin_repo}/{remote_path}/{artifact}'
                 if not is_dependency:
                     artifact_info.update({"name": artifact, "path": artifact_path})
                 else:
@@ -378,7 +408,8 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
     subparser.add_argument("--build-url", help="Build url property for BuildInfo.", default=None, action="store")
     subparser.add_argument("repository", help="Artifactory repository name where artifacts are located -not the conan remote name-.")
-
+    subparser.add_argument("--extra-repository", action="append", default=[],
+                           help="Additional repository to search for dependencies. Can be specified multiple times.")
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
 
@@ -396,7 +427,11 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     if data["graph"]["nodes"]["0"]["recipe"] in ["Cli", "Consumer"]:
         data["graph"]["nodes"].pop("0")
 
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    search_repos = [args.repository] + args.extra_repository
+
+    bi = _BuildInfo(data, args.build_name, args.build_number,
+                    repository=args.repository,
+                    search_repositories=search_repos,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
