@@ -38,20 +38,26 @@ def conan_test():
     if "extensions-prod" not in out:
         run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
 
+    if "third-party" not in out:
+        run(f'conan remote add third-party {os.getenv("ART_URL")}/api/conan/third-party')
+
     run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
+    run(f'conan remote login third-party "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
     run("conan remove '*' -c -r extensions-stg")
     run("conan remove '*' -c -r extensions-prod")
+    run("conan remove '*' -c -r third-party")
 
     try:
         yield
     finally:
         run("conan remove '*' -c -r extensions-stg")
         run("conan remove '*' -c -r extensions-prod")
+        run("conan remove '*' -c -r third-party")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
