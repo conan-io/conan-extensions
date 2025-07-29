@@ -113,13 +113,13 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, search_repositories, build_url=None, with_dependencies=False,
+    def __init__(self, graph, name, number, repository, search_repositories=None, build_url=None, with_dependencies=False,
                  add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
         self._repository = repository
-        self._search_repositories = search_repositories
+        self._search_repositories = search_repositories or [repository]
         self._url = url
         self._user = user
         self._build_url = build_url
