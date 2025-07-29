@@ -32,9 +32,12 @@ def conan_test():
 def _fake_conan_sources(graph):
     # Fake the existence of conan_sources.tgz file to avoid contacting Artifactory for the tests
     for _, node in graph["nodes"].items():
-        recipe_folder = node.get("recipe_folder")
+        ref = node.get("ref")
+        if ref == "conanfile":
+            continue
+        recipe_folder = run(f"conan cache path {ref}")
         if recipe_folder:
-            fake_sources_tgz_path = os.path.join(os.path.dirname(node.get("recipe_folder")), "d", "conan_sources.tgz")
+            fake_sources_tgz_path = os.path.join(os.path.dirname(recipe_folder), "d", "conan_sources.tgz")
             save(fake_sources_tgz_path, "")
 
 
@@ -157,3 +160,41 @@ def test_tool_require_skip_binaries():
     # Check libb package now has the meson dependency
     build_info["modules"][3]["dependencies"]
     assert len(build_info["modules"][3]["dependencies"]) == 2
+
+
+def test_export_pkg():
+    """
+    Test build info created with export-pkg command
+    """
+    run("conan new header_lib -d name=lib1 -d version=1.0")
+    run("conan create .")
+
+    run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
+    run("conan source .")
+    run("conan build .")
+    run("conan export-pkg . -f json > export_pkg.json")
+
+    graph = json.loads(load("export_pkg.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create export_pkg.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
+    build_info = json.loads(load("bi.json"))
+    assert len(build_info["modules"]) == 4
+
+
+def test_simple_create():
+    """
+    Test build info created with simple conan create command to verify same output as the export-pkg command
+    """
+    run("conan new header_lib -d name=lib1 -d version=1.0")
+    run("conan create .")
+
+    run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
+    build_info = json.loads(load("bi.json"))
+    assert len(build_info["modules"]) == 4
