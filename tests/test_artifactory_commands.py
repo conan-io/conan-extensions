@@ -431,6 +431,9 @@ def test_build_info_dependency_from_extra_repo():
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r third-party")
 
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
     # Create dependency and upload it to the 'third-party' repo
     run("conan new cmake_lib -d name=dep -d version=1.0 --force")
     run("conan create .")
