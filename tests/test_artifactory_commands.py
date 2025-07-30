@@ -416,7 +416,7 @@ def test_build_info_dependency_different_repo():
 def test_build_info_dependency_from_extra_repo():
     """
     Tests that the build-info correctly attributes a dependency's path
-    to the --extra-repository it was found in.
+    to the repository it was found in.
     """
     #         +-------+
     #         | dep   | (from third-party repo)
@@ -449,8 +449,8 @@ def test_build_info_dependency_from_extra_repo():
     # Create the build-info, specifying the extra repository
     build_name = "build_with_extra_repo"
     build_number = "1"
-    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg '
-        f'--extra-repository third-party --with-dependencies --add-cached-deps '
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg third-party'
+        f'--with-dependencies --add-cached-deps '
         f'--server=artifactory > {build_name}.json')
 
     # Verify the generated build-info
