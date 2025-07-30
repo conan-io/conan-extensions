@@ -174,19 +174,10 @@ def test_export_pkg():
     run("conan art:build-info create export_pkg.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
     build_info = json.loads(load("bi.json"))
     assert len(build_info["modules"]) == 4
-
-
-def test_simple_create():
-    """
-    Test build info created with simple conan create command to verify same output as the export-pkg command
-    """
-    run("conan new header_lib -d name=lib1 -d version=1.0")
-    run("conan create .")
-
-    run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
-    run("conan create . -f json > create.json")
-    run("conan upload lib* -c -r conancenter --dry-run")  # To generate the .tgz files in conan local cache
-
-    run("conan art:build-info create create.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
-    build_info = json.loads(load("bi.json"))
-    assert len(build_info["modules"]) == 4
+    lib1_modules = [m for m in build_info["modules"] if "lib1/1.0#f8a414cccf3fbdfb6807d1f7c39844a2" in m.get("id")]
+    assert len(lib1_modules) == 2
+    lib2_modules = [m for m in build_info["modules"] if "lib2/1.0#740927c22cdeb3c85d933418399695c7" in m.get("id")]
+    assert len(lib2_modules) == 2
+    lib2_sources_artifact_data = lib2_modules[0]["artifacts"][2]
+    assert lib2_sources_artifact_data["type"] == "tgz"
+    assert lib2_sources_artifact_data["path"] == "repo/_/lib2/1.0/_/740927c22cdeb3c85d933418399695c7/export/conan_sources.tgz"

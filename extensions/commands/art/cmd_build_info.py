@@ -113,8 +113,9 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, build_url=None, with_dependencies=False, 
-                 add_cached_deps=False, url=None, user=None, password=None, conan_api=None):
+    def __init__(self, conan_api, graph, name, number, repository, build_url=None, with_dependencies=False,
+                 add_cached_deps=False, url=None, user=None, password=None):
+        self._conan_api = conan_api
         self._graph = graph
         self._name = name
         self._number = number
@@ -126,7 +127,6 @@ class _BuildInfo:
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
         self._add_cached_deps = add_cached_deps
-        self._conan_api = conan_api
 
     def get_artifacts_folder(self, node, artifact_type):
         if artifact_type == "package":
@@ -404,10 +404,10 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     if data["graph"]["nodes"]["0"]["recipe"] in ["Cli", "Consumer"]:
         data["graph"]["nodes"].pop("0")
 
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    bi = _BuildInfo(conan_api, data, args.build_name, args.build_number, args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
-                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password, conan_api=conan_api)
+                    add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
 
     return bi.create()
 
