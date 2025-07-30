@@ -130,16 +130,15 @@ class _BuildInfo:
 
     def _get_origin_repo(self, node):
 
-        # if we did not specify more than one then we have all our artifacts hosted
-        # in the same repo
+        # If only one repository is specified, all artifacts must belong to it.
         if len(self._repositories) == 1:
             return self._repositories[0]
 
-        # If no URL is provided, we cannot check remotes, so we assume the main repository.
+        # If multiple repositories are given, a URL is required to check the artifact's origin.
         if not self._url:
             raise ConanException(
-                "Missing Artifactory URL. To be able to match artifacts with source repository "
-                "please provide '--url' or '--server' arguments to retrieve the information from Artifactory."
+                "When multiple repositories are specified, Artifactory url is required to "
+                "determine the origin of dependencies. Please provide '--url' or '--server'."
             )
 
         ref_str = node.get("ref")
@@ -158,9 +157,10 @@ class _BuildInfo:
             except NotFoundException:
                 continue
 
-        # If not found in any remote repository, raise error
+        # If not found in any remote repository, raise an error.
         raise ConanException(
-            f"Unable to find {ref_str} in any of the passed repositories. Please check..."
+            f"Could not determine the origin of the reference '{ref_str}'. "
+            f"The package was not found in any of the specified repositories: {', '.join(self._repositories)}"
         )
 
 
