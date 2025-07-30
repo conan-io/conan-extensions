@@ -169,7 +169,7 @@ def test_export_pkg():
     run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
     run("conan build .")
     run("conan export-pkg . --test-folder= -f json > export_pkg.json")
-    run("conan upload * -c -r conancenter --dry-run")  # To generate the .tgz files in conan local cache
+    run("conan upload lib* -c -r conancenter --dry-run")  # To generate the .tgz files in conan local cache
 
     run("conan art:build-info create export_pkg.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
     build_info = json.loads(load("bi.json"))
@@ -185,7 +185,7 @@ def test_simple_create():
 
     run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
     run("conan create . -f json > create.json")
-    run("conan upload * -c -r conancenter --dry-run")  # To generate the .tgz files in conan local cache
+    run("conan upload lib* -c -r conancenter --dry-run")  # To generate the .tgz files in conan local cache
 
     run("conan art:build-info create create.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
     build_info = json.loads(load("bi.json"))
