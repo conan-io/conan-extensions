@@ -449,7 +449,7 @@ def test_build_info_dependency_from_extra_repo():
     # Create the build-info, specifying the extra repository
     build_name = "build_with_extra_repo"
     build_number = "1"
-    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg third-party'
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg third-party '
         f'--with-dependencies --add-cached-deps '
         f'--server=artifactory > {build_name}.json')
 
