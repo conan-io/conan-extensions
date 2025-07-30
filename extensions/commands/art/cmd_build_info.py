@@ -113,13 +113,12 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, search_repositories=None, build_url=None, with_dependencies=False,
+    def __init__(self, graph, name, number, repositories, build_url=None, with_dependencies=False,
                  add_cached_deps=False, url=None, user=None, password=None):
         self._graph = graph
         self._name = name
         self._number = number
-        self._repository = repository
-        self._search_repositories = search_repositories or [repository]
+        self._repositories = repositories
         self._url = url
         self._user = user
         self._build_url = build_url
@@ -130,13 +129,18 @@ class _BuildInfo:
         self._add_cached_deps = add_cached_deps
 
     def _get_origin_repo(self, node):
+
+        # if we did not specify more than one then we have all our artifacts hosted
+        # in the same repo
+        if len(self._repositories) == 1:
+            return self._repositories[0]
+
         # If no URL is provided, we cannot check remotes, so we assume the main repository.
         if not self._url:
-            return self._repository
-
-        # For artifacts built in this run, use always the main repository.
-        if node.get("binary") == "Build":
-            return self._repository
+            raise ConanException(
+                "Missing Artifactory URL. To be able to match artifacts with source repository "
+                "please provide '--url' or '--server' arguments to retrieve the information from Artifactory."
+            )
 
         ref_str = node.get("ref")
 
@@ -145,7 +149,7 @@ class _BuildInfo:
 
         # To link artifacts with repos search for the recipe's conanmanifest.txt in all repositories.
         remote_path = _get_remote_path(ref_str)
-        for repo in self._search_repositories:
+        for repo in self._repositories:
             request_url = f"{self._url}/api/storage/{repo}/{remote_path}/conanmanifest.txt"
             try:
                 api_request("get", request_url, self._user, self._password)
@@ -154,9 +158,10 @@ class _BuildInfo:
             except NotFoundException:
                 continue
 
-        # If not found in any remote repository, use the main one as a fallback.
-        self._cached_artifact_origin[ref_str] = self._repository
-        return self._repository
+        # If not found in any remote repository, raise error
+        raise ConanException(
+            f"Unable to find {ref_str} in any of the passed repositories. Please check..."
+        )
 
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
@@ -411,9 +416,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     subparser.add_argument("build_name", help="Build name property for BuildInfo.")
     subparser.add_argument("build_number", help="Build number property for BuildInfo.")
     subparser.add_argument("--build-url", help="Build url property for BuildInfo.", default=None, action="store")
-    subparser.add_argument("repository", help="Artifactory repository name where artifacts are located -not the conan remote name-.")
-    subparser.add_argument("--extra-repository", action="append", default=[],
-                           help="Additional repository to search for dependencies. Can be specified multiple times.")
+    subparser.add_argument("repository", nargs='+', help="Artifactory repository names. Accepts multiple values. Artifacts will be searched for in order.")
     subparser.add_argument("--with-dependencies", help="Whether to add dependencies information or not. Default: false.",
                            action='store_true', default=False)
 
@@ -431,11 +434,9 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     if data["graph"]["nodes"]["0"]["recipe"] in ["Cli", "Consumer"]:
         data["graph"]["nodes"].pop("0")
 
-    search_repos = [args.repository] + args.extra_repository
 
     bi = _BuildInfo(data, args.build_name, args.build_number,
-                    repository=args.repository,
-                    search_repositories=search_repos,
+                    repositories=args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
