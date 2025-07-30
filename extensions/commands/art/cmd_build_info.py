@@ -129,6 +129,8 @@ class _BuildInfo:
         self._add_cached_deps = add_cached_deps
 
     def _get_origin_repo(self, node):
+        if not self._repositories:
+            raise ConanException("No repositories were provided to search for artifacts.")
 
         # If only one repository is specified, all artifacts must belong to it.
         if len(self._repositories) == 1:
