@@ -178,6 +178,9 @@ def test_export_pkg():
     assert len(lib1_modules) == 2
     lib2_modules = [m for m in build_info["modules"] if "lib2/1.0#740927c22cdeb3c85d933418399695c7" in m.get("id")]
     assert len(lib2_modules) == 2
-    lib2_sources_artifact_data = lib2_modules[0]["artifacts"][2]
-    assert lib2_sources_artifact_data["type"] == "tgz"
+    lib2_recipe_module = next(m for m in lib2_modules if m.get("id") == "lib2/1.0#740927c22cdeb3c85d933418399695c7")
+    lib2_sources_artifact_data = next(
+        artifact for artifact in lib2_recipe_module["artifacts"]
+        if artifact.get("name") == "conan_sources.tgz"
+    )
     assert lib2_sources_artifact_data["path"] == "repo/_/lib2/1.0/_/740927c22cdeb3c85d933418399695c7/export/conan_sources.tgz"
