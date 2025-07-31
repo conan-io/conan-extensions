@@ -137,8 +137,7 @@ def test_build_info_export_pkg():
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f'conan art:build-info create export.json mybuildinfo 1 extensions-stg --server=artifactory --out-file=mybuildinfo.json')
 
-    with open(f"mybuildinfo.json", "r") as f:
-        build_info = json.load(f)
+    build_info = json.load(load("mybuildinfo.json"))
 
     mypkg_modules = [m for m in build_info["modules"] if "mypkg/1.0#294e801a0e1da10084441487e95b80e8" in m.get("id")]
     assert len(mypkg_modules) == 2  # Assert both recipe and package modules exist
