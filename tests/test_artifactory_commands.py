@@ -134,47 +134,34 @@ def test_build_info_export_pkg():
 
     # Create release packages & build info and upload them
     run("conan export-pkg . --format json -tf='' > export.json")
-    run("conan upload mypkg/1.0 -c -r extensions-stg --dry-run")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f'conan art:build-info create export.json mybuildinfo 1 extensions-stg --server=artifactory --out-file=mybuildinfo.json')
 
     with open(f"mybuildinfo.json", "r") as f:
-        data = json.load(f)
-    print("KKKKKKKKKKKKKKKKKKK", data)
+        build_info = json.load(f)
 
-    assert "modules" in data
-    assert any(module.get("type") == "conan" for module in data["modules"])
-
-
-@pytest.mark.requires_credentials
-def test_export_pkg():
-    """
-    Test build info created with export-pkg command
-    """
-    # Create dependency
-    run("conan new header_lib -d name=lib1 -d version=1.0")
-    run("conan create .")
-
-    # Export-pkg recipe with a depenency
-    run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
-    run("conan build .")
-    run("conan export-pkg . --test-folder= -f json > export_pkg.json")
-    run("conan upload lib* -c -r extensions-stg --dry-run")  # To generate the .tgz files in conan local cache
-
-    # Generate build-info locally without contacting artifactory (to verify the path to the artifacts if correct)
-    run("conan art:build-info create export_pkg.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
-    build_info = json.loads(load("bi.json"))
-
-    assert len(build_info["modules"]) == 4
-    lib1_modules = [m for m in build_info["modules"] if "lib1/1.0#f8a414cccf3fbdfb6807d1f7c39844a2" in m.get("id")]
-    assert len(lib1_modules) == 2
-    lib2_modules = [m for m in build_info["modules"] if "lib2/1.0#740927c22cdeb3c85d933418399695c7" in m.get("id")]
-    assert len(lib2_modules) == 2
-    lib2_recipe_module = next(m for m in lib2_modules if m.get("id") == "lib2/1.0#740927c22cdeb3c85d933418399695c7")
-    lib2_sources_artifact_data = next(
-        artifact for artifact in lib2_recipe_module["artifacts"]
+    mypkg_modules = [m for m in build_info["modules"] if "mypkg/1.0#294e801a0e1da10084441487e95b80e8" in m.get("id")]
+    assert len(mypkg_modules) == 2  # Assert both recipe and package modules exist
+    mypkg_recipe_module = next(m for m in mypkg_modules if m.get("id") == "mypkg/1.0#294e801a0e1da10084441487e95b80e8")
+    assert len(mypkg_recipe_module["artifacts"]) == 3  # Assert the 3 artifacts exist
+    mypkg_conanmanifest_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
+        if artifact.get("name") == "conanmanifest.txt"
+    )  # Assert conanmanifest.txt path
+    assert mypkg_conanmanifest_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanmanifest.txt"
+    mypkg_sources_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
         if artifact.get("name") == "conan_sources.tgz"
-    )
-    assert lib2_sources_artifact_data["path"] == "repo/_/lib2/1.0/_/740927c22cdeb3c85d933418399695c7/export/conan_sources.tgz"
+    )  # Assert conan_sources.tgz path
+    assert mypkg_sources_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conan_sources.tgz"
+    mypkg_conanfile_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
+        if artifact.get("name") == "conanfile.py"
+    )  # Assert conanfile.py path
+    assert mypkg_conanfile_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanfile.py"
 
 
 @pytest.mark.requires_credentials
