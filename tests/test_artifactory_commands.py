@@ -3,7 +3,7 @@ import json
 import tempfile
 import textwrap
 
-from tools import run, save
+from tools import load, run, save
 from conan.tools.scm import Version
 from conan import conan_version
 
@@ -139,9 +139,42 @@ def test_build_info_export_pkg():
 
     with open(f"mybuildinfo.json", "r") as f:
         data = json.load(f)
+    print("KKKKKKKKKKKKKKKKKKK", data)
 
     assert "modules" in data
     assert any(module.get("type") == "conan" for module in data["modules"])
+
+
+@pytest.mark.requires_credentials
+def test_export_pkg():
+    """
+    Test build info created with export-pkg command
+    """
+    # Create dependency
+    run("conan new header_lib -d name=lib1 -d version=1.0")
+    run("conan create .")
+
+    # Export-pkg recipe with a depenency
+    run("conan new cmake_lib -d name=lib2 -d version=1.0 -d requires=lib1/1.0 --force")
+    run("conan build .")
+    run("conan export-pkg . --test-folder= -f json > export_pkg.json")
+    run("conan upload lib* -c -r extensions-stg --dry-run")  # To generate the .tgz files in conan local cache
+
+    # Generate build-info locally without contacting artifactory (to verify the path to the artifacts if correct)
+    run("conan art:build-info create export_pkg.json build_name 1 repo --with-dependencies --add-cached-deps > bi.json")
+    build_info = json.loads(load("bi.json"))
+
+    assert len(build_info["modules"]) == 4
+    lib1_modules = [m for m in build_info["modules"] if "lib1/1.0#f8a414cccf3fbdfb6807d1f7c39844a2" in m.get("id")]
+    assert len(lib1_modules) == 2
+    lib2_modules = [m for m in build_info["modules"] if "lib2/1.0#740927c22cdeb3c85d933418399695c7" in m.get("id")]
+    assert len(lib2_modules) == 2
+    lib2_recipe_module = next(m for m in lib2_modules if m.get("id") == "lib2/1.0#740927c22cdeb3c85d933418399695c7")
+    lib2_sources_artifact_data = next(
+        artifact for artifact in lib2_recipe_module["artifacts"]
+        if artifact.get("name") == "conan_sources.tgz"
+    )
+    assert lib2_sources_artifact_data["path"] == "repo/_/lib2/1.0/_/740927c22cdeb3c85d933418399695c7/export/conan_sources.tgz"
 
 
 @pytest.mark.requires_credentials
