@@ -134,11 +134,12 @@ def test_build_info_export_pkg():
 
     # Create release packages & build info and upload them
     run("conan export-pkg . --format json -tf='' > export.json")
-    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run("conan upload mypkg/1.0 -c -r extensions-stg --dry-run")
     run(f'conan art:build-info create export.json mybuildinfo 1 extensions-stg --server=artifactory --out-file=mybuildinfo.json')
 
     with open(f"mybuildinfo.json", "r") as f:
         data = json.load(f)
+    print("KKKKKKKK", data)
 
     assert "modules" in data
     assert any(module.get("type") == "conan" for module in data["modules"])
