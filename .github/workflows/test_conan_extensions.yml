@@ -64,6 +64,11 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for staging" }'
 
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+            -X PUT "http://localhost:8081/artifactory/api/repositories/third-party" \
+            -H "Content-Type: application/json" \
+            -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for third-party testing" }'
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:

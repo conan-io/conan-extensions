@@ -38,20 +38,26 @@ def conan_test():
     if "extensions-prod" not in out:
         run(f'conan remote add extensions-prod {os.getenv("ART_URL")}/api/conan/extensions-prod')
 
+    if "third-party" not in out:
+        run(f'conan remote add third-party {os.getenv("ART_URL")}/api/conan/third-party')
+
     run(f'conan remote login extensions-stg "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     run(f'conan remote login extensions-prod "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
+    run(f'conan remote login third-party "{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")}" -p "{os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")}"')
     # Install extension commands (this repo)
     repo = os.path.join(os.path.dirname(__file__), "..")
     run(f"conan config install {repo}")
 
     run("conan remove '*' -c -r extensions-stg")
     run("conan remove '*' -c -r extensions-prod")
+    run("conan remove '*' -c -r third-party")
 
     try:
         yield
     finally:
         run("conan remove '*' -c -r extensions-stg")
         run("conan remove '*' -c -r extensions-prod")
+        run("conan remove '*' -c -r third-party")
         os.chdir(cwd)
         os.environ.clear()
         os.environ.update(old_env)
@@ -424,6 +430,72 @@ def test_build_info_dependency_different_repo():
     run('conan remove liba* -c -r extensions-prod')
 
     run(f'conan art:build-info delete {build_name} --build-number={build_number} --server artifactory')
+
+@pytest.mark.requires_credentials
+def test_build_info_dependency_from_extra_repo():
+    """
+    Tests that the build-info correctly attributes a dependency's path
+    to the repository it was found in.
+    """
+    #         +-------+
+    #         | dep   | (from third-party repo)
+    #         +-------+
+    #             |
+    #          +--+--+
+    #          | pkg | (from extensions-stg repo)
+    #          +-----+
+
+
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r third-party")
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Create dependency and upload it to the 'third-party' repo
+    run("conan new cmake_lib -d name=dep -d version=1.0 --force")
+    run("conan create .")
+    run("conan upload dep/1.0 -c -r third-party")
+    run("conan remove dep/1.0 -c")  # Ensure it's not in the local cache
+
+    # Create consumer package that requires the dependency
+    run("conan new cmake_lib -d name=pkg -d version=1.0 -d requires=dep/1.0 --force")
+    # Create the package, it will download 'dep' from 'third-party'
+    run("conan create . --format=json > create.json")
+    run("conan upload pkg/1.0 -c -r extensions-stg")
+
+    # Create the build-info, specifying the extra repository
+    build_name = "build_with_extra_repo"
+    build_number = "1"
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg third-party '
+        f'--with-dependencies --add-cached-deps '
+        f'--server=artifactory > {build_name}.json')
+
+    # Verify the generated build-info
+    with open(f"{build_name}.json", "r") as f:
+        build_info = json.load(f)
+
+    modules = build_info.get("modules", [])
+    
+    # Find the module for the dependency 'dep/1.0'
+    dep_module = None
+    for module in modules:
+        if module.get("id", "").startswith("dep/1.0"):
+            dep_module = module
+            break
+
+    assert dep_module is not None, "Dependency 'dep/1.0' not found in build-info modules"
+
+    # Check that the path of its artifacts points to the 'third-party' repo
+    for artifact in dep_module.get("artifacts", []):
+        path = artifact.get("path", "")
+        assert path.startswith("third-party/"), \
+            f"Artifact path '{path}' should start with 'third-party/'"
+
+    # Clean up
+    run(f"conan remove '*' -c -r third-party")
+    run(f"conan remove '*' -c -r extensions-stg")
 
 
 @pytest.mark.requires_credentials
