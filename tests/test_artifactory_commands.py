@@ -3,7 +3,7 @@ import json
 import tempfile
 import textwrap
 
-from tools import run, save
+from tools import load, run, save
 from conan.tools.scm import Version
 from conan import conan_version
 
@@ -137,11 +137,30 @@ def test_build_info_export_pkg():
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f'conan art:build-info create export.json mybuildinfo 1 extensions-stg --server=artifactory --out-file=mybuildinfo.json')
 
-    with open(f"mybuildinfo.json", "r") as f:
-        data = json.load(f)
+    build_info = json.loads(load("mybuildinfo.json"))
 
-    assert "modules" in data
-    assert any(module.get("type") == "conan" for module in data["modules"])
+    mypkg_modules = [m for m in build_info["modules"] if "mypkg/1.0#294e801a0e1da10084441487e95b80e8" in m.get("id")]
+    assert len(mypkg_modules) == 2  # Assert both recipe and package modules exist
+    mypkg_recipe_module = next(m for m in mypkg_modules if m.get("id") == "mypkg/1.0#294e801a0e1da10084441487e95b80e8")
+    assert len(mypkg_recipe_module["artifacts"]) == 3  # Assert the 3 artifacts exist
+    mypkg_conanmanifest_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
+        if artifact.get("name") == "conanmanifest.txt"
+    )  # Assert conanmanifest.txt path
+    assert mypkg_conanmanifest_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanmanifest.txt"
+    mypkg_sources_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
+        if artifact.get("name") == "conan_sources.tgz"
+    )  # Assert conan_sources.tgz path
+    assert mypkg_sources_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conan_sources.tgz"
+    mypkg_conanfile_data = next(
+        artifact for artifact in mypkg_recipe_module["artifacts"]
+        if artifact.get("name") == "conanfile.py"
+    )  # Assert conanfile.py path
+    assert mypkg_conanfile_data[
+               "path"] == "extensions-stg/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanfile.py"
 
 
 @pytest.mark.requires_credentials

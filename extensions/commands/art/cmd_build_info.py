@@ -113,8 +113,9 @@ def _get_requested_by(nodes, node_id, artifact_type):
 
 class _BuildInfo:
 
-    def __init__(self, graph, name, number, repository, build_url=None, with_dependencies=False, 
+    def __init__(self, conan_api, graph, name, number, repository, build_url=None, with_dependencies=False,
                  add_cached_deps=False, url=None, user=None, password=None):
+        self._conan_api = conan_api
         self._graph = graph
         self._name = name
         self._number = number
@@ -126,6 +127,13 @@ class _BuildInfo:
         self._cached_artifact_info = {}
         self._with_dependencies = with_dependencies
         self._add_cached_deps = add_cached_deps
+
+    def get_artifacts_folder(self, node, artifact_type):
+        if artifact_type == "package":
+            return node.get("package_folder")
+        else:
+            reference = RecipeReference.loads(node.get("ref"))
+            return self._conan_api.cache.export_path(reference)
 
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
@@ -145,14 +153,14 @@ class _BuildInfo:
         def _get_local_artifacts():
             local_artifacts = []
             missing_artifacts = []
-            artifacts_folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+            artifacts_folder = self.get_artifacts_folder(node, artifact_type)
             if artifacts_folder is None and artifact_type == "package" and node.get("binary") == "Skip":
                 ConanOutput().warning(f"Package is marked as 'Skip' for {node.get('ref')} and will not be included "
                                       "into the Build Info. If you want to get it included, use the conf argument: "
                                       "'-c:a tools.graph:skip_binaries=False' in your conan create/install command.")
                 return (local_artifacts, missing_artifacts)
 
-            artifacts_folder = Path(node.get("package_folder")) if artifact_type == "package" else Path(node.get("recipe_folder"))
+            artifacts_folder = Path(artifacts_folder)
             dl_folder = artifacts_folder.parents[0] / "d"
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
             artifacts_folder_files = [file for file in artifacts_folder.glob("*") if file.name in artifacts_names]
@@ -238,7 +246,7 @@ class _BuildInfo:
             if sources_artifact:
                 artifacts.append(sources_artifact)
 
-        folder = node.get("package_folder") if artifact_type == "package" else node.get("recipe_folder")
+        folder = self.get_artifacts_folder(node, artifact_type)
         if not artifacts and folder:
             raise ConanException(f"There are missing artifacts for the {node.get('ref')} {artifact_type}. "
                                   "Check that you have all the packages installed in the Conan cache when creating the Build Info.")
@@ -396,7 +404,7 @@ def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     if data["graph"]["nodes"]["0"]["recipe"] in ["Cli", "Consumer"]:
         data["graph"]["nodes"].pop("0")
 
-    bi = _BuildInfo(data, args.build_name, args.build_number, args.repository,
+    bi = _BuildInfo(conan_api, data, args.build_name, args.build_number, args.repository,
                     build_url=args.build_url,
                     with_dependencies=args.with_dependencies,
                     add_cached_deps=args.add_cached_deps, url=url, user=user, password=password)
@@ -587,7 +595,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
             if not any(d['id'] == module.get('id') for d in all_modules):
                 all_modules.append(module)
 
-    bi = _BuildInfo(None, args.build_name, args.build_number, None)
+    bi = _BuildInfo(conan_api, None, args.build_name, args.build_number, None)
     bi_json = bi.header()
     bi_json.update({"modules": all_modules})
     return json.dumps(bi_json, indent=4)
