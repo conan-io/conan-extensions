@@ -91,6 +91,10 @@ conan upload "mypkg*" -r=develop -c
 
 conan art:build-info create create_debug.json debug_build 1 develop --server=myartifactory --with-dependencies > debug_build.json
 
+# If you are using packages from different repositories, you can specify the repositories in order.
+# Conan will associate each artifact with the first repository in which it is found.
+# conan art:build-info create create_release.json release_build 1 develop third-party --server=myartifactory --with-dependencies > release_build.json
+
 # Upload the Build Info
 
 conan art:build-info upload debug_build.json --server=myartifactory
