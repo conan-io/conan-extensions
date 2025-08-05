@@ -63,7 +63,7 @@ optional arguments:
 ```
 $ usage: conan build-info create [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN] [--build-url BUILD_URL]
                                [--with-dependencies] [--add-cached-deps]
-                               json build_name build_number repository
+                               json build_name build_number repository [repository ...]
 
 Creates BuildInfo from a Conan graph json from a conan install or create.
 
@@ -71,7 +71,7 @@ positional arguments:
   json                  Conan generated JSON output file.
   build_name            Build name property for BuildInfo.
   build_number          Build number property for BuildInfo.
-  repository            Artifactory repository name where artifacts are located -not the conan remote name-.
+  repository            Artifactory repository names. Accepts multiple values. Artifacts will be searched for in order.
 
 optional arguments:
   -h, --help            show this help message and exit

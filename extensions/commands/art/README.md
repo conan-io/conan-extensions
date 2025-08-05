@@ -57,6 +57,12 @@ conan art:build-info create create_release.json mybuildname_release 1 <artifacto
 conan art:build-info create create_debug.json mybuildname_debug 1 <artifactory-repo> --server my_artifactory --with-dependencies > mybuildname_debug.json
 ```
 
+**Note**: You can specify multiple repositories if your artifacts are distributed across different repositories. The system will search for each artifact in the repositories in the specified order:
+
+```
+conan art:build-info create create_release.json mybuildname_release 1 <artifactory-repo1> <artifactory-repo2> --server my_artifactory --with-dependencies > mybuildname_release.json
+```
+
 ### 3. Upload the build infos to your Artifactory server
 
 Finally, you can upload the Build Info's:
