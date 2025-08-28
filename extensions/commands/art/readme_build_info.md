@@ -12,7 +12,7 @@ positional arguments:
     append              Append published build to the build info.
     bundle-create       Creates an Artifactory Release Bundle (v2) from the information of the Build Info.
     bundle-delete       Deletes a Release Bundle v2 version and all its promotions. Both the Release Bundle attestation and all artifacts are removed.
-    create              Creates BuildInfo from a Conan graph json from a conan install or create.
+    create              Creates BuildInfo from a Conan graph json. Refer to Conan documentation for commands that can output in that format.
     delete              Removes builds stored in Artifactory. Useful for cleaning up old build info data.
     get                 Get Build Info information.
     promote             Promote the BuildInfo from the source to the target repository.
@@ -65,7 +65,8 @@ $ usage: conan build-info create [-h] [-v [V]] [-cc CORE_CONF] [--server SERVER]
                                [--with-dependencies] [--add-cached-deps]
                                json build_name build_number repository [repository ...]
 
-Creates BuildInfo from a Conan graph json from a conan install or create.
+Creates BuildInfo from a Conan graph json. Refer to Conan documentation for commands that can output in that format.
+(https://docs.conan.io/2/reference/commands/formatters/graph_info_json_formatter.html)
 
 positional arguments:
   json                  Conan generated JSON output file.
