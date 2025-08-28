@@ -415,7 +415,8 @@ def build_info(conan_api: ConanAPI, parser, *args):
 @conan_subcommand(formatters={"text": text_formatter})
 def build_info_create(conan_api: ConanAPI, parser, subparser, *args):
     """
-    Creates BuildInfo from a Conan graph json from a conan install or create.
+    Creates BuildInfo from a Conan graph json. Refer to Conan documentation for commands that can output in that format.
+    (https://docs.conan.io/2/reference/commands/formatters/graph_info_json_formatter.html)
     """
     _add_default_arguments(subparser, is_bi_create=True)
 
