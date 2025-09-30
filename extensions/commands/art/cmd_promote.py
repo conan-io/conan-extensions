@@ -111,7 +111,7 @@ def promote(conan_api: ConanAPI, parser, *args):
 
     pkglist = multi_package_list[origin_remote]
 
-    for name_version, recipe in pkglist.recipes.items():
+    for name_version, recipe in pkglist.serialize().items():
         if "revisions" not in recipe:
             ConanOutput().info(f"Recipe {name_version} does not have a revision, skipping")
             continue
