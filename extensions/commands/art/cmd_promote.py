@@ -1,5 +1,6 @@
 import json
 import os.path
+import urllib.parse
 
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
@@ -48,6 +49,7 @@ def _request(url, user, password, request_type, request_url):
 
 def _promote_path(url, user, password, origin, destination, path):
     ConanOutput().subtitle(f"Promoting {path}")
+    path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
     try:
         # This first request will raise a 404 if no file is found
