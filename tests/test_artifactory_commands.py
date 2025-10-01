@@ -630,3 +630,29 @@ def test_art_promote_timestamps():
 
     assert remote_stg_recipe_timestamp == remote_prod_recipe_timestamp
     assert remote_stg_package_timestamp == remote_prod_package_timestamp
+
+@pytest.mark.requires_credentials
+def test_art_promote_build_version():
+    conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Pkg(ConanFile):
+            name = "mypkg"
+            version = "1.0+build"
+        """)
+    save("./conanfile.py", conanfile)
+
+    run("conan create .")
+    run("conan upload mypkg/1.0+build --format json --out-file pkglist.json -c -r extensions-stg")
+
+    # promote package extensions-stg => extensions-prod
+    art_url = os.getenv("ART_URL")
+    art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+    art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+    run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
+
+    # check that package is available in extensions-prod
+    out = run("conan list mypkg/1.0+build:*#* -r=extensions-prod -f=json", stderr=None)
+    remote_prod_list_json = json.loads(out)
+    assert "extensions-prod" in remote_prod_list_json
+    assert "mypkg/1.0+build" in remote_prod_list_json["extensions-prod"]
