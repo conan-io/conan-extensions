@@ -5,11 +5,8 @@ import urllib.parse
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
-try:
-    from conan.api.model import RecipeReference, PkgReference
-except:
-    from conans.model.recipe_ref import RecipeReference
-    from conans.model.package_ref import PkgReference
+
+from conan.api.model import RecipeReference, PkgReference
 from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
 
@@ -40,6 +37,17 @@ def _get_path_from_pref(pref):
     return path
 
 
+def _list_folder_contents(url, user, password, remote, path):
+    result = _request(url, user, password, "get", f"api/storage/{remote}/{path}?list&listFolders=1")
+    folders = []
+    for file in result["files"]:
+        if file["folder"]:
+            # Remove leading slash
+            folders.append(file["uri"][1:])
+    print(f"{remote}/{path} has {folders} folders")
+    return folders
+
+
 def _request(url, user, password, request_type, request_url):
     try:
         return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
@@ -47,10 +55,17 @@ def _request(url, user, password, request_type, request_url):
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path):
+def _promote_path(url, user, password, origin, destination, path, check_origin=False):
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
+    if check_origin:
+        try:
+            _request(url, user, password, "get", f"api/storage/{origin}/{path}")
+            ConanOutput().success("File exists in origin, promoting...")
+        except ConanException:
+            ConanOutput().info("File does not exist, skipping promotion")
+            return
     try:
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
@@ -59,6 +74,14 @@ def _promote_path(url, user, password, origin, destination, path):
         _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
         ConanOutput().success("Promoted file")
 
+
+def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
+    revision_path = _get_path_from_pref(pref_with_prev)
+    # Manually promote the files, Artifactory will take care of the timestamp
+    for file in ("conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"):
+        _promote_path(url, user, password, origin, destination,
+                      f"{revision_path}/{file}",
+                      check_origin=True)
 
 @conan_command(group="Artifactory")
 def promote(conan_api: ConanAPI, parser, *args):
@@ -104,7 +127,6 @@ def promote(conan_api: ConanAPI, parser, *args):
                              f"but found from local cache")
 
     assert_server_or_url_user_password(args)
-
     # Only artifactory pro edition supports this feature
     response = _request(url, user, password, "get", "api/system/version")
     if response["license"] == "Artifactory Community Edition for C/C++":
@@ -124,9 +146,17 @@ def promote(conan_api: ConanAPI, parser, *args):
                 continue
             for pkgid, package in recipe_revision["packages"].items():
                 if "revisions" not in package:
-                    _promote_path(url, user, password, args.origin, args.destination,
-                                  _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
-                    ConanOutput().info(f"Package {name_version}#{rrev}:{pkgid} does not have explicit revisions, skipping")
+                    # _promote_path(url, user, password, args.origin, args.destination,
+                    #               _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
+                    ConanOutput().info(f"Package {name_version}#{rrev}:{pkgid} does not have explicit revisions, promoting all")
+                    result = _list_folder_contents(url, user, password, args.origin,
+                                                   _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
+                    for folder in result:
+                        _promote_package_prev(url, user, password,
+                                              args.origin, args.destination,
+                                              f"{name_version}#{rrev}:{pkgid}#{folder}")
                 else:
                     for prev, package_revision in package["revisions"].items():
-                        _promote_path(url, user, password, args.origin, args.destination, _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}#{prev}"))
+                        _promote_package_prev(url, user, password,
+                                              args.origin, args.destination,
+                                              f"{name_version}#{rrev}:{pkgid}#{prev}")
