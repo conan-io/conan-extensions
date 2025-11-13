@@ -44,24 +44,23 @@ def _request(url, user, password, request_type, request_url):
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path, check_origin=False):
+def _promote_path(url, user, password, origin, destination, path, continue_on_failure=False):
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
-    if check_origin:
-        try:
-            _request(url, user, password, "get", f"api/storage/{origin}/{path}")
-            ConanOutput().success("File exists in origin, promoting...")
-        except ConanException:
-            ConanOutput().info("File does not exist, skipping promotion")
-            return
     try:
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
         ConanOutput().warning("Destination already exists, skipping")
     except ConanException:
-        _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
-        ConanOutput().success("Promoted file")
+        try:
+            _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
+            ConanOutput().success("Promoted file")
+        except ConanException as e:
+            if continue_on_failure:
+                ConanOutput().error(f"Failed to promote {path}: {e}, continuing...")
+            else:
+                raise
 
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
@@ -70,7 +69,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     for file in ("conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"):
         _promote_path(url, user, password, origin, destination,
                       f"{revision_path}/{file}",
-                      check_origin=True)
+                      continue_on_failure=True)
 
 @conan_command(group="Artifactory")
 def promote(conan_api: ConanAPI, parser, *args):
