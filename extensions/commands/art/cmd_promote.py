@@ -37,17 +37,6 @@ def _get_path_from_pref(pref):
     return path
 
 
-def _list_folder_contents(url, user, password, remote, path):
-    result = _request(url, user, password, "get", f"api/storage/{remote}/{path}?list&listFolders=1")
-    folders = []
-    for file in result["files"]:
-        if file["folder"]:
-            # Remove leading slash
-            folders.append(file["uri"][1:])
-    print(f"{remote}/{path} has {folders} folders")
-    return folders
-
-
 def _request(url, user, password, request_type, request_url):
     try:
         return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
@@ -137,26 +126,19 @@ def promote(conan_api: ConanAPI, parser, *args):
 
     for name_version, recipe in pkglist.serialize().items():
         if "revisions" not in recipe:
-            ConanOutput().info(f"Recipe {name_version} does not have a revision, skipping")
-            continue
+            raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
+                                 "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            _promote_path(url, user, password, args.origin, args.destination, _get_export_path_from_rrev(f"{name_version}#{rrev}"))
+            _promote_path(url, user, password, args.origin, args.destination,
+                          _get_export_path_from_rrev(f"{name_version}#{rrev}"))
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
             for pkgid, package in recipe_revision["packages"].items():
                 if "revisions" not in package:
-                    # _promote_path(url, user, password, args.origin, args.destination,
-                    #               _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
-                    ConanOutput().info(f"Package {name_version}#{rrev}:{pkgid} does not have explicit revisions, promoting all")
-                    result = _list_folder_contents(url, user, password, args.origin,
-                                                   _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
-                    for folder in result:
-                        _promote_package_prev(url, user, password,
-                                              args.origin, args.destination,
-                                              f"{name_version}#{rrev}:{pkgid}#{folder}")
-                else:
-                    for prev, package_revision in package["revisions"].items():
-                        _promote_package_prev(url, user, password,
-                                              args.origin, args.destination,
-                                              f"{name_version}#{rrev}:{pkgid}#{prev}")
+                    raise ConanException(f"Package {name_version}#{rrev}:{pkgid} does not have any revisions specified. "
+                                         "It's necessary to specify package revisions for promotion.")
+                for prev, package_revision in package["revisions"].items():
+                    _promote_package_prev(url, user, password,
+                                          args.origin, args.destination,
+                                          f"{name_version}#{rrev}:{pkgid}#{prev}")
