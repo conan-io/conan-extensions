@@ -38,7 +38,12 @@ def _get_path_from_pref(pref):
 
 
 def _request(url, user, password, request_type, request_url):
-    return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
+    try:
+        return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
+    except ConanException:
+        raise
+    except Exception as e:
+        raise ConanException(f"Error requesting {request_url}: {e}")
 
 
 def _promote_path(url, user, password, origin, destination, path, continue_on_404=False):
