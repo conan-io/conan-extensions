@@ -10,7 +10,7 @@ from conan.api.model import RecipeReference, PkgReference
 from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
 
-from utils import api_request, assert_server_or_url_user_password
+from utils import api_request, assert_server_or_url_user_password, NotFoundException
 from cmd_server import get_url_user_password
 
 
@@ -38,13 +38,10 @@ def _get_path_from_pref(pref):
 
 
 def _request(url, user, password, request_type, request_url):
-    try:
-        return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
-    except Exception as e:
-        raise ConanException(f"Error requesting {request_url}: {e}")
+    return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
 
 
-def _promote_path(url, user, password, origin, destination, path, continue_on_failure=False):
+def _promote_path(url, user, password, origin, destination, path, continue_on_404=False):
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
@@ -56,11 +53,14 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_fa
         try:
             _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
-        except ConanException as e:
-            if continue_on_failure:
-                ConanOutput().error(f"Failed to promote {path}: {e}, continuing...")
+        except NotFoundException:
+            if continue_on_404:
+                ConanOutput().error(f"Failed to promote {path}: Not found in origin, continuing...")
             else:
                 raise
+        except ConanException as e:
+            ConanOutput().error(f"Failed to promote {path}: {e}")
+            raise
 
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
@@ -69,7 +69,8 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     for file in ("conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"):
         _promote_path(url, user, password, origin, destination,
                       f"{revision_path}/{file}",
-                      continue_on_failure=True)
+                      continue_on_404=True)
+
 
 @conan_command(group="Artifactory")
 def promote(conan_api: ConanAPI, parser, *args):
