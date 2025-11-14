@@ -10,7 +10,7 @@ from conan.api.model import RecipeReference, PkgReference
 from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
 
-from utils import api_request, assert_server_or_url_user_password, NotFoundException
+from utils import api_request, assert_server_or_url_user_password, BadRequestException
 from cmd_server import get_url_user_password
 
 
@@ -46,7 +46,7 @@ def _request(url, user, password, request_type, request_url):
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path, continue_on_404=False):
+def _promote_path(url, user, password, origin, destination, path, continue_on_400=False):
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
@@ -58,8 +58,8 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_40
         try:
             _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
-        except NotFoundException:
-            if continue_on_404:
+        except BadRequestException:
+            if continue_on_400:
                 ConanOutput().error(f"Failed to promote {path}: Not found in origin, continuing...")
             else:
                 raise
@@ -74,7 +74,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     for file in ("conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"):
         _promote_path(url, user, password, origin, destination,
                       f"{revision_path}/{file}",
-                      continue_on_404=True)
+                      continue_on_400=True)
 
 
 @conan_command(group="Artifactory")
