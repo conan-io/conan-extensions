@@ -71,10 +71,12 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_40
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     revision_path = _get_path_from_pref(pref_with_prev)
     # Manually promote the files, Artifactory will take care of the timestamp
-    for file in ("conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"):
+    for file, continue_on_error in (("conan_package.tgz", True),
+                                    ("conaninfo.txt", False),
+                                    ("conanmanifest.txt", False)):
         _promote_path(url, user, password, origin, destination,
                       f"{revision_path}/{file}",
-                      continue_on_400=True)
+                      continue_on_400=continue_on_error)
 
 
 @conan_command(group="Artifactory")
