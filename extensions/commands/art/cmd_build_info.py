@@ -509,9 +509,13 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
 
     subparser.add_argument("--dependencies", help="Whether to copy the build's dependencies or not. Default: false.",
                            action='store_true', default=False)
+    subparser.add_argument("--status", help="The new status of the build. Default: ''")
     subparser.add_argument("--comment", help="An optional comment describing the reason for promotion. Default: ''")
 
     args = parser.parse_args(*args)
+    if args.comment and not args.status:
+        ConanOutput().warning("A comment was provided without a --status. The comment will not be tracked.")
+
     assert_server_or_url_user_password(args)
 
     url, user, password = get_url_user_password(args)
@@ -523,6 +527,7 @@ def build_info_promote(conan_api: ConanAPI, parser, subparser, *args):
         # otherwise you can end up deleting recipe artifacts that other packages use
         "copy": "true",
         "dependencies": "true" if args.dependencies else "false",
+        "status": args.status,
         "comment": args.comment
     }
 
