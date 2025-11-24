@@ -5,15 +5,12 @@ import urllib.parse
 from conan.api.conan_api import ConanAPI
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
-try:
-    from conan.api.model import RecipeReference, PkgReference
-except:
-    from conans.model.recipe_ref import RecipeReference
-    from conans.model.package_ref import PkgReference
+
+from conan.api.model import RecipeReference, PkgReference
 from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
 
-from utils import api_request, assert_server_or_url_user_password
+from utils import api_request, assert_server_or_url_user_password, BadRequestException
 from cmd_server import get_url_user_password
 
 
@@ -43,11 +40,13 @@ def _get_path_from_pref(pref):
 def _request(url, user, password, request_type, request_url):
     try:
         return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
+    except ConanException:
+        raise
     except Exception as e:
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path):
+def _promote_path(url, user, password, origin, destination, path, continue_on_400=False):
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
     # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
@@ -56,8 +55,28 @@ def _promote_path(url, user, password, origin, destination, path):
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
         ConanOutput().warning("Destination already exists, skipping")
     except ConanException:
-        _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
-        ConanOutput().success("Promoted file")
+        try:
+            _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
+            ConanOutput().success("Promoted file")
+        except BadRequestException:
+            if continue_on_400:
+                ConanOutput().error(f"Failed to promote {path}: Not found in origin, continuing...")
+            else:
+                raise
+        except ConanException as e:
+            ConanOutput().error(f"Failed to promote {path}: {e}")
+            raise
+
+
+def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
+    revision_path = _get_path_from_pref(pref_with_prev)
+    # Manually promote the files, Artifactory will take care of the timestamp
+    for file, continue_on_error in (("conan_package.tgz", True),
+                                    ("conaninfo.txt", False),
+                                    ("conanmanifest.txt", False)):
+        _promote_path(url, user, password, origin, destination,
+                      f"{revision_path}/{file}",
+                      continue_on_400=continue_on_error)
 
 
 @conan_command(group="Artifactory")
@@ -104,7 +123,6 @@ def promote(conan_api: ConanAPI, parser, *args):
                              f"but found from local cache")
 
     assert_server_or_url_user_password(args)
-
     # Only artifactory pro edition supports this feature
     response = _request(url, user, password, "get", "api/system/version")
     if response["license"] == "Artifactory Community Edition for C/C++":
@@ -115,18 +133,19 @@ def promote(conan_api: ConanAPI, parser, *args):
 
     for name_version, recipe in pkglist.serialize().items():
         if "revisions" not in recipe:
-            ConanOutput().info(f"Recipe {name_version} does not have a revision, skipping")
-            continue
+            raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
+                                 "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            _promote_path(url, user, password, args.origin, args.destination, _get_export_path_from_rrev(f"{name_version}#{rrev}"))
+            _promote_path(url, user, password, args.origin, args.destination,
+                          _get_export_path_from_rrev(f"{name_version}#{rrev}"))
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
             for pkgid, package in recipe_revision["packages"].items():
                 if "revisions" not in package:
-                    _promote_path(url, user, password, args.origin, args.destination,
-                                  _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}"))
-                    ConanOutput().info(f"Package {name_version}#{rrev}:{pkgid} does not have explicit revisions, skipping")
-                else:
-                    for prev, package_revision in package["revisions"].items():
-                        _promote_path(url, user, password, args.origin, args.destination, _get_path_from_pref(f"{name_version}#{rrev}:{pkgid}#{prev}"))
+                    raise ConanException(f"Package {name_version}#{rrev}:{pkgid} does not have any revisions specified. "
+                                         "It's necessary to specify package revisions for promotion.")
+                for prev, package_revision in package["revisions"].items():
+                    _promote_package_prev(url, user, password,
+                                          args.origin, args.destination,
+                                          f"{name_version}#{rrev}:{pkgid}#{prev}")
