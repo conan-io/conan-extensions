@@ -43,7 +43,7 @@ conan create . --format json -s build_type=Release > create_release.json
 conan create . --format json -s build_type=Debug > create_debug.json
 ```
 
-**Note**: In case you are using different machines or different Conan cache folders (e.g. when running on a CI system), the recommended flow is to prviously upload the recipe to Artifactory and then use ``conan install --requires=<pkg> --build=<pkg> `` + ``conan test ...`` on each machine to create the binaries for different configurations. This is the way to make sure you operate over the same recipe revision and its metadata files across all the CI machine agents.
+**Note**: In case you are using different machines or different Conan cache folders (e.g. when running on a CI system), the recommended flow is to previously upload the recipe to Artifactory and then use ``conan install --requires=<pkg> --build=<pkg> `` + ``conan test ...`` on each machine to create the binaries for different configurations. This is the way to make sure you operate over the same recipe revision and its metadata files across all the CI machine agents.
 
 Then upload the created package to your repository:
 
