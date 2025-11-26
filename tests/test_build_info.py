@@ -169,5 +169,5 @@ def test_missing_files_warning():
     _fake_conan_sources(graph)
 
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing .tgz files {'conan_export.tgz'}" in out
-    assert "WARN: There are missing .tgz files {'conan_package.tgz'}" in out
+    assert "WARN: There are missing .tgz files (conan_export.tgz)" in out
+    assert "WARN: There are missing .tgz files (conan_package.tgz)" in out
