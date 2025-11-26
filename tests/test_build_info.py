@@ -162,6 +162,7 @@ def test_tool_require_skip_binaries():
 
 
 def test_formatted_time():
+    """Compare local timestamp hours from build-info JSON with current timestamp in UTC"""
     run("conan new cmake_lib -d name=lib1 -d version=1.0")
     run("conan create . -f json > create.json")
 
