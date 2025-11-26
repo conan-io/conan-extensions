@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import textwrap
 
-from tools import save, run
+from tools import load, save, run
 
 REQ_LIB = "gmp"
 REQ_VER = "6.2.1"
@@ -113,10 +113,12 @@ def test_create_sbom(conanfile_content, conanfile_name, sbom_command, test_metad
     run("conan profile detect")
     save(conanfile_name, conanfile_content)
 
-    out = run(f"conan sbom:cyclonedx --format {sbom_format} {sbom_command}", stderr=None)
+    out = run(f"conan sbom:cyclonedx --format {sbom_format} {sbom_command} > output_file")
+    assert "WARN: deprecated" not in out
+    output_file_content = load("output_file")
     if sbom_format.split('_')[1] == "json":
-        sbom = json.loads(out)
+        sbom = json.loads(output_file_content)
         _test_generated_sbom_json(sbom, test_metadata_name, sbom_format.split('_')[0])
     else:
-        dom = xml.dom.minidom.parseString(out).firstChild
+        dom = xml.dom.minidom.parseString(output_file_content).firstChild
         _test_generated_sbom_xml(dom, test_metadata_name, sbom_format.split('_')[0])
