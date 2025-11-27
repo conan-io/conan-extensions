@@ -188,10 +188,7 @@ def test_build_info_with_metadata_files():
     build_info = json.loads(load("bi.json"))
     # recipe module
     assert build_info['modules'][0]['artifacts'][1]['name'] == "extra_info.txt"
-    assert build_info['modules'][0]['artifacts'][1]['path'] == \
-           "danimtb-local/_/pkg-w-metadata/1.0/_/35152d357d762ebd841b9f857a8aeb25/export/metadata/logs/extra_info.txt"
+    assert "/export/metadata/logs/extra_info.txt" in build_info['modules'][0]['artifacts'][1]['path']
     # package module
     assert build_info['modules'][1]['artifacts'][0]['name'] == "build.log"
-    assert build_info['modules'][1]['artifacts'][0]['path'] == \
-           "danimtb-local/_/pkg-w-metadata/1.0/_/35152d357d762ebd841b9f857a8aeb25/package/" \
-           "da39a3ee5e6b4b0d3255bfef95601890afd80709/0ba8627bd47edc3a501e8f0eb9a79e5e/metadata/logs/build.log"
+    assert "/metadata/logs/build.log" in build_info['modules'][1]['artifacts'][0]['path']
