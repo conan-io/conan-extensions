@@ -165,5 +165,5 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             bom.components.add(components[node])
     for dep in deps_graph.nodes:
         if filter_context(dep):
-            bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.dependencies if filter_context(dep_dep.dst)])
+            bom.register_dependency(components[dep], [components[dep_dep.dst] for dep_dep in dep.edges if filter_context(dep_dep.dst)])
     return bom
