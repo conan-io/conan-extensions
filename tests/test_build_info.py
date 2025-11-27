@@ -168,10 +168,9 @@ def test_build_info_with_metadata_files():
         from conan import ConanFile
         from conan.tools.files import save
 
-        class Meson(ConanFile):
-            name = "meson"
+        class Recipe(ConanFile):
+            name = "pkg-w-metadata"
             version = 1.0
-            package_type = "application"
 
             def export(self):
                 save(self, os.path.join(self.recipe_metadata_folder, "logs", "extra_info.txt"), "some info")
@@ -185,14 +184,14 @@ def test_build_info_with_metadata_files():
     graph = json.loads(load("create.json"))["graph"]
     _fake_conan_sources(graph)
 
-    run("conan art:build-info create create.json build_name 1 repo > bi.json")
+    run("conan art:build-info create create.json build_name 1 danimtb-local > bi.json")
     build_info = json.loads(load("bi.json"))
     # recipe module
     assert build_info['modules'][0]['artifacts'][1]['name'] == "extra_info.txt"
     assert build_info['modules'][0]['artifacts'][1]['path'] == \
-           "repo/_/meson/1.0/_/4fd8594b139818338a93342fdf2bf404/export/metadata/logs/extra_info.txt"
+           "danimtb-local/_/pkg-w-metadata/1.0/_/35152d357d762ebd841b9f857a8aeb25/export/metadata/logs/extra_info.txt"
     # package module
     assert build_info['modules'][1]['artifacts'][0]['name'] == "build.log"
     assert build_info['modules'][1]['artifacts'][0]['path'] == \
-           "repo/_/meson/1.0/_/4fd8594b139818338a93342fdf2bf404/package/da39a3ee5e6b4b0d3255bfef95601890afd80709/" \
-           "0ba8627bd47edc3a501e8f0eb9a79e5e/metadata/logs/build.log"
+           "danimtb-local/_/pkg-w-metadata/1.0/_/35152d357d762ebd841b9f857a8aeb25/package/" \
+           "da39a3ee5e6b4b0d3255bfef95601890afd80709/0ba8627bd47edc3a501e8f0eb9a79e5e/metadata/logs/build.log"
