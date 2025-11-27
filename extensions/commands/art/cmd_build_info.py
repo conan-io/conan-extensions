@@ -203,8 +203,10 @@ class _BuildInfo:
             artifacts_folder = Path(artifacts_folder)
             dl_folder = artifacts_folder.parents[0] / "d"
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
+            metadata_folder = dl_folder / "metadata"
+            metadata_folder_files = [file for file in metadata_folder.rglob("*") if file.is_file()]
             artifacts_folder_files = [file for file in artifacts_folder.glob("*") if file.name in artifacts_names]
-            all_files = dl_folder_files + artifacts_folder_files
+            all_files = dl_folder_files + metadata_folder_files + artifacts_folder_files
             
             processed_files = set()
             
@@ -223,7 +225,13 @@ class _BuildInfo:
                             node.get('ref')) if artifact_type == "recipe" else _get_remote_path(node.get('ref'),
                                                                                                 node.get("package_id"),
                                                                                                 node.get("prev"))
-                        artifact_info.update({"name": file_name, "path": f'{origin_repo}/{remote_path}/{file_name}'})
+                        if "metadata" in file_path.parts:
+                            idx = file_path.parts.index("metadata")
+                            ending_path = Path(*file_path.parts[idx + 1:])
+                            artifactory_path = f'{origin_repo}/{remote_path}/metadata/{ending_path.as_posix()}'
+                        else:
+                            artifactory_path = f'{origin_repo}/{remote_path}/{file_name}'
+                        artifact_info.update({"name": file_name, "path": artifactory_path})
                     else:
                         ref = node.get("ref")
                         pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""

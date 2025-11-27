@@ -157,3 +157,42 @@ def test_tool_require_skip_binaries():
     # Check libb package now has the meson dependency
     build_info["modules"][3]["dependencies"]
     assert len(build_info["modules"][3]["dependencies"]) == 2
+
+
+def test_build_info_with_metadata_files():
+    """
+    Test that metadata files are added to the build info
+    """
+    conanfile = textwrap.dedent("""
+        import os
+        from conan import ConanFile
+        from conan.tools.files import save
+
+        class Meson(ConanFile):
+            name = "meson"
+            version = 1.0
+            package_type = "application"
+
+            def export(self):
+                save(self, os.path.join(self.recipe_metadata_folder, "logs", "extra_info.txt"), "some info")
+
+            def build(self):
+                save(self, os.path.join(self.package_metadata_folder, "logs", "build.log"), "srclog!!")
+        """)
+    save(os.path.join(os.curdir, "conanfile.py"), conanfile)
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 repo > bi.json")
+    build_info = json.loads(load("bi.json"))
+    # recipe module
+    assert build_info['modules'][0]['artifacts'][1]['name'] == "extra_info.txt"
+    assert build_info['modules'][0]['artifacts'][1]['path'] == \
+           "repo/_/meson/1.0/_/4fd8594b139818338a93342fdf2bf404/export/metadata/logs/extra_info.txt"
+    # package module
+    assert build_info['modules'][1]['artifacts'][0]['name'] == "build.log"
+    assert build_info['modules'][1]['artifacts'][0]['path'] == \
+           "repo/_/meson/1.0/_/4fd8594b139818338a93342fdf2bf404/package/da39a3ee5e6b4b0d3255bfef95601890afd80709/" \
+           "0ba8627bd47edc3a501e8f0eb9a79e5e/metadata/logs/build.log"
