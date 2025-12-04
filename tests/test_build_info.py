@@ -200,3 +200,17 @@ def test_formatted_time():
     current_utc = datetime.datetime.now(datetime.timezone.utc)
     assert timestamp_utc.replace(minute=0, second=0, microsecond=0) == \
            current_utc.replace(minute=0, second=0, microsecond=0)
+
+
+def test_missing_files_warning():
+    """
+    Test that a warning is issued when .tgz files are missing from the build-info JSON
+    """
+    run("conan new header_lib -d name=lib1 -d version=1.0")
+    run("conan create . -f json > create.json")
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+    assert "WARN: There are missing .tgz files (conan_export.tgz)" in out
+    assert "WARN: There are missing .tgz files (conan_package.tgz)" in out

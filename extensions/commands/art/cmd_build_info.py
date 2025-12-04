@@ -277,6 +277,11 @@ class _BuildInfo:
             return artifact_info
 
         artifacts, missing = _get_local_artifacts()
+        if missing:
+            tgz_items = {item for item in missing if item.endswith(".tgz") and "conan_sources.tgz" not in item}
+            if tgz_items:
+                ConanOutput().warning(f"There are missing .tgz files ({','.join(tgz_items)}). Make sure to upload the "
+                                      f"packages to Artifactory before creating a BuildInfo")
 
         if 'conan_sources.tgz' in missing:
             # check if we have the conan_sources in Artifactory, if it's not there
