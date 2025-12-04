@@ -2,6 +2,8 @@ import json
 import tempfile
 import textwrap
 import os
+import datetime
+import re
 
 import pytest
 
@@ -157,6 +159,47 @@ def test_tool_require_skip_binaries():
     # Check libb package now has the meson dependency
     build_info["modules"][3]["dependencies"]
     assert len(build_info["modules"][3]["dependencies"]) == 2
+
+
+def test_formatted_time():
+    """Compare local timestamp hours from build-info JSON with current timestamp in UTC"""
+    run("conan new cmake_lib -d name=lib1 -d version=1.0")
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+
+    build_info = json.loads(load("bi.json"))
+    timestamp = build_info["started"]
+
+    # Parse the timestamp and convert to UTC
+    # Format is like: 2025-11-25T14:11:25.980+0100 (3-digit milliseconds, timezone without colon)
+    # Use regex to capture all parts
+    pattern = r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})([+-]\d{4})'
+    match = re.match(pattern, timestamp)
+    assert match, f"Timestamp format does not match expected pattern: {timestamp}"
+
+    year, month, day, hour, minute, second, millis, tz_str = match.groups()
+
+    # Create datetime object
+    dt = datetime.datetime(int(year), int(month), int(day), int(hour), int(minute), int(second), int(millis) * 1000)
+
+    # Parse timezone offset like +0100 or -0500
+    tz_sign = tz_str[0]
+    tz_hours = int(tz_str[1:3])
+    tz_minutes = int(tz_str[3:5])
+    tz_offset = datetime.timedelta(hours=tz_hours, minutes=tz_minutes)
+    if tz_sign == '-':
+        tz_offset = -tz_offset
+    tz_info = datetime.timezone(tz_offset)
+    timestamp_utc = dt.replace(tzinfo=tz_info).astimezone(datetime.timezone.utc)
+
+    # Get current UTC time and compare within the same hour
+    current_utc = datetime.datetime.now(datetime.timezone.utc)
+    assert timestamp_utc.replace(minute=0, second=0, microsecond=0) == \
+           current_utc.replace(minute=0, second=0, microsecond=0)
 
 
 def test_missing_files_warning():
