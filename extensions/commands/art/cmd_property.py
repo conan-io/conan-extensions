@@ -110,7 +110,7 @@ def property_add(conan_api: ConanAPI, parser, subparser, *args):
         artifact_properties = get_properties(path, url, user, password)
 
         for property in args.property:
-            key, val = property.split('=')[0], property.split('=')[1]
+            key, _, val = property.partition('=')
             artifact_properties.setdefault(key, []).append(val)
 
         if artifact_properties:
@@ -133,9 +133,7 @@ def property_set(conan_api: ConanAPI, parser, subparser, *args):
     if not args.property:
         raise ConanException("Please, add at least one property with the --property argument.")
 
-    # json_data = json.dumps(
-    #     {"props": {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}})
-    properties = {prop.split('=')[0]: prop.split('=')[1] for prop in args.property}
+    properties = {prop.partition('=')[0]: prop.partition('=')[2] for prop in args.property}
     path = f"{args.repository}/{_get_path_from_ref(args.reference)}"
     url, user, password = get_url_user_password(args)
     recursive = "1" if args.recursive else "0"
