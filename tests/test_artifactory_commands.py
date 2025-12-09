@@ -656,3 +656,48 @@ def test_art_promote_build_version():
     remote_prod_list_json = json.loads(out)
     assert "extensions-prod" in remote_prod_list_json
     assert "mypkg/1.0+build" in remote_prod_list_json["extensions-prod"]
+
+
+@pytest.mark.requires_credentials
+def test_property_value_with_equals_sign():
+    """
+    Test that property values containing '=' are correctly parsed and set in Artifactory.
+    Regression test for https://github.com/conan-io/conan-extensions/issues/228
+    """
+    # Configure Artifactory server (credentials stored securely, not printed in logs)
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} '
+        f'--user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" '
+        f'--password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    # Create and upload a package
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+    run("conan create . -tf=''")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+
+    # Set a property with '=' in the value (the bug would truncate the value)
+    url_with_equals = "https://my.domain/build?id=12345"
+    run(f'conan art:property set extensions-stg mypkg/1.0 '
+        f'--property="build.url={url_with_equals}" '
+        f'--server=artifactory')
+
+    # Verify the property was set correctly by querying Artifactory API
+    import urllib.request
+    import base64
+
+    art_url = os.getenv("ART_URL")
+    art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+    art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")
+
+    credentials = base64.b64encode(f"{art_user}:{art_password}".encode()).decode()
+    request = urllib.request.Request(
+        f"{art_url}/api/storage/extensions-stg/_/mypkg/1.0/_?properties",
+        headers={"Authorization": f"Basic {credentials}"}
+    )
+    response = urllib.request.urlopen(request)
+    properties = json.loads(response.read().decode()).get("properties", {})
+
+    # Check that the full URL with '=' is preserved
+    assert "build.url" in properties, "Property 'build.url' not found"
+    actual_value = properties["build.url"][0]
+    assert actual_value == url_with_equals, \
+        f"Property value was truncated! Expected '{url_with_equals}', got '{actual_value}'"
