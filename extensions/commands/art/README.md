@@ -51,6 +51,9 @@ Then upload the created package to your repository:
 conan upload ... -c -r <conan-remote>
 ```
 
+**Important**: Make sure to upload the packages _before_ creating a Build Info so conan_exports.tgz or conan_package.tgz
+files are generated. Otherwise, the created Build Info might be incomplete.
+
 Using the generated JSON files you can create a Build Info JSON file. To do this, you need to provide the build
 name and number. You will also need to indicate the artifactory server to use and the name of repository where the packages were uploaded in Artifactory (probably **not** the same one as the Conan remote name):
 
