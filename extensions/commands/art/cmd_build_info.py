@@ -61,17 +61,17 @@ def _get_hashes(file_path):
 
 
 def _get_formatted_time():
-    now = datetime.datetime.now(datetime.timezone.utc)
-    local_tz_offset = now.astimezone().strftime('%z')
-    formatted_time = now.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_tz_offset
+    now = datetime.datetime.now().astimezone()
+    ms = now.microsecond // 1000  # convert to milliseconds
+    formatted_time = now.strftime(f"%Y-%m-%dT%H:%M:%S.{ms:03d}%z")
 
     # Apparently if the timestamp has the Z the BuildInfo is not correctly identified in Artifactory
     # if local_tz_offset == "+0000":
     #    formatted_time = formatted_time[:-5] + "Z"
 
     # from here: https://github.com/jfrog/build-info-go/blob/9b6f2ec13eedc41ad0f66882e630c2882f90cc76/buildinfo-schema.json#L63
-    if not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}(Z|[+-]\d{4})$', formatted_time):
-        raise ValueError("Time format does not match BuildInfo required format.")
+    assert re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{4})$', formatted_time), \
+        f"The generated timestamp {formatted_time} does not match BuildInfo required format."
 
     return formatted_time
 
@@ -285,6 +285,11 @@ class _BuildInfo:
             return artifact_info
 
         artifacts, missing = _get_local_artifacts()
+        if missing:
+            tgz_items = {item for item in missing if item.endswith(".tgz") and "conan_sources.tgz" not in item}
+            if tgz_items:
+                ConanOutput().warning(f"There are missing .tgz files ({','.join(tgz_items)}). Make sure to upload the "
+                                      f"packages to Artifactory before creating a BuildInfo")
 
         if 'conan_sources.tgz' in missing:
             # check if we have the conan_sources in Artifactory, if it's not there
