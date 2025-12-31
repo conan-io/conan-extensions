@@ -181,9 +181,6 @@ def test_build_info_with_metadata_files():
                 save(self, os.path.join(self.package_metadata_folder, "logs", "build.log"), "srclog!!")
         """)
     save(os.path.join(os.curdir, "conanfile.py"), conanfile)
-def test_formatted_time():
-    """Compare local timestamp hours from build-info JSON with current timestamp in UTC"""
-    run("conan new cmake_lib -d name=lib1 -d version=1.0")
     run("conan create . -f json > create.json")
 
     graph = json.loads(load("create.json"))["graph"]
@@ -199,6 +196,16 @@ def test_formatted_time():
     assert "/metadata/logs/build.log" in build_info['modules'][1]['artifacts'][0]['path']
     run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
 
+
+def test_formatted_time():
+    """Compare local timestamp hours from build-info JSON with current timestamp in UTC"""
+    run("conan new cmake_lib -d name=lib1 -d version=1.0")
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 danimtb-local > bi.json")
     build_info = json.loads(load("bi.json"))
     timestamp = build_info["started"]
 
