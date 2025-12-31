@@ -173,6 +173,97 @@ class _BuildInfo:
             reference = RecipeReference.loads(node.get("ref"))
             return self._conan_api.cache.export_path(reference)
 
+    def _get_metadata_files(self, dl_folder):
+        """
+        Collect all metadata files from the metadata folder.
+
+        Args:
+            dl_folder: Path to the download folder containing the metadata subfolder
+
+        Returns:
+            List of Path objects for all metadata files found
+        """
+        metadata_folder = dl_folder / "metadata"
+        if not metadata_folder.exists():
+            return []
+        return [file for file in metadata_folder.rglob("*") if file.is_file()]
+
+    def _process_metadata_file(self, file_path, node, artifact_type, origin_repo, is_dependency):
+        """
+        Process a metadata file and create artifact info for it.
+
+        Args:
+            file_path: Path to the metadata file
+            node: Node information from the graph
+            artifact_type: Type of artifact ("recipe" or "package")
+            origin_repo: Repository where the artifact originates
+            is_dependency: Whether this is a dependency artifact
+
+        Returns:
+            Dictionary with artifact information
+        """
+        file_name = file_path.name
+        md5, sha1, sha256 = _get_hashes(file_path)
+        artifact_info = {
+            "type": os.path.splitext(file_name)[1].lstrip('.'),
+            "sha256": sha256,
+            "sha1": sha1,
+            "md5": md5
+        }
+
+        if not is_dependency:
+            remote_path = _get_remote_path(
+                node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
+                node.get('ref'), node.get("package_id"), node.get("prev"))
+
+            # Extract the path relative to the metadata folder
+            idx = file_path.parts.index("metadata")
+            ending_path = Path(*file_path.parts[idx + 1:])
+            artifactory_path = f'{origin_repo}/{remote_path}/metadata/{ending_path.as_posix()}'
+            artifact_info.update({"name": file_name, "path": artifactory_path})
+        else:
+            ref = node.get("ref")
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
+
+        return artifact_info
+
+    def _process_regular_artifact(self, file_path, node, artifact_type, origin_repo, is_dependency):
+        """
+        Process a regular (non-metadata) artifact file and create artifact info for it.
+
+        Args:
+            file_path: Path to the artifact file
+            node: Node information from the graph
+            artifact_type: Type of artifact ("recipe" or "package")
+            origin_repo: Repository where the artifact originates
+            is_dependency: Whether this is a dependency artifact
+
+        Returns:
+            Dictionary with artifact information
+        """
+        file_name = file_path.name
+        md5, sha1, sha256 = _get_hashes(file_path)
+        artifact_info = {
+            "type": os.path.splitext(file_name)[1].lstrip('.'),
+            "sha256": sha256,
+            "sha1": sha1,
+            "md5": md5
+        }
+
+        if not is_dependency:
+            remote_path = _get_remote_path(
+                node.get('ref')) if artifact_type == "recipe" else _get_remote_path(
+                node.get('ref'), node.get("package_id"), node.get("prev"))
+            artifactory_path = f'{origin_repo}/{remote_path}/{file_name}'
+            artifact_info.update({"name": file_name, "path": artifactory_path})
+        else:
+            ref = node.get("ref")
+            pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
+            artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
+
+        return artifact_info
+
     def get_artifacts(self, node, artifact_type, is_dependency=False):
         """
         Function to get artifact information, those artifacts can be added as artifacts of a
@@ -202,41 +293,35 @@ class _BuildInfo:
 
             artifacts_folder = Path(artifacts_folder)
             dl_folder = artifacts_folder.parents[0] / "d"
+
+            # Collect regular artifacts
             dl_folder_files = [file for file in dl_folder.glob("*") if file.name in artifacts_names]
-            metadata_folder = dl_folder / "metadata"
-            metadata_folder_files = [file for file in metadata_folder.rglob("*") if file.is_file()]
             artifacts_folder_files = [file for file in artifacts_folder.glob("*") if file.name in artifacts_names]
-            all_files = dl_folder_files + metadata_folder_files + artifacts_folder_files
-            
+            regular_files = dl_folder_files + artifacts_folder_files
+
+            # Collect metadata files separately
+            metadata_files = self._get_metadata_files(dl_folder)
+
             processed_files = set()
-            
-            for file_path in all_files:
+
+            # Process regular artifacts
+            for file_path in regular_files:
                 file_name = file_path.name
                 if file_path.is_file() and file_name not in processed_files:
-                    processed_files.add(file_path.name)
-                    md5, sha1, sha256 = _get_hashes(file_path)
-                    artifact_info = {"type": os.path.splitext(file_name)[1].lstrip('.'),
-                                     "sha256": sha256,
-                                     "sha1": sha1,
-                                     "md5": md5}
+                    processed_files.add(file_name)
+                    artifact_info = self._process_regular_artifact(
+                        file_path, node, artifact_type, origin_repo, is_dependency
+                    )
+                    local_artifacts.append(artifact_info)
 
-                    if not is_dependency:
-                        remote_path = _get_remote_path(
-                            node.get('ref')) if artifact_type == "recipe" else _get_remote_path(node.get('ref'),
-                                                                                                node.get("package_id"),
-                                                                                                node.get("prev"))
-                        if "metadata" in file_path.parts:
-                            idx = file_path.parts.index("metadata")
-                            ending_path = Path(*file_path.parts[idx + 1:])
-                            artifactory_path = f'{origin_repo}/{remote_path}/metadata/{ending_path.as_posix()}'
-                        else:
-                            artifactory_path = f'{origin_repo}/{remote_path}/{file_name}'
-                        artifact_info.update({"name": file_name, "path": artifactory_path})
-                    else:
-                        ref = node.get("ref")
-                        pkg = f":{node.get('package_id')}#{node.get('prev')}" if artifact_type == "package" else ""
-                        artifact_info.update({"id": f"{ref}{pkg} :: {file_name}"})
-
+            # Process metadata files
+            for file_path in metadata_files:
+                file_name = file_path.name
+                if file_name not in processed_files:
+                    processed_files.add(file_name)
+                    artifact_info = self._process_metadata_file(
+                        file_path, node, artifact_type, origin_repo, is_dependency
+                    )
                     local_artifacts.append(artifact_info)
 
             missing_files = set(artifacts_names) - processed_files

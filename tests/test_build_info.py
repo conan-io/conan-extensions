@@ -189,11 +189,11 @@ def test_build_info_with_metadata_files():
     run("conan art:build-info create create.json build_name 1 danimtb-local > bi.json")
     build_info = json.loads(load("bi.json"))
     # recipe module
-    assert build_info['modules'][0]['artifacts'][1]['name'] == "extra_info.txt"
-    assert "/export/metadata/logs/extra_info.txt" in build_info['modules'][0]['artifacts'][1]['path']
+    assert build_info['modules'][0]['artifacts'][3]['name'] == "extra_info.txt"
+    assert "/export/metadata/logs/extra_info.txt" in build_info['modules'][0]['artifacts'][3]['path']
     # package module
-    assert build_info['modules'][1]['artifacts'][0]['name'] == "build.log"
-    assert "/metadata/logs/build.log" in build_info['modules'][1]['artifacts'][0]['path']
+    assert build_info['modules'][1]['artifacts'][2]['name'] == "build.log"
+    assert "/metadata/logs/build.log" in build_info['modules'][1]['artifacts'][2]['path']
     run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
 
 
