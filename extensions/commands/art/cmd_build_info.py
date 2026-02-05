@@ -638,8 +638,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
     all_modules = []
 
     def _add_modules_from_buildinfo(build_info_data):
-        build_info = build_info_data.get("buildInfo")
-        for module in build_info.get("modules"):
+        for module in build_info_data.get("modules"):
             # avoid repeating shared recipe modules between builds
             if not any(d['id'] == module.get('id') for d in all_modules):
                 all_modules.append(module)
@@ -648,7 +647,7 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
         for build_info in args.build_info:
             name, number = build_info.split(",")
             bi_json = get_buildinfo(name, number, url, user, password, args.project)
-            bi_data = json.loads(bi_json)
+            bi_data = json.loads(bi_json).get("buildInfo")
             _add_modules_from_buildinfo(bi_data)
 
     if args.build_info_file:
