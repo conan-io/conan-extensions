@@ -644,15 +644,17 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
             if not any(d['id'] == module.get('id') for d in all_modules):
                 all_modules.append(module)
 
-    for build_info in args.build_info:
-        name, number = build_info.split(",")
-        bi_json = get_buildinfo(name, number, url, user, password, args.project)
-        bi_data = json.loads(bi_json)
-        _add_modules_from_buildinfo(bi_data)
+    if args.build_info:
+        for build_info in args.build_info:
+            name, number = build_info.split(",")
+            bi_json = get_buildinfo(name, number, url, user, password, args.project)
+            bi_data = json.loads(bi_json)
+            _add_modules_from_buildinfo(bi_data)
 
-    for build_info_file in args.build_info_file:
-        bi_data = load_json(build_info_file)
-        _add_modules_from_buildinfo(bi_data)
+    if args.build_info_file:
+        for build_info_file in args.build_info_file:
+            bi_data = load_json(build_info_file)
+            _add_modules_from_buildinfo(bi_data)
 
     bi = _BuildInfo(conan_api, None, args.build_name, args.build_number, None)
     bi_json = bi.header()
