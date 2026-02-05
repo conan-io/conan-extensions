@@ -625,9 +625,10 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                                                 " --build-info=bi-2.json", action="append")
 
     args = parser.parse_args(*args)
-    assert_server_or_url_user_password(args)
 
-    url, user, password = get_url_user_password(args)
+    if args.build_info:
+        assert_server_or_url_user_password(args)
+        url, user, password = get_url_user_password(args)
 
     for build_info in args.build_info:
         if not "," in build_info:
