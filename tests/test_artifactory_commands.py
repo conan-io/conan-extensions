@@ -733,7 +733,7 @@ def test_append_local_build_info():
     assert len(bi_data["modules"]) == 3
 
     assert bi_data["modules"][0]["id"] == "mypkg/1.0#294e801a0e1da10084441487e95b80e8"
-    recipe_files = {artifact["name"] for artifact in bi_data["modules"][2]["artifacts"]}
+    recipe_files = {artifact["name"] for artifact in bi_data["modules"][0]["artifacts"]}
     assert set(recipe_files) == {"conanfile.py", "conan_sources.tgz", "conan_export.tgz"}
 
     for n in [1, 2]:
