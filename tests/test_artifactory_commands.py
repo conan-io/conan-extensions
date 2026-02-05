@@ -737,7 +737,7 @@ def test_append_local_build_info():
     assert set(recipe_files) == {"conanfile.py", "conan_sources.tgz", "conanmanifest.txt"}
 
     for n in [1, 2]:
-        assert ("mypkg/1.0#294e801a0e1da10084441487e95b80e8:"  # omit pkgid for multi-platform testing
-                in bi_data["modules"][n]["id"] == "mypkg/1.0#294e801a0e1da10084441487e95b80e8:")
+        # omit pkgid for multi-platform testing
+        assert "mypkg/1.0#294e801a0e1da10084441487e95b80e8:" in bi_data["modules"][n]["id"]
         package_files = {artifact["name"] for artifact in bi_data["modules"][n]["artifacts"]}
         assert set(package_files) == {"conanmanifest.txt", "conaninfo.txt", "conan_package.tgz"}
