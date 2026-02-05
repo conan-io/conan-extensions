@@ -630,10 +630,10 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
         assert_server_or_url_user_password(args)
         url, user, password = get_url_user_password(args)
 
-    for build_info in args.build_info:
-        if not "," in build_info:
-            raise ConanException("Please, provide the build name and number to append in the format: "
-                                 "--build-info=build_name,build_number")
+        for build_info in args.build_info:
+            if not "," in build_info:
+                raise ConanException("Please, provide the build name and number to append in the format: "
+                                     "--build-info=build_name,build_number")
 
     all_modules = []
 
