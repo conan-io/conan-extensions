@@ -704,7 +704,11 @@ def test_property_value_with_equals_sign():
 
 
 @pytest.mark.requires_credentials
-def test_append_local_build_info():
+@pytest.mark.parametrize("upload_bi, bi_append_flag", [
+    (True, "--build-info=my_build_release,1"),
+    (False, "--build-info-file=my_build_release.json"),
+])
+def test_append_local_build_info(upload_bi, bi_append_flag):
     """
     Test that we can append local build info to the build-info JSON
     """
@@ -717,6 +721,9 @@ def test_append_local_build_info():
     run("conan create . --format json -s build_type=Release > create_release.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f"conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json")
+    if upload_bi:
+        run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
+        run(f'rm {build_name}_release.json')
 
     # Create debug packages & build info
     run("conan create . --format json -s build_type=Debug > create_debug.json")
@@ -724,8 +731,8 @@ def test_append_local_build_info():
     run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
 
     # Aggregate the release and debug build infos into a new one to later do the promotion
-    run(f"conan art:build-info append {build_name} {build_number} "
-        f"--build-info-file={build_name}_release.json --build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
+    run(f"conan art:build-info append {build_name} {build_number} {bi_append_flag} "
+        f"--build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
     bi_data = json.loads(load(f"{build_name}_aggregated.json"))
 
     assert bi_data["name"] == build_name

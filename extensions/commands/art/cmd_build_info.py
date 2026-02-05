@@ -626,14 +626,11 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
 
     args = parser.parse_args(*args)
 
-    if args.build_info:
-        assert_server_or_url_user_password(args)
-        url, user, password = get_url_user_password(args)
-
-        for build_info in args.build_info:
-            if not "," in build_info:
-                raise ConanException("Please, provide the build name and number to append in the format: "
-                                     "--build-info=build_name,build_number")
+    if not args.build_info and not args.build_info_file:
+        raise ConanException("At least one of the arguments --build-info or --build-info-file is required. "
+                             "Please provide at least one build info to append in the format: "
+                             "--build-info=build_name,build_number or a local build info file with "
+                             "--build-info-file=path_to_bi.json")
 
     all_modules = []
 
@@ -644,7 +641,13 @@ def build_info_append(conan_api: ConanAPI, parser, subparser, *args):
                 all_modules.append(module)
 
     if args.build_info:
+        assert_server_or_url_user_password(args)
+        url, user, password = get_url_user_password(args)
+
         for build_info in args.build_info:
+            if not "," in build_info:
+                raise ConanException("Please, provide the build name and number to append in the format: "
+                                     "--build-info=build_name,build_number")
             name, number = build_info.split(",")
             bi_json = get_buildinfo(name, number, url, user, password, args.project)
             bi_data = json.loads(bi_json).get("buildInfo")
