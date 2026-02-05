@@ -727,4 +727,17 @@ def test_append_local_build_info():
     run(f"conan art:build-info append {build_name} {build_number} "
         f"--build-info-file={build_name}_release.json --build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
     bi_data = json.loads(load(f"{build_name}_aggregated.json"))
-    print("BI_DATA", bi_data)
+
+    assert bi_data["name"] == build_name
+    assert bi_data["number"] == build_number
+    assert len(bi_data["modules"]) == 3
+
+    assert bi_data["modules"][0]["id"] == "mypkg/1.0#294e801a0e1da10084441487e95b80e8"
+    recipe_files = {artifact["name"] for artifact in bi_data["modules"][2]["artifacts"]}
+    assert set(recipe_files) == {"conanfile.py", "conan_sources.tgz", "conan_export.tgz"}
+
+    for n in [1, 2]:
+        assert bi_data["modules"][n]["id"] == "mypkg/1.0#294e801a0e1da10084441487e95b80e8:"  # omit pkgid for multi-platform testing
+        package_files = {artifact["name"] for artifact in bi_data["modules"][n]["artifacts"]}
+        assert set(package_files) == {"conanfile.py", "conan_sources.tgz", "conan_export.tgz"}
+
