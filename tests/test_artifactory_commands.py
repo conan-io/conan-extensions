@@ -715,6 +715,12 @@ def test_append_local_build_info(upload_bi, bi_append_flag):
     build_name = "my_build"
     build_number = "1"
 
+    if upload_bi:
+        # Configure Artifactory server and credentials
+        run(f'conan art:server add artifactory {os.getenv("ART_URL")} '
+            f'--user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" '
+            f'--password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
     # Create release packages & build info
@@ -731,8 +737,11 @@ def test_append_local_build_info(upload_bi, bi_append_flag):
     run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
 
     # Aggregate the release and debug build infos into a new one to later do the promotion
-    run(f"conan art:build-info append {build_name} {build_number} {bi_append_flag} "
-        f"--build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
+    append_cmd = f"conan art:build-info append {build_name} {build_number} {bi_append_flag} --build-info-file={build_name}_debug.json"
+    if upload_bi:
+        append_cmd += " --server artifactory"
+    append_cmd += f" > {build_name}_aggregated.json"
+    run(append_cmd)
     bi_data = json.loads(load(f"{build_name}_aggregated.json"))
 
     assert bi_data["name"] == build_name
