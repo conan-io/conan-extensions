@@ -701,3 +701,30 @@ def test_property_value_with_equals_sign():
     actual_value = properties["build.url"][0]
     assert actual_value == url_with_equals, \
         f"Property value was truncated! Expected '{url_with_equals}', got '{actual_value}'"
+
+
+@pytest.mark.requires_credentials
+def test_append_local_build_info():
+    """
+    Test that we can append local build info to the build-info JSON
+    """
+    build_name = "my_build"
+    build_number = "1"
+
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+
+    # Create release packages & build info
+    run("conan create . --format json -s build_type=Release > create_release.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f"conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json")
+
+    # Create debug packages & build info
+    run("conan create . --format json -s build_type=Debug > create_debug.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
+
+    # Aggregate the release and debug build infos into a new one to later do the promotion
+    run(f"conan art:build-info append {build_name} {build_number} "
+        f"--build-info-file={build_name}_release.json --build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
+    bi_data = json.loads(load(f"{build_name}_aggregated.json"))
+    print("BI_DATA", bi_data)
