@@ -716,16 +716,20 @@ def test_append_local_build_info(upload_bi, bi_append_flag):
     run("conan create . --format json -s build_type=Release > create_release.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f"conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json")
+    bi_data = json.loads(load(f"{build_name}_release.json"))
+    assert len(bi_data["modules"]) == 2
 
     # Create debug packages & build info
     run("conan create . --format json -s build_type=Debug > create_debug.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
+    bi_data = json.loads(load(f"{build_name}_debug.json"))
+    assert len(bi_data["modules"]) == 2
 
-    # Aggregate the release and debug build infos into a new one to later do the promotion
-    run(f"conan art:build-info append {build_name} {build_number} --build-info-file={build_name}_release.json "
-        f"--build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
-    bi_data = json.loads(load(f"{build_name}_aggregated.json"))
+    # Aggregate the release and debug build infos into a new one
+    output = run(f"conan art:build-info append {build_name} {build_number} --build-info-file={build_name}_release.json "
+                 f"--build-info-file={build_name}_debug.json")
+    bi_data = json.loads(output)
 
     assert bi_data["name"] == build_name
     assert bi_data["number"] == build_number
