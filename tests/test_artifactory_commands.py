@@ -243,10 +243,11 @@ def test_build_info_create_deps():
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
-    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+    out = run(f'conan art:build-info upload {build_name}_debug.json --server artifactory')
+    assert "Build info uploaded successfully." in out
 
-    # Aggregate build infos and upload the new one
-    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} > {build_name}_aggregated.json')
+    # Aggregate build infos (one from remote, one from local file) and upload the new one
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info-file={build_name}_debug.json > {build_name}_aggregated.json')
     run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Check all build infos exist
@@ -701,3 +702,47 @@ def test_property_value_with_equals_sign():
     actual_value = properties["build.url"][0]
     assert actual_value == url_with_equals, \
         f"Property value was truncated! Expected '{url_with_equals}', got '{actual_value}'"
+
+
+@pytest.mark.requires_credentials
+def test_append_local_build_info():
+    """
+    Test that we can append local build infos (without uploding them previously to artifactory)
+    """
+    build_name = "my_build"
+    build_number = "1"
+
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+
+    # Create release packages & build info
+    run("conan create . --format json -s build_type=Release > create_release.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f"conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json")
+    bi_data = json.loads(load(f"{build_name}_release.json"))
+    assert len(bi_data["modules"]) == 2
+
+    # Create debug packages & build info
+    run("conan create . --format json -s build_type=Debug > create_debug.json")
+    run("conan upload mypkg/1.0 -c -r extensions-stg")
+    run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
+    bi_data = json.loads(load(f"{build_name}_debug.json"))
+    assert len(bi_data["modules"]) == 2
+
+    # Aggregate the release and debug build infos into a new one
+    output = run(f"conan art:build-info append {build_name} {build_number} --build-info-file={build_name}_release.json "
+                 f"--build-info-file={build_name}_debug.json")
+    bi_data = json.loads(output)
+
+    assert bi_data["name"] == build_name
+    assert bi_data["number"] == build_number
+    assert len(bi_data["modules"]) == 3
+
+    assert bi_data["modules"][0]["id"] == "mypkg/1.0#294e801a0e1da10084441487e95b80e8"
+    recipe_files = {artifact["name"] for artifact in bi_data["modules"][0]["artifacts"]}
+    assert set(recipe_files) == {"conanfile.py", "conan_sources.tgz", "conanmanifest.txt"}
+
+    for n in [1, 2]:
+        # omit pkgid for multi-platform testing
+        assert "mypkg/1.0#294e801a0e1da10084441487e95b80e8:" in bi_data["modules"][n]["id"]
+        package_files = {artifact["name"] for artifact in bi_data["modules"][n]["artifacts"]}
+        assert set(package_files) == {"conanmanifest.txt", "conaninfo.txt", "conan_package.tgz"}
