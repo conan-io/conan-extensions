@@ -243,14 +243,18 @@ def test_build_info_create_deps():
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
+    out = run(f'conan art:build-info upload {build_name}_debug.json --server artifactory')
+    assert "Build info uploaded successfully." in out
 
     # Aggregate build infos (one from remote, one from local file) and upload the new one
     run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info-file={build_name}_debug.json > {build_name}_aggregated.json')
     run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    # Check build infos uploaded exist
+    # Check all build infos exist
     out = run(f'conan art:build-info get {build_name}_release {build_number} --server artifactory')
     assert '"name" : "mybuildinfo_release"' in out
+    out = run(f'conan art:build-info get {build_name}_debug {build_number} --server artifactory')
+    assert '"name" : "mybuildinfo_debug"' in out
     out = run(f'conan art:build-info get {build_name}_aggregated {build_number} --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
     assert '"name" : "mybuildinfo_aggregated"' in out
 
