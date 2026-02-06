@@ -243,10 +243,9 @@ def test_build_info_create_deps():
     run("conan create . --format json -tf='' -s build_type=Debug --build=missing > create_debug.json")
     run("conan upload 'mypkg/1.0' -c -r extensions-stg")
     run(f'conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg --url={os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}" --with-dependencies > {build_name}_debug.json')
-    run(f'conan art:build-info upload {build_name}_debug.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
-    # Aggregate build infos and upload the new one
-    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info={build_name}_debug,{build_number} > {build_name}_aggregated.json')
+    # Aggregate build infos (one from remote, one from local file) and upload the new one
+    run(f'conan art:build-info append {build_name}_aggregated {build_number} --server artifactory --build-info={build_name}_release,{build_number} --build-info-file={build_name}_debug.json > {build_name}_aggregated.json')
     run(f'conan art:build-info upload {build_name}_aggregated.json --url="{os.getenv("ART_URL")}" --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     # Check all build infos exist
@@ -704,22 +703,12 @@ def test_property_value_with_equals_sign():
 
 
 @pytest.mark.requires_credentials
-@pytest.mark.parametrize("upload_bi, bi_append_flag", [
-    (True, "--build-info=my_build_release,1"),
-    (False, "--build-info-file=my_build_release.json"),
-])
 def test_append_local_build_info(upload_bi, bi_append_flag):
     """
-    Test that we can append local build info to the build-info JSON
+    Test that we can append local build infos (without uploding them previously to artifactory)
     """
     build_name = "my_build"
     build_number = "1"
-
-    if upload_bi:
-        # Configure Artifactory server and credentials
-        run(f'conan art:server add artifactory {os.getenv("ART_URL")} '
-            f'--user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" '
-            f'--password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
 
     run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
 
@@ -727,9 +716,6 @@ def test_append_local_build_info(upload_bi, bi_append_flag):
     run("conan create . --format json -s build_type=Release > create_release.json")
     run("conan upload mypkg/1.0 -c -r extensions-stg")
     run(f"conan art:build-info create create_release.json {build_name}_release {build_number} extensions-stg > {build_name}_release.json")
-    if upload_bi:
-        run(f'conan art:build-info upload {build_name}_release.json --server artifactory')
-        run(f'rm {build_name}_release.json')
 
     # Create debug packages & build info
     run("conan create . --format json -s build_type=Debug > create_debug.json")
@@ -737,11 +723,8 @@ def test_append_local_build_info(upload_bi, bi_append_flag):
     run(f"conan art:build-info create create_debug.json {build_name}_debug {build_number} extensions-stg > {build_name}_debug.json")
 
     # Aggregate the release and debug build infos into a new one to later do the promotion
-    append_cmd = f"conan art:build-info append {build_name} {build_number} {bi_append_flag} --build-info-file={build_name}_debug.json"
-    if upload_bi:
-        append_cmd += " --server artifactory"
-    append_cmd += f" > {build_name}_aggregated.json"
-    run(append_cmd)
+    run(f"conan art:build-info append {build_name} {build_number} --build-info-file={build_name}_release.json "
+        f"--build-info-file={build_name}_debug.json > {build_name}_aggregated.json")
     bi_data = json.loads(load(f"{build_name}_aggregated.json"))
 
     assert bi_data["name"] == build_name
