@@ -705,7 +705,7 @@ def test_property_value_with_equals_sign():
 
 
 @pytest.mark.requires_credentials
-def test_append_local_build_info(upload_bi, bi_append_flag):
+def test_append_local_build_info():
     """
     Test that we can append local build infos (without uploding them previously to artifactory)
     """
