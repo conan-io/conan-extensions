@@ -31,9 +31,9 @@ optional arguments:
 
 ```
 $ conan art:build-info append --help
-usage: conan build-info append [-h] [-v [V]] [-cc CORE_CONF] [--project PROJECT] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN]
-                               [--build-info BUILD_INFO]
-                               build_name build_number
+usage: conan art:build-info append [-h] [--out-file OUT_FILE] [-v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]] [-cc CORE_CONF] [--project PROJECT] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD]
+                                   [--token TOKEN] [--build-info BUILD_INFO] [--build-info-file BUILD_INFO_FILE]
+                                   build_name build_number
 
 Append published build to the build info.
 
@@ -41,10 +41,11 @@ positional arguments:
   build_name            The current build name.
   build_number          The current build number.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  -v [V]                Level of detail of the output. Valid options from less verbose to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
-                        -vvv or -vtrace
+  --out-file OUT_FILE   Write the output of the command to the specified file instead of stdout.
+  -v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]
+                        Level of detail of the output. Valid options from less verbose to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug, -vvv or -vtrace
   -cc CORE_CONF, --core-conf CORE_CONF
                         Define core configuration, overwriting global.conf values. E.g.: -cc core:non_interactive=True
   --project PROJECT     Project key for the Build Info in Artifactory
@@ -54,8 +55,9 @@ optional arguments:
   --password PASSWORD   Password for the Artifactory server.
   --token TOKEN         Token for the Artifactory server.
   --build-info BUILD_INFO
-                        Name and number for the Build Info already published in Artifactory. You can add multiple Builds like --build-info=build_name,build_number --build-
-                        info=build_name,build_number
+                        Name and number for the Build Info already published in Artifactory. You can add multiple Builds like --build-info=build_name,build_number --build-info=build_name,build_number
+  --build-info-file BUILD_INFO_FILE
+                        Path to the build-info file in your local folder. You can add multiple build-info files like --build-info=bi-1.json --build-info=bi-2.json
 ```
 
 ### ``conan art:build-info create``
