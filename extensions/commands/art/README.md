@@ -89,7 +89,7 @@ conan art:build-info append mybuildname_aggregated 1 --build-info=mybuildname_re
 This is handy in order to make promotions of packages from one repository to another in Artifactory.
 
 **Note**: You can also append Build Info's without the need to upload them individually beforehand.
-Just append them by file with this equivalent command:
+Just append them by file using the `--build-info-file` argument instead of `--build-info`:
 
 ```
 conan art:build-info append mybuildname_aggregated 1 --build-info-file=mybuildname_release.json --build-info-file=mybuildname_debug.json > mybuildname_aggregated.json
