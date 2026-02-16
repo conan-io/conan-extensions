@@ -186,7 +186,12 @@ class _BuildInfo:
         assert artifact_type in ["recipe", "package"]
 
         if artifact_type == "recipe":
-            artifacts_names = ["conan_sources.tgz", "conan_export.tgz", "conanfile.py", "conanmanifest.txt"]
+            artifacts_names = ["conanfile.py", "conanmanifest.txt"]
+            reference = RecipeReference.loads(node.get("ref"))
+            export_path = self._conan_api.cache.export_path(reference)
+            if set(os.listdir(export_path)) != set(artifacts_names):  # Check if recipe has additional exports files
+                artifacts_names.append("conan_export.tgz")
+            artifacts_names.append("conan_sources.tgz")
         else:
             artifacts_names = ["conan_package.tgz", "conaninfo.txt", "conanmanifest.txt"]
 
