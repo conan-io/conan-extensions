@@ -24,6 +24,15 @@ These are commands to manage certain Artifactory features:
   - ``set``
 
 
+### What gets included in the Build Info?
+
+The ``conan art:build-info create`` command records **all the packages that were built from source** during the
+``conan create`` command. This includes not only the main package being created, but also all the dependencies that were
+built from source during that command.
+
+Packages that are retrieved from Artifactory or from local cache are **not included by default**. Use the
+``--add-cached-deps`` flag in case you want to include those packages as well.
+
 ### How to manage Build Info's in Artifactory
 
 #### 1. Configure your Artifactory server
