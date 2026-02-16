@@ -204,13 +204,13 @@ def test_formatted_time():
 
 def test_missing_files_warning():
     """
-    Test that a warning is issued when .tgz files are missing from the build-info JSON
+    Test that there are no warnings about missing .tgz files
     """
     run("conan new header_lib -d name=lib1 -d version=1.0")
     run("conan create . -f json > create.json")
     graph = json.loads(load("create.json"))["graph"]
     _fake_conan_sources(graph)
+    run("conan upload lib1/1.0 -r conancenter --dry-run")  # Simulate upload to generate the expected .tgz files
 
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-    assert "WARN: There are missing .tgz files (conan_export.tgz)" in out
-    assert "WARN: There are missing .tgz files (conan_package.tgz)" in out
+    assert not "WARN: There are missing .tgz files" in out
