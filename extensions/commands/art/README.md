@@ -24,6 +24,26 @@ These are commands to manage certain Artifactory features:
   - ``set``
 
 
+### How does the build-info work?
+
+The primary goal of Build Info is to provide a reproducible snapshot of a specific execution. In Artifactory, a
+**module** represents an entity generated during that specific build run.
+
+The ``conan art:build-info create`` command identifies which packages were built from source during ``conan create``
+and records them as modules. This ensures the exact binaries produced and uploaded during that specific job are tracked,
+rather than just pointing to pre-existing references.
+
+The **modules** in the build info will be any artifact built from source during the run (including third-party
+dependencies). For example, if you build your package with a ``--build=missing`` policy, then all the dependencies that
+were not found in the cache or Artifactory and were built from source will be included as modules in the Build Info.
+
+On the other hand, the **dependencies** in the build info will be any pre-existing binaries pulled from Artifactory.
+To keep third-party packages out of the **modules**, ensure they are pre-built and uploaded before running your final
+build.
+
+Additionally, there is a ``--add-cached-deps`` flag, that was designed specifically for the case where dependencies
+should be also included into the build info even though they were not built by the command.
+
 ### How to manage Build Info's in Artifactory
 
 #### 1. Configure your Artifactory server
