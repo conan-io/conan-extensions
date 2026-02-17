@@ -52,7 +52,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
 
     try:
         from cyclonedx.factory.license import LicenseFactory
-        from cyclonedx.model import ExternalReference, ExternalReferenceType, Tool, XsUri
+        from cyclonedx.model import ExternalReference, ExternalReferenceType, OrganizationalEntity, Tool, XsUri
         from cyclonedx.model.bom import Bom
         from cyclonedx.model.component import Component, ComponentType
         from cyclonedx.model.license import License
@@ -103,7 +103,8 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
         component = Component(
             type=package_type_to_component_type(node.conanfile.package_type),
             name=node.name or f'UNKNOWN.{id(node)}',
-            author=node.conanfile.author if node.conanfile.author else "Conan",
+            author=node.conanfile.author if node.conanfile.author else None,
+            supplier=OrganizationalEntity(name="Conan"),
             version=node.conanfile.version,
             licenses=licenses(node.conanfile.license),
             bom_ref=purl.to_string() if purl else None,
