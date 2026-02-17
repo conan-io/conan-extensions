@@ -131,6 +131,8 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
                         help='Whether the provided path is a build-require')
     parser.add_argument("--no-build-requires", action='store_true', default=False,
                         help='Omit the build requirements from the SBOM')
+    parser.add_argument("--no-test-requires", action='store_true', default=False,
+                        help='Omit the test requirements from the SBOM')
     args = parser.parse_args(*args)
     validate_common_graph_args(args)
     cwd = os.getcwd()
@@ -154,7 +156,12 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
                                                          remotes, args.update)
     # endregion COPY
 
-    def filter_context(n): return not args.no_build_requires or n.context != CONTEXT_BUILD
+    def filter_context(n):
+        if args.no_build_requires and n.context == CONTEXT_BUILD:
+            return False
+        if args.no_test_requires and n.test:
+            return False
+        return True
 
     components = {node: create_component(node) for node in deps_graph.nodes if filter_context(node)}
     bom = Bom()
