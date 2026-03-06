@@ -11,9 +11,9 @@ from conan.errors import ConanException
 
 
 @conan_command(group="Extension", formatters={"text": print_list_text,
-                                             "json": print_list_json,
-                                             "html": list_packages_html,
-                                             "compact": print_list_compact})
+                                              "json": print_list_json,
+                                              "html": list_packages_html,
+                                              "compact": print_list_compact})
 def check_prevs(conan_api: ConanAPI, parser, *args):
     """
     Ensure that the selected references only contains 1 package revision in the given remotes
