@@ -40,7 +40,6 @@ def check_prevs(conan_api: ConanAPI, parser, *args):
         raise ConanException("Cannot define package-query and the package list file")
 
     result = MultiPackagesList()
-    has_error = False
 
     for remote in remotes:
         if args.list:
@@ -73,13 +72,12 @@ def check_prevs(conan_api: ConanAPI, parser, *args):
                     revisions = conan_api.list.package_revisions(PkgReference(ref, package_id),
                                                                  remote)
                 if len(revisions) > 1:
-                    has_error = True
                     remote_pkglist.add_ref(ref)
                     for pref in revisions:
                         remote_pkglist.add_pref(pref)
                     result.add(remote.name, remote_pkglist)
 
     return {
-        "conan_error": "Multiple package revisions found" if has_error else None,
+        "conan_error": "Multiple package revisions found" if result.lists else None,
         "results": result.serialize(),
     }
