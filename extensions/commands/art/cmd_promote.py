@@ -2,16 +2,13 @@ import json
 import os.path
 import urllib.parse
 
+from cmd_server import get_url_user_password
 from conan.api.conan_api import ConanAPI
+from conan.api.model import MultiPackagesList, PkgReference, RecipeReference
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
-
-from conan.api.model import RecipeReference, PkgReference
-from conan.api.model import MultiPackagesList
 from conan.errors import ConanException
-
-from utils import api_request, assert_server_or_url_user_password, BadRequestException
-from cmd_server import get_url_user_password
+from utils import BadRequestException, api_request, assert_server_or_url_user_password
 
 
 def _get_export_path_from_rrev(rrev):
@@ -60,18 +57,24 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_40
             ConanOutput().success("Promoted file")
         except BadRequestException:
             if continue_on_400:
-                ConanOutput().error(f"Failed to promote {path}: Not found in origin, continuing...")
+                ConanOutput().info(f"Failed to promote {path}: Not found in origin, continuing...")
             else:
+                ConanOutput().error(f"Failed to promote mandatory artifact: {path}")
                 raise
         except ConanException as e:
-            ConanOutput().error(f"Failed to promote {path}: {e}")
-            raise
+            if continue_on_400:
+                 ConanOutput().info(f"Optional artifact not found: {path}. Skipping...")
+            else:
+                ConanOutput().error(f"Failed to promote {path}: {e}")
+                raise
+
 
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     revision_path = _get_path_from_pref(pref_with_prev)
     # Manually promote the files, Artifactory will take care of the timestamp
     for file, continue_on_error in (("conan_package.tgz", True),
+                                    ("conan_package.tzst", True),
                                     ("conaninfo.txt", False),
                                     ("conanmanifest.txt", False)):
         _promote_path(url, user, password, origin, destination,
