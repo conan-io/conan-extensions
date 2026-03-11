@@ -51,35 +51,42 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_40
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
         ConanOutput().warning("Destination already exists, skipping")
+        return True
     except ConanException:
         try:
             _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
-        except BadRequestException:
+            return True
+        except (BadRequestException, ConanException) as e:
             if continue_on_400:
-                ConanOutput().info(f"Failed to promote {path}: Not found in origin, continuing...")
-            else:
-                ConanOutput().error(f"Failed to promote mandatory artifact: {path}")
-                raise
-        except ConanException as e:
-            if continue_on_400:
-                 ConanOutput().info(f"Optional artifact not found: {path}. Skipping...")
+                ConanOutput().warning(f"Failed to promote {path}: Not found in origin, continuing...")
+                return False
             else:
                 ConanOutput().error(f"Failed to promote {path}: {e}")
                 raise
 
 
-
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     revision_path = _get_path_from_pref(pref_with_prev)
-    # Manually promote the files, Artifactory will take care of the timestamp
-    for file, continue_on_error in (("conan_package.tgz", True),
-                                    ("conan_package.tzst", True),
-                                    ("conaninfo.txt", False),
-                                    ("conanmanifest.txt", False)):
-        _promote_path(url, user, password, origin, destination,
-                      f"{revision_path}/{file}",
-                      continue_on_400=continue_on_error)
+    
+    # Promote Metadata
+    for meta_file in ["conaninfo.txt", "conanmanifest.txt"]:
+        _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{meta_file}", continue_on_400=False)
+        
+    # Promote package binaries
+    package_extension = ["tgz", "xz", "tzst"]
+    promoted_package = False
+
+    for ext in package_extension:
+        filename = f"conan_package.{ext}"
+        print(f"Trying to promote package with filename: {filename}")
+        if _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{filename}", continue_on_400=True):
+            promoted_package = True
+            ConanOutput().info(f"Verified package archive: conan_package.{ext}")
+            break
+    if not promoted_package:
+        ConanOutput.error(f"No valid conan_package archive found for {revision_path}")
+        raise ConanException("Promotion failed: No binary package found.")
 
 
 @conan_command(group="Artifactory")
@@ -152,3 +159,4 @@ def promote(conan_api: ConanAPI, parser, *args):
                     _promote_package_prev(url, user, password,
                                           args.origin, args.destination,
                                           f"{name_version}#{rrev}:{pkgid}#{prev}")
+                    
