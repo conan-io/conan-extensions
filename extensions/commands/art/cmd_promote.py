@@ -68,11 +68,7 @@ def _promote_path(url, user, password, origin, destination, path, continue_on_40
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     revision_path = _get_path_from_pref(pref_with_prev)
-    
-    # Promote Metadata
-    for meta_file in ["conaninfo.txt", "conanmanifest.txt"]:
-        _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{meta_file}", continue_on_400=False)
-        
+
     # Promote package binaries
     package_extension = ["tgz", "xz", "tzst"]
     promoted_package = False
@@ -83,9 +79,11 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
         if _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{filename}", continue_on_400=True):
             promoted_package = True
             ConanOutput().info(f"Verified package archive: conan_package.{ext}")
+            for meta_file in ["conaninfo.txt", "conanmanifest.txt"]:
+                _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{meta_file}", continue_on_400=False)
             break
     if not promoted_package:
-        ConanOutput.error(f"No valid conan_package archive found for {revision_path}")
+        ConanOutput().error(f"No valid conan_package archive found for {revision_path}")
         raise ConanException("Promotion failed: No binary package found.")
 
 
@@ -159,4 +157,4 @@ def promote(conan_api: ConanAPI, parser, *args):
                     _promote_package_prev(url, user, password,
                                           args.origin, args.destination,
                                           f"{name_version}#{rrev}:{pkgid}#{prev}")
-                    
+                                                                                                                                                                
