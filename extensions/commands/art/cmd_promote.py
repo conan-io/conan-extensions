@@ -49,8 +49,7 @@ def _promote_path(url, user, password, origin, destination, path):
     """
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
-    # The copy api creates a subfolder if the destination already exists,
-    # need to check beforehand to avoid this
+    # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
     try:
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
