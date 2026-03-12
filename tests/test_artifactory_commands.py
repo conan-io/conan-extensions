@@ -381,7 +381,7 @@ def test_build_info_project():
 
 
 @pytest.mark.requires_credentials
-def test_build_info_project():
+def test_build_info_promote_continue_on_error():
     # Make sure artifactory repos are empty before starting the test
     run("conan remove mypkg* -c -r extensions-stg")
     run("conan remove mypkg* -c -r extensions-prod")
