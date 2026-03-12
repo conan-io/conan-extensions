@@ -381,6 +381,39 @@ def test_build_info_project():
 
 
 @pytest.mark.requires_credentials
+def test_build_info_promote_continue_on_error():
+    # Make sure artifactory repos are empty before starting the test
+    run("conan remove mypkg* -c -r extensions-stg")
+    run("conan remove mypkg* -c -r extensions-prod")
+
+    # Configure Artifactory server and credentials
+    run(f'conan art:server add artifactory {os.getenv("ART_URL")} --user="{os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")}" --password="{os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")}"')
+
+    build_name = "otherbuildinfopromote"
+    build_number = "1"
+    project = "extensions-testing"
+
+    run("conan new cmake_lib -d name=mypkg -d version=1.0 --force")
+    run("conan create . --format json -tf='' > create.json")
+    run("conan upload 'mypkg/1.0' -c -r extensions-stg")
+
+    run(f'conan art:build-info create create.json {build_name} {build_number} extensions-stg --server artifactory > {build_name}.json')
+    run(f'conan art:build-info upload {build_name}.json --server artifactory')
+    # Remove package (not recipe) to force promotion fail
+    run("conan remove 'mypkg/1.0:*' -c -r extensions-stg")
+    out = run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory', error=True)
+    assert "ERROR: 400: Unable to find artifacts of build 'otherbuildinfopromote' #1 from artifactory-build-info repo: aborting promotion." in out
+    out = run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory --continue-on-error')
+    assert "Handling copy/move of file: extensions-prod/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanfile.py" in out
+
+    run('conan remove mypkg* -c')
+    run('conan remove mypkg* -c -r extensions-stg')
+    run('conan remove mypkg* -c -r extensions-prod')
+
+    run(f'conan art:build-info delete {build_name} --delete-all --delete-artifacts --server artifactory')
+
+
+@pytest.mark.requires_credentials
 def test_build_info_dependency_different_repo():
     """
     Test that build info is correctly generated for a package with dependencies in a different repo in Artifactory
