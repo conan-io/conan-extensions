@@ -210,10 +210,13 @@ optional arguments:
 ### ``conan art:build-info promote``
 
 ```
-$ cconan art:build-info promote --help
-usage: conan build-info promote [-h] [-v [V]] [-cc CORE_CONF] [--project PROJECT] [--server SERVER] [--url URL] [--user USER] [--password PASSWORD] [--token TOKEN] [--dependencies]
-                                [--comment COMMENT]
-                                build_name build_number source_repo target_repo
+$ conan art:build-info promote --help
+usage: conan art:build-info promote [-h] [--out-file OUT_FILE]
+                                    [-v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]]
+                                    [-cc CORE_CONF] [--project PROJECT] [--server SERVER] [--url URL] [--user USER]
+                                    [--password PASSWORD] [--token TOKEN] [--continue-on-error] [--dependencies]
+                                    [--status STATUS] [--comment COMMENT]
+                                    build_name build_number source_repo target_repo
 
 Promote the BuildInfo from the source to the target repository.
 
@@ -223,19 +226,26 @@ positional arguments:
   source_repo           Artifactory repository to get artifacts from.
   target_repo           Artifactory repository to promote artifacts to.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  -v [V]                Level of detail of the output. Valid options from less verbose to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
-                        -vvv or -vtrace
+  --out-file OUT_FILE   Write the output of the command to the specified file instead of stdout.
+  -v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]
+                        Level of detail of the output. Valid options from less verbose to more verbose: -vquiet,
+                        -verror, -vwarning, -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug, -vvv or -vtrace
   -cc CORE_CONF, --core-conf CORE_CONF
-                        Define core configuration, overwriting global.conf values. E.g.: -cc core:non_interactive=True
+                        Define core configuration, overwriting global.conf values. E.g.: -cc
+                        core:non_interactive=True
   --project PROJECT     Project key for the Build Info in Artifactory
   --server SERVER       Server name of the Artifactory to get the build info from.
   --url URL             Artifactory url, like: https://<address>/artifactory.
   --user USER           User name for the Artifactory server.
   --password PASSWORD   Password for the Artifactory server.
   --token TOKEN         Token for the Artifactory server.
+  --continue-on-error   Promote all possible files even if some promotions fail (using failFast=false Artifactory
+                        API parameter). The exit code of the command will always be 0 regardless of any promotion
+                        failures. Default: false.
   --dependencies        Whether to copy the build's dependencies or not. Default: false.
+  --status STATUS       The new status of the build. Default: ''
   --comment COMMENT     An optional comment describing the reason for promotion. Default: ''
 ```
 
