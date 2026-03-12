@@ -71,7 +71,7 @@ def _promote_path(url, user, password, origin, destination, path):
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     # We need to manually promote the files one by one, else Artifactory's
     # automatic .timestamp handling would create overwrites.
-    # W let Artifactory handle the .timestamp copy
+    # We let Artifactory handle the .timestamp copy
     # which allows this command to be executed without overwrite permissions
     revision_path = _get_path_from_pref(pref_with_prev)
 
