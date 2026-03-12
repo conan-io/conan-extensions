@@ -61,7 +61,7 @@ def _promote_path(url, user, password, origin, destination, path):
             _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
         except ConanException as e:
-            ConanOutput().error(f"Failed required promotion: '{e}'")
+            ConanOutput().error(f"Failed to promote {path}: {e}")
             raise
     except Exception as e:
         ConanOutput().error(f"File promotion failed unexpectedly: '{e}'")
