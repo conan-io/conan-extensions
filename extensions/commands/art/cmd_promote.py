@@ -45,8 +45,7 @@ def _request(url, user, password, request_type, request_url):
 def _promote_path(url, user, password, origin, destination, path):
     """ Promote path from origin to destination
 
-    Returns True if the file has been promoted/was already promoted,
-    raises if the promotion failed
+    Raises if the promotion fails (the file is not there after calling this)
     """
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
@@ -56,13 +55,11 @@ def _promote_path(url, user, password, origin, destination, path):
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
         ConanOutput().warning("Destination already exists, skipping")
-        return True
     except NotFoundException:
         # It raised a 404, so it's not in destination. We proceed to promote it
         try:
             _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
-            return True
         except ConanException as e:
             ConanOutput().error(f"Failed required promotion: '{e}'")
             raise
@@ -80,7 +77,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     revision_path = _get_path_from_pref(pref_with_prev)
 
     storage_list = _request(url, user, password, "get",
-                            f"api/storage/{origin}/{pref_with_prev}?list")
+                            f"api/storage/{origin}/{revision_path}?list")
     folder_contents = {
         item["uri"][1:] for item in
         storage_list.get("files", [])
@@ -95,10 +92,10 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     # Promote package binaries
     package_extension = ["tgz", "xz", "tzst"]
     for ext in package_extension:
-        filename = f"conan_package.{ext}"
-        if filename in folder_contents:
+        conan_package = f"conan_package.{ext}"
+        if conan_package in folder_contents:
             _promote_path(url, user, password, origin, destination,
-                          path=f"{revision_path}/{filename}")
+                          path=f"{revision_path}/{conan_package}")
             break
 
     for meta_file in metadata_files:
