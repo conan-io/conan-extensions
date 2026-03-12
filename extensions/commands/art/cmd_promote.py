@@ -2,14 +2,13 @@ import json
 import os.path
 import urllib.parse
 
-from cmd_server import get_url_user_password
 from conan.api.conan_api import ConanAPI
 from conan.api.model import MultiPackagesList, PkgReference, RecipeReference
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 from conan.errors import ConanException
-from utils import NotFoundException, api_request, assert_server_or_url_user_password
-
+from utils import api_request, assert_server_or_url_user_password, NotFoundException
+from cmd_server import get_url_user_password
 
 def _get_export_path_from_rrev(rrev):
     recipe_ref = RecipeReference.loads(rrev)
@@ -61,13 +60,12 @@ def _promote_path(url, user, password, origin, destination, path):
     except NotFoundException:
         # It raised a 404, so it's not in destination. We proceed to promote it
         try:
-            _request(url, user, password, "post",
-                     f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
+            _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
             return True
         except ConanException as e:
-                ConanOutput().error(f"Failed required promotion: '{e}'")
-                raise
+            ConanOutput().error(f"Failed required promotion: '{e}'")
+            raise
     except Exception as e:
         ConanOutput().error(f"File promotion failed unexpectedly: '{e}'")
         raise
