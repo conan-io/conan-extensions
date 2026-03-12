@@ -401,8 +401,10 @@ def test_build_info_promote_continue_on_error():
     run(f'conan art:build-info upload {build_name}.json --server artifactory')
     # Remove package (not recipe) to force promotion fail
     run("conan remove 'mypkg/1.0:*' -c -r extensions-stg")
-    run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory', error=True)
-    run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory --continue-on-error')
+    out = run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory', error=True)
+    assert "ERROR: 400: Unable to find artifacts of build 'otherbuildinfopromote' #1 from artifactory-build-info repo: aborting promotion." in out
+    out = run(f'conan art:build-info promote {build_name} {build_number} extensions-stg extensions-prod --server artifactory --continue-on-error')
+    assert "Handling copy/move of file: extensions-prod/_/mypkg/1.0/_/294e801a0e1da10084441487e95b80e8/export/conanfile.py" in out
 
     run('conan remove mypkg* -c')
     run('conan remove mypkg* -c -r extensions-stg')
