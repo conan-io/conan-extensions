@@ -10,6 +10,7 @@ from conan.errors import ConanException
 from utils import api_request, assert_server_or_url_user_password, NotFoundException
 from cmd_server import get_url_user_password
 
+
 def _get_export_path_from_rrev(rrev):
     recipe_ref = RecipeReference.loads(rrev)
     user = recipe_ref.user or "_"
@@ -67,12 +68,11 @@ def _promote_path(url, user, password, origin, destination, path):
         raise
 
 
-def _promote_recipe_rrev(url, user, password, origin, destination, rrev):
-    _promote_path(url, user, password, origin, destination,
-                  _get_export_path_from_rrev(rrev))
-
-
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
+    # We need to manually promote the files one by one, else Artifactory's
+    # automatic .timestamp handling would create overwrites.
+    # W let Artifactory handle the .timestamp copy
+    # which allows this command to be executed without overwrite permissions
     revision_path = _get_path_from_pref(pref_with_prev)
 
     storage_list = _request(url, user, password, "get",
@@ -97,6 +97,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
                           path=f"{revision_path}/{conan_package}")
             break
 
+    # Finally, necessary metadata
     for meta_file in metadata_files:
         _promote_path(url, user, password, origin, destination,
                       path=f"{revision_path}/{meta_file}")
@@ -159,9 +160,8 @@ def promote(conan_api: ConanAPI, parser, *args):
             raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
                                  "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            _promote_recipe_rrev(url, user, password,
-                                 args.origin, args.destination,
-                                 f"{name_version}#{rrev}")
+            _promote_path(url, user, password, args.origin, args.destination,
+                          _get_export_path_from_rrev(f"{name_version}#{rrev}"))
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
