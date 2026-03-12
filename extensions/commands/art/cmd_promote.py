@@ -8,7 +8,7 @@ from conan.api.model import MultiPackagesList, PkgReference, RecipeReference
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 from conan.errors import ConanException
-from utils import BadRequestException, api_request, assert_server_or_url_user_password
+from utils import NotFoundException, api_request, assert_server_or_url_user_password
 
 
 def _get_export_path_from_rrev(rrev):
@@ -43,48 +43,69 @@ def _request(url, user, password, request_type, request_url):
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path, continue_on_400=False):
+def _promote_path(url, user, password, origin, destination, path):
+    """ Promote path from origin to destination
+
+    Returns True if the file has been promoted/was already promoted,
+    raises if the promotion failed
+    """
     ConanOutput().subtitle(f"Promoting {path}")
     path = urllib.parse.quote_plus(path, safe='/')
-    # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
+    # The copy api creates a subfolder if the destination already exists,
+    # need to check beforehand to avoid this
     try:
         # This first request will raise a 404 if no file is found
         _request(url, user, password, "get", f"api/storage/{destination}/{path}")
         ConanOutput().warning("Destination already exists, skipping")
         return True
-    except ConanException:
+    except NotFoundException:
+        # It raised a 404, so it's not in destination. We proceed to promote it
         try:
-            _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
+            _request(url, user, password, "post",
+                     f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
             ConanOutput().success("Promoted file")
             return True
-        except (BadRequestException, ConanException) as e:
-            if continue_on_400:
-                ConanOutput().warning(f"Failed to promote {path}: Not found in origin, continuing...")
-                return False
-            else:
-                ConanOutput().error(f"Failed to promote {path}: {e}")
+        except ConanException as e:
+                ConanOutput().error(f"Failed required promotion: '{e}'")
                 raise
+    except Exception as e:
+        ConanOutput().error(f"File promotion failed unexpectedly: '{e}'")
+        raise
+
+
+def _promote_recipe_rrev(url, user, password, origin, destination, rrev):
+    _promote_path(url, user, password, origin, destination,
+                  _get_export_path_from_rrev(rrev))
 
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
     revision_path = _get_path_from_pref(pref_with_prev)
 
+    storage_list = _request(url, user, password, "get",
+                            f"api/storage/{origin}/{pref_with_prev}?list")
+    folder_contents = {
+        item["uri"][1:] for item in
+        storage_list.get("files", [])
+    }
+
+    # Ensure we have a valid Conan package
+    metadata_files = ["conaninfo.txt", "conanmanifest.txt"]
+    if not all(meta_file in folder_contents for meta_file in metadata_files):
+        raise ConanException("Package folder is missing metadata files, cannot promote. "
+                             "Make sure the package exists and is complete in the origin repository.")
+
     # Promote package binaries
     package_extension = ["tgz", "xz", "tzst"]
-    promoted_package = False
-
     for ext in package_extension:
         filename = f"conan_package.{ext}"
-        print(f"Trying to promote package with filename: {filename}")
-        if _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{filename}", continue_on_400=True):
-            promoted_package = True
-            ConanOutput().info(f"Verified package archive: conan_package.{ext}")
-            for meta_file in ["conaninfo.txt", "conanmanifest.txt"]:
-                _promote_path(url=url, user=user, password=password, origin=origin, destination=destination, path=f"{revision_path}/{meta_file}", continue_on_400=False)
+        if filename in folder_contents:
+            _promote_path(url, user, password, origin, destination,
+                          path=f"{revision_path}/{filename}")
             break
-    if not promoted_package:
-        ConanOutput().error(f"No valid conan_package archive found for {revision_path}")
-        raise ConanException("Promotion failed: No binary package found.")
+
+    for meta_file in metadata_files:
+        _promote_path(url, user, password, origin, destination,
+                      path=f"{revision_path}/{meta_file}")
 
 
 @conan_command(group="Artifactory")
@@ -144,8 +165,9 @@ def promote(conan_api: ConanAPI, parser, *args):
             raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
                                  "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            _promote_path(url, user, password, args.origin, args.destination,
-                          _get_export_path_from_rrev(f"{name_version}#{rrev}"))
+            _promote_recipe_rrev(url, user, password,
+                                 args.origin, args.destination,
+                                 f"{name_version}#{rrev}")
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
@@ -157,4 +179,3 @@ def promote(conan_api: ConanAPI, parser, *args):
                     _promote_package_prev(url, user, password,
                                           args.origin, args.destination,
                                           f"{name_version}#{rrev}:{pkgid}#{prev}")
-                                                                                                                                                                
