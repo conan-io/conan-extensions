@@ -72,7 +72,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: 3.14
 
     - name: Install dependencies
       run: |
@@ -82,13 +82,13 @@ jobs:
     - name: Install Conan latest
       run: pip install conan
 
-    - name: Run tests - Conan latest / Python 3.9
+    - name: Run tests - Conan latest / Python 3.14
       run: pytest -v tests
 
     - name: Install Conan develop
       run: pip install git+https://github.com/conan-io/conan.git@develop2
 
-    - name: Run tests - Conan develop / Python 3.9
+    - name: Run tests - Conan develop / Python 3.14
       run: pytest -v tests
 
   conan_windows:
