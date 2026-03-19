@@ -98,10 +98,25 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
+        python-version: 3.14
+    - name: Install dependencies and Conan latest
+      run: |
+        pip install -U pip
+        pip install pytest conan
+    - name: Run Windows-specific tests - Conan latest / Python 3.14
+      run: pytest -v -m win32 tests
+
+  conan_ubuntu_old_python:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
         python-version: 3.9
     - name: Install dependencies and Conan latest
       run: |
         pip install -U pip
         pip install pytest conan
-    - name: Run Windows-specific tests - Conan latest / Python 3.9
-      run: pytest -v -m win32 tests
+    - name: Run tests - Conan latest / Python 3.9
+      run: pytest -v tests
