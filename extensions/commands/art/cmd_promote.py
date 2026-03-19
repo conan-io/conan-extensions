@@ -91,7 +91,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
                              "Make sure the package exists and is complete in the origin repository.")
 
     # Promote package binaries
-    package_extension = ["tgz", "xz", "tzst"]
+    package_extension = ["tgz", "tzst", "txz"]
     for ext in package_extension:
         conan_package = f"conan_package.{ext}"
         if conan_package in folder_contents:
