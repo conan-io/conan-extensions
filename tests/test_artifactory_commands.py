@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import tempfile
 import textwrap
 
@@ -624,72 +625,134 @@ def test_add_server_token():
     assert f"Server 'server1' ({server_url}) added successfully" in out_add
 
 
-@pytest.mark.requires_credentials
-def test_art_promote_timestamps():
-    conanfile = textwrap.dedent("""
-    from conan import ConanFile
-
-    class Pkg(ConanFile):
-        name = "mypkg"
-        version = "1.0"
-    """)
-    save("./conanfile.py", conanfile)
-
-    run("conan create .")
-    out = run("conan list mypkg/1.0:*#* -f=json")
-    local_list_json_out = json.loads(out)
-    local_recipe_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
-    local_package_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
-    run("conan upload mypkg/1.0 -c -r extensions-stg")
-
-    out = run("conan list mypkg/1.0:*#* -r=extensions-stg -f=json", stderr=None)
-    remote_stg_list_json_out = json.loads(out)
-    remote_stg_recipe_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
-    remote_stg_package_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
-
-    assert local_recipe_timestamp != remote_stg_recipe_timestamp
-    assert local_package_timestamp != remote_stg_package_timestamp
-
-    save("pkglist.json", out)
-
-    art_url = os.getenv("ART_URL")
-    art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
-    art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
-    run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
-
-    out = run("conan list mypkg/1.0:*#* -r=extensions-prod -f=json", stderr=None)
-    remote_prod_list_json_out = json.loads(out)
-    remote_prod_recipe_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
-    remote_prod_package_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
-
-    assert remote_stg_recipe_timestamp == remote_prod_recipe_timestamp
-    assert remote_stg_package_timestamp == remote_prod_package_timestamp
-
-@pytest.mark.requires_credentials
-def test_art_promote_build_version():
-    conanfile = textwrap.dedent("""
+class TestArtPromoteCommand:
+    @pytest.mark.requires_credentials
+    def test_art_promote_timestamps(self):
+        conanfile = textwrap.dedent("""
         from conan import ConanFile
-
+    
         class Pkg(ConanFile):
             name = "mypkg"
-            version = "1.0+build"
+            version = "1.0"
         """)
-    save("./conanfile.py", conanfile)
+        save("./conanfile.py", conanfile)
 
-    run("conan create .")
-    run("conan upload mypkg/1.0+build --format json --out-file pkglist.json -c -r extensions-stg")
+        run("conan create .")
+        out = run("conan list mypkg/1.0:*#* -f=json")
+        local_list_json_out = json.loads(out)
+        local_recipe_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+        local_package_timestamp = local_list_json_out["Local Cache"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+        run("conan upload mypkg/1.0 -c -r extensions-stg")
 
-    # promote package extensions-stg => extensions-prod
-    art_url = os.getenv("ART_URL")
-    art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
-    art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
-    run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
+        out = run("conan list mypkg/1.0:*#* -r=extensions-stg -f=json", stderr=None)
+        remote_stg_list_json_out = json.loads(out)
+        remote_stg_recipe_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+        remote_stg_package_timestamp = remote_stg_list_json_out["extensions-stg"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
 
-    # check that package is available in extensions-prod
-    out = run("conan list mypkg/1.0+build:*#* -r=extensions-prod -f=json", stderr=None)
-    remote_prod_list_json = json.loads(out)
-    assert "extensions-prod" in remote_prod_list_json
-    assert "mypkg/1.0+build" in remote_prod_list_json["extensions-prod"]
+        assert local_recipe_timestamp != remote_stg_recipe_timestamp
+        assert local_package_timestamp != remote_stg_package_timestamp
+
+        save("pkglist.json", out)
+
+        art_url = os.getenv("ART_URL")
+        art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+        art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+        run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
+
+        out = run("conan list mypkg/1.0:*#* -r=extensions-prod -f=json", stderr=None)
+        remote_prod_list_json_out = json.loads(out)
+        remote_prod_recipe_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["timestamp"]
+        remote_prod_package_timestamp = remote_prod_list_json_out["extensions-prod"]["mypkg/1.0"]["revisions"]["9d6b6bdeb9bb50a31acc8f970f562b3c"]["packages"]["da39a3ee5e6b4b0d3255bfef95601890afd80709"]["revisions"]["0ba8627bd47edc3a501e8f0eb9a79e5e"]["timestamp"]
+
+        assert remote_stg_recipe_timestamp == remote_prod_recipe_timestamp
+        assert remote_stg_package_timestamp == remote_prod_package_timestamp
+
+    @pytest.mark.requires_credentials
+    def test_art_promote_build_version(self):
+        conanfile = textwrap.dedent("""
+            from conan import ConanFile
+    
+            class Pkg(ConanFile):
+                name = "mypkg"
+                version = "1.0+build"
+            """)
+        save("./conanfile.py", conanfile)
+
+        run("conan create .")
+        run("conan upload mypkg/1.0+build --format json --out-file pkglist.json -c -r extensions-stg")
+
+        # promote package extensions-stg => extensions-prod
+        art_url = os.getenv("ART_URL")
+        art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+        art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+        run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod --url={art_url} --user={art_user} --password={art_password}")
+
+        # check that package is available in extensions-prod
+        out = run("conan list mypkg/1.0+build:*#* -r=extensions-prod -f=json", stderr=None)
+        remote_prod_list_json = json.loads(out)
+        assert "extensions-prod" in remote_prod_list_json
+        assert "mypkg/1.0+build" in remote_prod_list_json["extensions-prod"]
+
+    @pytest.mark.requires_credentials
+    def test_art_promote_python_requires(self):
+        conanfile = textwrap.dedent("""
+            from conan import ConanFile
+
+            class Pkg(ConanFile):
+                name = "mypkg"
+                version = "1.0"
+                package_type = "python-require"
+            """)
+        save("./conanfile.py", conanfile)
+
+        run("conan create .")
+        run("conan upload mypkg/1.0 -c -r extensions-stg")
+
+        run("conan list mypkg/1.0:*#* -r=extensions-stg -f=json --out-file=pkglist.json")
+
+        art_url = os.getenv("ART_URL")
+        art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+        art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+        run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod "
+            f"--url={art_url} --user={art_user} --password={art_password}")
+
+        out = run("conan list mypkg/1.0:*#* -r=extensions-prod -f=json", stderr=None)
+        assert "mypkg/1.0" in out
+
+    @pytest.mark.requires_credentials
+    @pytest.mark.parametrize("compress", [None, "gz", "zst", "xz"])
+    def test_art_promote_different_compressions(self, compress):
+        if compress == "zst" and sys.version_info.minor < 14:
+            pytest.skip("Skipping zst compression tests")
+
+        conf = f"-cc core.upload:compression_format={compress}" if compress else ""
+        conanfile = textwrap.dedent("""
+                from conan import ConanFile
+
+                class Pkg(ConanFile):
+                    name = "mypkg"
+                    version = "1.0"
+                """)
+        save("./conanfile.py", conanfile)
+
+        run(f"conan create . {conf}")
+        run(f"conan upload mypkg/1.0 -c -r extensions-stg {conf} -vvv")
+        run(f'conan remove "*" -c {conf}')
+
+        run(f"conan list mypkg/1.0:*#* -r=extensions-stg -f=json --out-file=pkglist.json {conf}")
+
+        art_url = os.getenv("ART_URL")
+        art_user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_PROD")
+        art_password = os.getenv("CONAN_PASSWORD_EXTENSIONS_PROD")
+        run(f"conan art:promote pkglist.json --from=extensions-stg --to=extensions-prod "
+            f"--url={art_url} --user={art_user} --password={art_password}")
+
+        out = run(f"conan list mypkg/1.0:*#* -r=extensions-prod -f=json {conf}", stderr=None)
+        assert "da39a3ee5e6b4b0d3255bfef95601890afd80709" in out
+        run(f"conan download mypkg/1.0:*#* -r=extensions-prod {conf} -vvv")
+
+        # And lastly, just in case
+        run(f"conan cache check-integrity mypkg/1.0:*#* {conf}")
 
 
 @pytest.mark.requires_credentials
