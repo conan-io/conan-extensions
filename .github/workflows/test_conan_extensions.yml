@@ -1,4 +1,6 @@
 on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
 
 jobs:
   conan_linux:
