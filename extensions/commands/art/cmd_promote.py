@@ -77,6 +77,8 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
 
     storage_list = _request(url, user, password, "get",
                             f"api/storage/{origin}/{revision_path}?list")
+    
+    # TODO: Do we want to support metadata promotion?
     folder_contents = {
         item["uri"][1:] for item in
         storage_list.get("files", [])
@@ -85,7 +87,7 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     # Ensure we have a valid Conan package
     metadata_files = ["conaninfo.txt", "conanmanifest.txt"]
     if not all(meta_file in folder_contents for meta_file in metadata_files):
-        raise ConanException("Package folder is missing metadata files, cannot promote. "
+        raise ConanException("Package folder is missing conaninfo.txt/conanmanifest.txt files, cannot promote. "
                              "Make sure the package exists and is complete in the origin repository.")
 
     # Promote package binaries
