@@ -5,6 +5,14 @@ permissions:
 jobs:
   conan_linux:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: '3.9'
+            with_artifactory: false
+          - python-version: '3.14'
+            with_artifactory: true
     services:
       artifactory:
         image: releases-docker.jfrog.io/jfrog/artifactory-pro:latest
@@ -20,17 +28,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
           --log-driver none
-    env:
-      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER }}
-      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
-      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
-      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
-      ART_URL: http://localhost:8082/artifactory
 
     steps:
     - uses: actions/checkout@v3
 
     - name: Check if Artifactory credentials are available
+      if: matrix.with_artifactory
       run: |
         if [[ -n "${{ secrets.ARTIFACTORY_USER }}" && -n "${{ secrets.ARTIFACTORY_USER_PASSWORD }}" ]]; then
           echo "HAS_ARTIFACTORY_CREDS=true" >> $GITHUB_ENV
@@ -38,7 +41,17 @@ jobs:
           echo "HAS_ARTIFACTORY_CREDS=false" >> $GITHUB_ENV
         fi
 
+    - name: Export Artifactory environment
+      if: matrix.with_artifactory
+      run: |
+        echo "CONAN_LOGIN_USERNAME_EXTENSIONS_PROD=${{ secrets.ARTIFACTORY_USER }}" >> $GITHUB_ENV
+        echo "CONAN_PASSWORD_EXTENSIONS_PROD=${{ secrets.ARTIFACTORY_USER_PASSWORD }}" >> $GITHUB_ENV
+        echo "CONAN_LOGIN_USERNAME_EXTENSIONS_STG=${{ secrets.ARTIFACTORY_USER }}" >> $GITHUB_ENV
+        echo "CONAN_PASSWORD_EXTENSIONS_STG=${{ secrets.ARTIFACTORY_USER_PASSWORD }}" >> $GITHUB_ENV
+        echo "ART_URL=http://localhost:8082/artifactory" >> $GITHUB_ENV
+
     - name: Wait for Artifactory to be ready
+      if: matrix.with_artifactory
       run: |
         until curl -s http://localhost:8081/artifactory/api/system/ping; do
           echo "Waiting for Artifactory to be ready..."
@@ -46,7 +59,7 @@ jobs:
         done
 
     - name: Set Artifactory License
-      if: env.HAS_ARTIFACTORY_CREDS == 'true'
+      if: matrix.with_artifactory && env.HAS_ARTIFACTORY_CREDS == 'true'
       run: |
         curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
           -X POST "http://localhost:8081/artifactory/api/system/licenses" \
@@ -54,7 +67,7 @@ jobs:
           -d "{ \"licenseKey\": \"${{ secrets.ARTIFACTORY_LICENSE }}\" }"
 
     - name: Create Conan Local Repositories
-      if: env.HAS_ARTIFACTORY_CREDS == 'true'
+      if: matrix.with_artifactory && env.HAS_ARTIFACTORY_CREDS == 'true'
       run: |
         curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
             -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-prod" \
@@ -74,7 +87,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.14
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
@@ -84,13 +97,13 @@ jobs:
     - name: Install Conan latest
       run: pip install conan
 
-    - name: Run tests - Conan latest / Python 3.14
+    - name: Run tests - Conan latest / Python ${{ matrix.python-version }}
       run: pytest -v tests
 
     - name: Install Conan develop
       run: pip install git+https://github.com/conan-io/conan.git@develop2
 
-    - name: Run tests - Conan develop / Python 3.14
+    - name: Run tests - Conan develop / Python ${{ matrix.python-version }}
       run: pytest -v tests
 
   conan_windows:
@@ -107,18 +120,3 @@ jobs:
         pip install pytest conan
     - name: Run Windows-specific tests - Conan latest / Python 3.14
       run: pytest -v -m win32 tests
-
-  conan_linux_old_python:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.9
-    - name: Install dependencies and Conan latest
-      run: |
-        pip install -U pip
-        pip install conan pytest "cyclonedx-python-lib>=5.0.0,<6"
-    - name: Run tests - Conan latest / Python 3.9
-      run: pytest -v tests
