@@ -24,6 +24,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
           --log-driver none
+    env:
+      CONAN_LOGIN_USERNAME_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_PROD: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
+      CONAN_LOGIN_USERNAME_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER }}
+      CONAN_PASSWORD_EXTENSIONS_STG: ${{ secrets.ARTIFACTORY_USER_PASSWORD }}
+      ART_URL: http://localhost:8082/artifactory
 
     steps:
     - uses: actions/checkout@v3
@@ -35,15 +41,6 @@ jobs:
         else
           echo "HAS_ARTIFACTORY_CREDS=false" >> $GITHUB_ENV
         fi
-
-    - name: Export Artifactory environment
-      if: env.HAS_ARTIFACTORY_CREDS == 'true'
-      run: |
-        echo "CONAN_LOGIN_USERNAME_EXTENSIONS_PROD=${{ secrets.ARTIFACTORY_USER }}" >> $GITHUB_ENV
-        echo "CONAN_PASSWORD_EXTENSIONS_PROD=${{ secrets.ARTIFACTORY_USER_PASSWORD }}" >> $GITHUB_ENV
-        echo "CONAN_LOGIN_USERNAME_EXTENSIONS_STG=${{ secrets.ARTIFACTORY_USER }}" >> $GITHUB_ENV
-        echo "CONAN_PASSWORD_EXTENSIONS_STG=${{ secrets.ARTIFACTORY_USER_PASSWORD }}" >> $GITHUB_ENV
-        echo "ART_URL=http://localhost:8082/artifactory" >> $GITHUB_ENV
 
     - name: Wait for Artifactory to be ready
       if: env.HAS_ARTIFACTORY_CREDS == 'true'
