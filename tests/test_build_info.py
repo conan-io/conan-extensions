@@ -2,12 +2,23 @@ import json
 import tempfile
 import textwrap
 import os
+import sys
 import datetime
 import re
+from unittest.mock import patch
 
 import pytest
+from conan.errors import ConanException
 
 from tools import load, save, run
+
+# Add the extensions/commands/art directory to the Python path to test the cmd_build_info helper functions
+_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+_ART_CMD_DIR = os.path.normpath(os.path.join(_TESTS_DIR, "..", "extensions", "commands", "art"))
+if _ART_CMD_DIR not in sys.path:
+    sys.path.insert(0, _ART_CMD_DIR)
+
+from cmd_build_info import _expand_virtual_repositories
 
 
 @pytest.fixture(autouse=True)
@@ -214,3 +225,129 @@ def test_missing_files_warning():
 
     out = run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
     assert not "WARN: There are missing .tgz files" in out
+
+
+def test_expand_single_virtual_orders_local_before_remote():
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        if request_url.endswith("/api/repositories/conan-virtual"):
+            return json.dumps({
+                "key": "conan-virtual",
+                "rclass": "virtual",
+                "repositories": ["conan-remote", "conan-local"],
+            })
+        if request_url.endswith("/api/repositories/conan-remote"):
+            return json.dumps({"key": "conan-remote", "rclass": "remote"})
+        if request_url.endswith("/api/repositories/conan-local"):
+            return json.dumps({"key": "conan-local", "rclass": "local"})
+        raise AssertionError(request_url)
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["conan-virtual"]
+        )
+    assert out == ["conan-local", "conan-remote"]
+
+
+def test_expand_nested_virtual():
+    responses = {
+        "outer": {"rclass": "virtual", "repositories": ["inner", "sibling-local"]},
+        "inner": {"rclass": "virtual", "repositories": ["deep-local"]},
+        "sibling-local": {"rclass": "local"},
+        "deep-local": {"rclass": "local"},
+    }
+
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        key = request_url.rsplit("/", 1)[-1]
+        body = {"key": key, **responses[key]}
+        return json.dumps(body)
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["outer"]
+        )
+    assert out == ["sibling-local", "deep-local"]
+
+
+def test_expand_deduplicates_repeated_members():
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        if request_url.endswith("/api/repositories/v"):
+            return json.dumps({
+                "rclass": "virtual",
+                "repositories": ["a-local", "b-local"],
+            })
+        if request_url.endswith("/api/repositories/a-local"):
+            return json.dumps({"rclass": "local"})
+        if request_url.endswith("/api/repositories/b-local"):
+            return json.dumps({"rclass": "virtual", "repositories": ["a-local"]})
+        raise AssertionError(request_url)
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["v"]
+        )
+    assert out == ["a-local"]
+
+
+def test_expand_circular_virtual_raises():
+    responses = {
+        "a": {"rclass": "virtual", "repositories": ["b"]},
+        "b": {"rclass": "virtual", "repositories": ["a"]},
+    }
+
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        key = request_url.rsplit("/", 1)[-1]
+        return json.dumps({"key": key, **responses[key]})
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        with pytest.raises(ConanException, match="Circular"):
+            _expand_virtual_repositories(
+                "https://x/artifactory", "u", "p", ["a"]
+            )
+
+
+def test_expand_multiple_physical_repos_fetches_each():
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        key = request_url.rsplit("/", 1)[-1]
+        return json.dumps({"key": key, "rclass": "local"})
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get) as m:
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["a", "b"]
+        )
+    assert m.call_count == 2
+    assert out == ["a", "b"]
+
+
+def test_expand_mixed_virtual_and_physical_keys():
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        if request_url.endswith("/api/repositories/virt"):
+            return json.dumps({"rclass": "virtual", "repositories": ["l1", "l2"]})
+        if request_url.endswith("/api/repositories/l1") or request_url.endswith("/api/repositories/l2"):
+            return json.dumps({"rclass": "local"})
+        if request_url.endswith("/api/repositories/l3"):
+            return json.dumps({"rclass": "local"})
+        raise AssertionError(request_url)
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["virt", "l3"]
+        )
+    assert out == ["l1", "l2", "l3"]
+
+
+def test_expand_no_url_skips_virtual_lookup():
+    with patch("cmd_build_info.api_request") as m:
+        out = _expand_virtual_repositories(None, "u", "p", ["virtual-only"])
+    m.assert_not_called()
+    assert out == ["virtual-only"]
+
+
+def test_expand_local_unchanged():
+    def fake_get(method, request_url, user=None, password=None, **_kwargs):
+        return json.dumps({"key": "conan-local", "rclass": "local"})
+
+    with patch("cmd_build_info.api_request", side_effect=fake_get):
+        out = _expand_virtual_repositories(
+            "https://x/artifactory", "u", "p", ["conan-local"]
+        )
+    assert out == ["conan-local"]

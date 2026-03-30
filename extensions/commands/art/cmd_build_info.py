@@ -60,6 +60,60 @@ def _get_hashes(file_path):
     return md5.hexdigest(), sha1.hexdigest(), sha256.hexdigest()
 
 
+def _expand_virtual_repositories(url, user, password, repositories):
+    """
+    With --server/--url, query Artifactory for each repository key and expand virtual repos to
+    physical members (locals before remotes, recursively). Order is preserved; duplicates are
+    dropped on first occurrence. With no server URL, return the given keys unchanged.
+    """
+    repos = list(repositories)
+    if not repos:
+        return repos
+    base = (url or "").strip()
+    if not base:
+        return repos
+    url = base.rstrip("/")
+
+    _rank = {"local": 0, "federated": 0, "remote": 1, "virtual": 2}
+    _repo_data_cache = {}
+
+    def _get_repo_data(repo_name):
+        if repo_name not in _repo_data_cache:
+            _repo_data_cache[repo_name] = json.loads(
+                api_request("get", f"{url}/api/repositories/{repo_name}", user, password)
+            )
+        return _repo_data_cache[repo_name]
+
+    def _expand_repos(origin_repo, ancestors):
+        if origin_repo in ancestors:
+            raise ConanException(f"Circular virtual repository configuration detected at '{origin_repo}'.")
+        next_anc = ancestors.union({origin_repo})
+        repo_data = _get_repo_data(origin_repo)
+        if repo_data.get("rclass") != "virtual":
+            return [origin_repo]
+        child_repos = repo_data.get("repositories") or []
+        if not child_repos:
+            raise ConanException(f"Virtual repository '{origin_repo}' has no member repositories configured.")
+        children = [(name, _get_repo_data(name)) for name in child_repos]
+        children.sort(key=lambda nd: _rank.get(nd[1].get("rclass"), 9))
+        out = []
+        for repo_name, child_data in children:
+            if child_data.get("rclass") == "virtual":
+                out.extend(_expand_repos(repo_name, next_anc))
+            else:
+                out.append(repo_name)
+        return out
+
+    flat = []
+    seen = set()
+    for repo in repos:
+        for r in _expand_repos(repo, set()):
+            if r not in seen:
+                seen.add(r)
+                flat.append(r)
+    return flat
+
+
 def _get_formatted_time():
     now = datetime.datetime.now().astimezone()
     ms = now.microsecond // 1000  # convert to milliseconds
@@ -120,6 +174,10 @@ class _BuildInfo:
         self._name = name
         self._number = number
         self._repositories = repositories
+        if repositories:
+            self._repositories = _expand_virtual_repositories(
+                url, user, password, list(repositories)
+            )
         self._url = url
         self._user = user
         self._build_url = build_url
@@ -397,8 +455,7 @@ def _check_min_required_conan_version(min_ver):
 def _add_default_arguments(subparser, is_bi_create=False, is_bi_create_bundle=False):
     url_help = "Artifactory url, like: https://<address>/artifactory."
     if is_bi_create:
-        url_help += " This may be not necessary if all the information for the Conan artifacts is present in the " \
-                    "local cache."
+        url_help += " Optional for create if all artifact data is local; provide with --server or --url to resolve virtual repositories."
     if not (is_bi_create or is_bi_create_bundle):
         subparser.add_argument("--project", help="Project key for the Build Info in Artifactory", default=None)
 
