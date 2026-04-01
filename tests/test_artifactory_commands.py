@@ -534,6 +534,53 @@ def test_build_info_dependency_from_extra_repo():
 
 
 @pytest.mark.requires_credentials
+def test_build_info_create_with_virtual_repository():
+    """
+    Dependency package is uploaded to extensions-stg; consumer (depends on it) to extensions-prod.
+    Build-info is created using only extensions-virtual (aggregates extensions-stg and extensions-prod).
+    """
+    art_url = os.getenv("ART_URL")
+    user = os.getenv("CONAN_LOGIN_USERNAME_EXTENSIONS_STG")
+    password = os.getenv("CONAN_PASSWORD_EXTENSIONS_STG")
+
+    run("conan remove dep* -c -r extensions-stg")
+    run("conan remove dep* -c -r extensions-prod")
+    run("conan remove consumer* -c -r extensions-stg")
+    run("conan remove consumer* -c -r extensions-prod")
+
+    run(f'conan art:server add artifactory {art_url} --user="{user}" --password="{password}"')
+
+    run("conan new cmake_lib -d name=dep -d version=1.0 --force")
+    run("conan create .")
+    run("conan upload dep/1.0 -c -r extensions-stg")
+    run("conan remove consumer/1.0 -c")
+
+    run("conan new cmake_lib -d name=consumer -d version=1.0 -d requires=dep/1.0 --force")
+    run("conan create . --format json -tf='' -s build_type=Release --build=missing > create.json")
+    run("conan upload consumer/1.0 -c -r extensions-prod")
+
+    run("conan art:build-info create create.json virtual_build 1 extensions-virtual "
+        "--with-dependencies --add-cached-deps --server artifactory > build_info.json")
+
+    build_info = json.loads(load("build_info.json"))
+    for module in build_info.get("modules", []):
+        module_id = module.get("id", "")
+        for artifact in module.get("artifacts", []):
+            path = artifact.get("path") or ""
+            if module_id.startswith("dep/1.0"):
+                assert path.startswith("extensions-stg/")
+            if module_id.startswith("consumer/1.0"):
+                assert path.startswith("extensions-prod/")
+
+    out = run("conan art:build-info upload build_info.json --server artifactory")
+    assert "Build info uploaded successfully." in out
+
+    run("conan art:build-info delete virtual_build --build-number=1 --server artifactory")
+    run("conan remove dep* -c -r extensions-stg")
+    run("conan remove consumer* -c -r extensions-prod")
+
+
+@pytest.mark.requires_credentials
 def test_server_complete():
     """
     Test server add, list, remove commands

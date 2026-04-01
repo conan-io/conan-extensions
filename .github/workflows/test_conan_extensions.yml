@@ -76,6 +76,11 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{ "rclass": "local", "packageType": "conan", "repoLayoutRef": "conan-default", "description": "Local Conan repository for third-party testing" }'
 
+        curl -u "${{ secrets.ARTIFACTORY_USER }}:${{ secrets.ARTIFACTORY_USER_PASSWORD }}" --output /dev/null \
+            -X PUT "http://localhost:8081/artifactory/api/repositories/extensions-virtual" \
+            -H "Content-Type: application/json" \
+            -d '{ "rclass": "virtual", "packageType": "conan", "repoLayoutRef": "conan-default", "repositories": ["extensions-stg", "extensions-prod"], "defaultDeploymentRepo": "extensions-stg", "description": "Virtual aggregate of extensions-stg and extensions-prod for build-info E2E tests" }'
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
