@@ -161,6 +161,42 @@ def test_tool_require_skip_binaries():
     assert len(build_info["modules"][3]["dependencies"]) == 2
 
 
+def test_build_info_with_metadata_files():
+    """
+    Test that metadata files are added to the build info
+    """
+    conanfile = textwrap.dedent("""
+        import os
+        from conan import ConanFile
+        from conan.tools.files import save
+
+        class Recipe(ConanFile):
+            name = "pkg-w-metadata"
+            version = 1.0
+
+            def export(self):
+                save(self, os.path.join(self.recipe_metadata_folder, "logs", "extra_info.txt"), "some info")
+
+            def build(self):
+                save(self, os.path.join(self.package_metadata_folder, "logs", "build.log"), "srclog!!")
+        """)
+    save(os.path.join(os.curdir, "conanfile.py"), conanfile)
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 danimtb-local > bi.json")
+    build_info = json.loads(load("bi.json"))
+    # recipe module
+    assert build_info['modules'][0]['artifacts'][3]['name'] == "extra_info.txt"
+    assert "/export/metadata/logs/extra_info.txt" in build_info['modules'][0]['artifacts'][3]['path']
+    # package module
+    assert build_info['modules'][1]['artifacts'][2]['name'] == "build.log"
+    assert "/metadata/logs/build.log" in build_info['modules'][1]['artifacts'][2]['path']
+    run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+
+
 def test_formatted_time():
     """Compare local timestamp hours from build-info JSON with current timestamp in UTC"""
     run("conan new cmake_lib -d name=lib1 -d version=1.0")
@@ -169,8 +205,7 @@ def test_formatted_time():
     graph = json.loads(load("create.json"))["graph"]
     _fake_conan_sources(graph)
 
-    run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
-
+    run("conan art:build-info create create.json build_name 1 danimtb-local > bi.json")
     build_info = json.loads(load("bi.json"))
     timestamp = build_info["started"]
 
