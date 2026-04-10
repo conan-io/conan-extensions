@@ -173,12 +173,17 @@ class _BuildInfo:
             reference = RecipeReference.loads(node.get("ref"))
             return self._conan_api.cache.export_path(reference)
 
-    def get_artifacts(self, node, artifact_type, is_dependency=False):
+
+    def get_artifacts(self, node, artifact_type, is_dependency=False, requested_by=None):
         """
         Function to get artifact information, those artifacts can be added as artifacts of a
         module or as artifacts from dependencies and depending on that the format is
         different. For artifacts of modules they have the keys 'name' and 'path'. If they come
         from a dependency they have an 'id' instead of 'name' and they don't have 'path'.
+
+        When is_dependency is True, requested_by may be set to a BuildInfo-style list of lists
+        of recipe refs (e.g. for python_requires, which are not graph nodes). Otherwise it is
+        computed from the dependency graph.
         """
 
         origin_repo = self._get_origin_repo(node)
@@ -304,9 +309,9 @@ class _BuildInfo:
         # complete the information for the artifacts:
 
         if is_dependency:
-            requested_by = _get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
+            req_by = requested_by or _get_requested_by(self._graph["graph"]["nodes"], node.get("id"), artifact_type)
             for artifact in artifacts:
-                artifact.update({"requestedBy": requested_by})
+                artifact.update({"requestedBy": req_by})
 
         return artifacts
 
@@ -321,6 +326,7 @@ class _BuildInfo:
             ref = node.get("ref")
             if ref:
                 transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
+                python_requires = node.get("python_requires").keys() if node.get("python_requires").keys() else []
                 binary = node.get("binary")
 
                 if ref and ((binary == "Build") or (binary in ["Cache", "Download", "Update"] and self._add_cached_deps)):
@@ -338,9 +344,13 @@ class _BuildInfo:
                             deps_artifacts = self.get_artifacts(nodes.get(require_id), "recipe",
                                                                 is_dependency=True)
                             all_dependencies.extend(deps_artifacts)
-
+                        for pr_ref in python_requires:
+                            owner_recipe_ref = str(node["ref"])
+                            pr_node = {"ref": pr_ref}
+                            pr_artifacts = self.get_artifacts(pr_node, "recipe", is_dependency=True,
+                                                              requested_by=[[owner_recipe_ref]])
+                            all_dependencies.extend(pr_artifacts)
                         module.update({"dependencies": all_dependencies})
-
                     ret.append(module)
 
                     # package module

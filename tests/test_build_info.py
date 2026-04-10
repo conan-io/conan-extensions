@@ -38,6 +38,10 @@ def _fake_conan_sources(graph):
         if recipe_folder:
             fake_sources_tgz_path = os.path.join(os.path.dirname(node.get("recipe_folder")), "d", "conan_sources.tgz")
             save(fake_sources_tgz_path, "")
+        if node.get("python_requires"):
+            for _, pyreq_info in node.get("python_requires").items():
+                fake_pyreq_tgz_path = os.path.join(os.path.dirname(pyreq_info.get("path")), "d", "conan_sources.tgz")
+                save(fake_pyreq_tgz_path, "")
 
 
 def test_static_library_skip_binaries():
@@ -159,6 +163,59 @@ def test_tool_require_skip_binaries():
     # Check libb package now has the meson dependency
     build_info["modules"][3]["dependencies"]
     assert len(build_info["modules"][3]["dependencies"]) == 2
+
+
+def test_python_requires_in_build_info_dependencies():
+    """
+    python_requires appear as recipe dependency artifacts on the consumer recipe module
+    (they are not graph nodes and have no package binaries).
+    """
+    pyreq_cf = textwrap.dedent("""
+        from conan import ConanFile
+
+        class PyreqConan(ConanFile):
+            name = "pyreq"
+            version = "1.0"
+            package_type = "python-require"
+    """)
+    save("conanfile.py", pyreq_cf)
+    run("conan create .")
+
+    app_cf = textwrap.dedent("""
+        from conan import ConanFile
+
+        class AppConan(ConanFile):
+            name = "app"
+            version = "1.0"
+            package_type = "application"
+            python_requires = "pyreq/1.0"
+    """)
+    save("conanfile.py", app_cf)
+    run("conan create . -f json > create.json")
+
+    graph = json.loads(load("create.json"))["graph"]
+    _fake_conan_sources(graph)
+
+    run("conan art:build-info create create.json build_name 1 repo --with-dependencies > bi.json")
+    build_info = json.loads(load("bi.json"))
+
+    app_recipe_mod = next(
+        m for m in build_info["modules"]
+        if m["id"].startswith("app/1.0") and ":" not in m["id"]
+    )
+    deps = app_recipe_mod.get("dependencies") or []
+    dep_ids = [d["id"] for d in deps]
+    assert any("pyreq/1.0" in i and "conanfile.py" in i for i in dep_ids)
+    pyreq_conanfile = next(d for d in deps if "pyreq/1.0" in d["id"] and "conanfile.py" in d["id"])
+    assert pyreq_conanfile.get("requestedBy") == [[app_recipe_mod["id"]]]
+
+    run("conan art:build-info create create.json build_name 1 repo > bi_nodeps.json")
+    build_info_nd = json.loads(load("bi_nodeps.json"))
+    app_recipe_nd = next(
+        m for m in build_info_nd["modules"]
+        if m["id"].startswith("app/1.0") and ":" not in m["id"]
+    )
+    assert not app_recipe_nd.get("dependencies")
 
 
 def test_formatted_time():
