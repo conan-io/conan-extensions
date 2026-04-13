@@ -168,8 +168,21 @@ def test_tool_require_skip_binaries():
 def test_python_requires_in_build_info_dependencies():
     """
     python_requires appear as recipe dependency artifacts on the consumer recipe module
-    (they are not graph nodes and have no package binaries).
+    (they are not graph nodes and have no package binaries). With a normal library
+    dependency as well, requestedBy on python_requires and library artifacts points at
+    the consuming app (recipe and package modules). Without --with-dependencies, the
+    app recipe module has no dependency list.
     """
+    lib_cf = textwrap.dedent("""
+        from conan import ConanFile
+
+        class LibConan(ConanFile):
+            name = "lib"
+            version = "1.0"
+    """)
+    save("conanfile.py", lib_cf)
+    run("conan create .")
+
     pyreq_cf = textwrap.dedent("""
         from conan import ConanFile
 
@@ -189,6 +202,7 @@ def test_python_requires_in_build_info_dependencies():
             version = "1.0"
             package_type = "application"
             python_requires = "pyreq/1.0"
+            requires = "lib/1.0"
     """)
     save("conanfile.py", app_cf)
     run("conan create . -f json > create.json")
@@ -203,11 +217,31 @@ def test_python_requires_in_build_info_dependencies():
         m for m in build_info["modules"]
         if m["id"].startswith("app/1.0") and ":" not in m["id"]
     )
-    deps = app_recipe_mod.get("dependencies") or []
-    dep_ids = [d["id"] for d in deps]
+    app_pkg_mod = next(
+        m for m in build_info["modules"]
+        if m["id"].startswith("app/1.0") and ":" in m["id"]
+    )
+
+    recipe_deps = app_recipe_mod.get("dependencies") or []
+    dep_ids = [d["id"] for d in recipe_deps]
     assert any("pyreq/1.0" in i and "conanfile.py" in i for i in dep_ids)
-    pyreq_conanfile = next(d for d in deps if "pyreq/1.0" in d["id"] and "conanfile.py" in d["id"])
+    assert any("lib/1.0" in i and "conanfile.py" in i for i in dep_ids)
+
+    pyreq_conanfile = next(
+        d for d in recipe_deps if "pyreq/1.0" in d["id"] and "conanfile.py" in d["id"]
+    )
     assert pyreq_conanfile.get("requestedBy") == [[app_recipe_mod["id"]]]
+
+    lib_recipe_artifact = next(
+        d for d in recipe_deps if "lib/1.0" in d["id"] and "conanfile.py" in d["id"]
+    )
+    assert lib_recipe_artifact.get("requestedBy") == [[app_recipe_mod["id"]]]
+
+    pkg_deps = app_pkg_mod.get("dependencies") or []
+    lib_pkg_artifact = next(
+        d for d in pkg_deps if "lib/1.0" in d["id"] and "conaninfo.txt" in d["id"]
+    )
+    assert lib_pkg_artifact.get("requestedBy") == [[app_pkg_mod["id"]]]
 
     run("conan art:build-info create create.json build_name 1 repo > bi_nodeps.json")
     build_info_nd = json.loads(load("bi_nodeps.json"))
