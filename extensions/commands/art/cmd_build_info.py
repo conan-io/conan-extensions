@@ -325,8 +325,8 @@ class _BuildInfo:
         for node in nodes.values():
             ref = node.get("ref")
             if ref:
-                transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies").keys() else []
-                python_requires = node.get("python_requires").keys() if node.get("python_requires").keys() else []
+                transitive_dependencies = node.get("dependencies").keys() if node.get("dependencies") else []
+                python_requires = node.get("python_requires").keys() if node.get("python_requires") else []
                 binary = node.get("binary")
 
                 if ref and ((binary == "Build") or (binary in ["Cache", "Download", "Update"] and self._add_cached_deps)):
