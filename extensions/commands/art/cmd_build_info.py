@@ -84,7 +84,7 @@ def _get_requested_by(nodes, node_id, artifact_type):
     requested_by_ids = []
 
     for id, node in nodes["1"].get("dependencies").items():
-        if node.get("direct") is True or node.get("direct") == "True":
+        if node.get("direct") == "True":
             root_direct.append(id)
 
     if node_id in root_direct:
