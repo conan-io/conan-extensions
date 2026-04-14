@@ -196,23 +196,25 @@ def test_python_requires_in_build_info_dependencies():
     build_info = json.loads(load("bi.json"))
 
     modules = build_info["modules"]
-    app_recipe_module = [m for m in modules if m["id"] == "app/1.0#5c90b1c9e48e6958baf8bbff1a5dc6dd"][0]
-    app_pkg_module = [m for m in modules if m["id"] == "app/1.0#5c90b1c9e48e6958baf8bbff1a5dc6dd:19f85b5f0cf7b39158b8bce1a58bcb78449fee9d#8e3140af0584e3a8701498cc17a004d1"][0]
+    app_recipe_module = [m for m in modules if m["id"] == "app/1.0#697c25af89f95d7c16b88d97972fb7ad"][0]
+    app_pkg_module = [m for m in modules if
+                      "app/1.0#697c25af89f95d7c16b88d97972fb7ad:19f85b5f0cf7b39158b8bce1a58bcb78449fee9d" in m["id"]][0]
 
     app_recipe_module_deps = [d["id"] for d in app_recipe_module.get("dependencies")]
-    assert "pyreq/1.0#a30ae62eab36bee8abcd7f91e4b60fb8 :: conan_sources.tgz" in app_recipe_module_deps
-    assert "pyreq/1.0#a30ae62eab36bee8abcd7f91e4b60fb8 :: conanfile.py" in app_recipe_module_deps
-    assert "pyreq/1.0#a30ae62eab36bee8abcd7f91e4b60fb8 :: conanmanifest.txt" in app_recipe_module_deps
+    assert "pyreq/1.0#7ff25468818796e3c188019d6db1ff93 :: conan_sources.tgz" in app_recipe_module_deps
+    assert "pyreq/1.0#7ff25468818796e3c188019d6db1ff93 :: conanfile.py" in app_recipe_module_deps
+    assert "pyreq/1.0#7ff25468818796e3c188019d6db1ff93 :: conanmanifest.txt" in app_recipe_module_deps
     # assert python require is not a dependency of the package
     assert len(app_pkg_module.get("dependencies")) == 0
 
-    # Test no python requires found if --with-dependencies is not used
+    # Test no python_requires found if --with-dependencies is not used
     run("conan art:build-info create create.json build_name 1 repo > bi_nodeps.json")
     build_info = json.loads(load("bi_nodeps.json"))
 
     modules = build_info["modules"]
-    app_recipe_module = [m for m in modules if m["id"] == "app/1.0#5c90b1c9e48e6958baf8bbff1a5dc6dd"][0]
-    app_pkg_module = [m for m in modules if m["id"] == "app/1.0#5c90b1c9e48e6958baf8bbff1a5dc6dd:19f85b5f0cf7b39158b8bce1a58bcb78449fee9d#8e3140af0584e3a8701498cc17a004d1"][0]
+    app_recipe_module = [m for m in modules if m["id"] == "app/1.0#697c25af89f95d7c16b88d97972fb7ad"][0]
+    app_pkg_module = [m for m in modules if
+                      "app/1.0#697c25af89f95d7c16b88d97972fb7ad:19f85b5f0cf7b39158b8bce1a58bcb78449fee9d" in m["id"]][0]
 
     assert "dependencies" not in app_recipe_module
     assert "dependencies" not in app_pkg_module

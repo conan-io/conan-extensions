@@ -24,10 +24,10 @@ def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
 
 
 def save(f, content):
-    with open(f, "w") as f:
+    with open(f, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
 def load(f):
-    with open(f, "r") as f:
+    with open(f, "r", encoding="utf-8") as f:
         return f.read()
