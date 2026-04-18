@@ -185,10 +185,19 @@ def make_universal_conanfile(conanfile, args, arch_data):
         return nodes[0]
     def _package(conanfile):
         archs = str(conanfile.settings.arch).split("|")
-        lipo_tree(conanfile.package_folder, [_find_arch_package(conanfile, arch)["package_folder"] for arch in archs])
+        folders = [_find_arch_package(conanfile, arch)["package_folder"] for arch in archs]
+        folders = [f for f in folders if f is not None]
+        if folders:
+            lipo_tree(conanfile.package_folder, folders)
     if conanfile.settings.get_safe("arch", "") and conanfile.package_type not in ("header-library", "build-scripts", "python-require"):
-        setattr(conanfile, "generate", _generate.__get__(conanfile, type(conanfile)))
-        setattr(conanfile, "build", _build.__get__(conanfile, type(conanfile)))
+        # Only monkey-patch if all per-arch packages have valid package folders
+        archs = str(conanfile.settings.arch).split("|")
+        if arch_data and all(
+            _find_arch_package(conanfile, arch).get("package_folder") is not None
+            for arch in archs
+        ):
+            setattr(conanfile, "generate", _generate.__get__(conanfile, type(conanfile)))
+            setattr(conanfile, "build", _build.__get__(conanfile, type(conanfile)))
         setattr(conanfile, "package", _package.__get__(conanfile, type(conanfile)))
 
 
