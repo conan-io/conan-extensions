@@ -125,7 +125,10 @@ def build_universal(conan_api: ConanAPI, profile_host, profile_build, path, remo
         deps_graph = gapi.load_graph_requires(args.requires, args.tool_requires, profile_host,
                                               profile_build, lockfile, remotes, args.update)
     deps_graph.report_graph_error()
-    gapi.analyze_binaries(deps_graph, args.build, remotes, update=args.update, lockfile=lockfile)
+    # Don't check remotes for universal binaries - always build them locally from
+    # per-arch packages. Remotes are unlikely to contain  universal binaries
+    # but may be broken since this is not standard.
+    gapi.analyze_binaries(deps_graph, args.build, [], update=False, lockfile=lockfile)
 
     install_graph = conan_api.graph.build_order(deps_graph, "recipe", True,
                                                 profile_args=args)
