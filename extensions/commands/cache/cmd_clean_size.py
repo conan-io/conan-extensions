@@ -19,8 +19,6 @@ from conan.errors import ConanException
 #              constantly, forcing a slow re-download).
 POLICIES = ("lru", "oldest", "largest")
 
-_GB = 1000 ** 3
-
 # Same units as Conan's own '--lru' time limits (conan remove --lru=5d).
 _AGE_UNITS = {"y": 365 * 86400, "M": 30 * 86400, "w": 7 * 86400,
               "d": 86400, "h": 3600, "m": 60, "s": 1}
@@ -34,7 +32,7 @@ def _parse_max_size(text):
         raise ConanException(f"Invalid --max-size '{text}': expected a number of GB, e.g. 10 or 0.5")
     if gb < 0:
         raise ConanException("Invalid --max-size: it cannot be negative")
-    return int(gb * _GB)
+    return int(gb * 1000 ** 3)
 
 
 def _parse_age(text):
@@ -74,6 +72,7 @@ def _collect(conan_api):
     packages: list of dicts {pref, size, created, lru} for every package binary.
     recipes_size: total bytes used by recipe folders (exports + cached sources).
     """
+    # No lru= filter: it would drop recently-used packages we still need to count in the total size.
     pkglist = conan_api.list.select(ListPattern("*:*", rrev="*", prev="*"))
 
     packages = []
