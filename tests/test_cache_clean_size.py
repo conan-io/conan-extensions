@@ -10,6 +10,10 @@ from tools import save, run
 
 ALL_POLICIES = ["lru", "oldest", "largest"]
 
+# ~800 KB expressed in GB (the --max-size unit). Between one test package and the full cache,
+# so exactly one package must be evicted to get under it.
+LIMIT = "0.0008"
+
 
 @pytest.fixture(autouse=True)
 def conan_test():
@@ -59,44 +63,28 @@ class TestCleanSizeWithPackages:
 
     def test_lru_evicts_least_recently_used_first(self):
         # Default policy is lru. alpha is the older (less recently used) => it goes, not beta.
-        out = run("conan cache:clean-size --max-size 650000B --dry-run")
+        out = run(f"conan cache:clean-size --max-size {LIMIT}")
         assert "alpha/1.0" in out
         assert "beta/1.0" not in out
 
     def test_oldest_evicts_oldest_created_first(self):
         # alpha was created first => oldest (fifo) evicts it, not beta.
-        out = run("conan cache:clean-size --max-size 650000B --policy oldest --dry-run")
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy oldest")
         assert "alpha/1.0" in out
         assert "beta/1.0" not in out
 
     def test_largest_evicts_biggest_first(self):
         # beta is bigger => largest evicts it, not alpha.
-        out = run("conan cache:clean-size --max-size 650000B --policy largest --dry-run")
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy largest")
         assert "beta/1.0" in out
         assert "alpha/1.0" not in out
 
-    def test_recipes_are_never_removed(self):
-        # Prune so aggressively (1 byte) that every package binary must go. The recipe
-        # revisions must survive even though they now hold no binaries and are, at that point,
-        # the only thing consuming space: this command only ever removes package binaries.
-        out = run("conan cache:clean-size --max-size 1B --confirm")
-        assert "Removed 2 package binaries" in out
-        # Both recipe revisions are still in the cache, just with no binaries left
-        listing = run('conan list "*:*"')
-        assert "alpha/1.0" in listing
-        assert "beta/1.0" in listing
-        assert "No packages found for this revision" in listing
-        # And the recipe folder is still on disk / resolvable
-        assert "alpha" in run("conan cache path alpha/1.0")
-
-    def test_zero_bytes_evicts_all_binaries_but_keeps_recipes(self):
-        # '0B' is explicit (so it bypasses the forgotten-unit guard) and asks for an empty
-        # cache. Since recipes are never removed, it evicts ALL binaries and then warns that
-        # it cannot get down to 0 because the recipe/source folders remain.
-        out = run("conan cache:clean-size --max-size 0B --confirm")
+    def test_zero_size_removes_all_binaries_but_keeps_recipes(self):
+        # --max-size 0 asks for an empty cache. Since recipes are never removed, it evicts
+        # ALL binaries, keeps the recipe revisions, and warns it cannot get down to 0.
+        out = run("conan cache:clean-size --max-size 0")
         assert "Removed 2 package binaries" in out
         assert "Could not get below the limit" in out
-        # All binaries gone, both recipe revisions still present
         listing = run('conan list "*:*"')
         assert "No packages found for this revision" in listing
         assert "alpha/1.0" in listing and "beta/1.0" in listing
@@ -105,60 +93,38 @@ class TestCleanSizeWithPackages:
 
     @pytest.mark.parametrize("policy", ALL_POLICIES)
     def test_within_limit_removes_nothing(self, policy):
-        out = run(f"conan cache:clean-size --max-size 10GB --policy {policy}")
+        out = run(f"conan cache:clean-size --max-size 10 --policy {policy}")
         assert "within the size limit" in out
-
-    @pytest.mark.parametrize("policy", ALL_POLICIES)
-    def test_dry_run_reports_but_keeps_packages(self, policy):
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} --dry-run")
-        assert "Would remove" in out
-        assert "dry-run, nothing deleted" in out
-        # Nothing was actually removed: a second dry-run still sees the same over-limit cache
-        out2 = run(f"conan cache:clean-size --max-size 650000B --policy {policy} --dry-run")
-        assert "Would remove" in out2
 
     @pytest.mark.parametrize("policy", ALL_POLICIES)
     def test_older_than_stops_once_size_cleared(self, policy):
         # 'older-than 0s' makes BOTH packages eligible for eviction, yet removal must stop
         # as soon as the cache is under the limit: only one package goes, whichever the
         # policy picks, and the other survives despite also matching the filter.
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} "
-                  f"--older-than 0s --dry-run")
-        assert "Would remove 1 package binaries" in out
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy {policy} --older-than 0s")
+        assert "Removed 1 package binaries" in out
 
     @pytest.mark.parametrize("policy", ALL_POLICIES)
     def test_older_than_protects_recently_used(self, policy):
         # Everything was just created, so a 1-day safe-harbor protects all candidates
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} "
-                  f"--older-than 1d --dry-run")
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy {policy} --older-than 1d")
         assert "protected" in out.lower()
-        assert "Would remove" not in out
+        assert "Removed" not in out
 
     @pytest.mark.parametrize("policy", ALL_POLICIES)
-    def test_real_prune_gets_under_limit(self, policy):
-        run(f"conan cache:clean-size --max-size 650000B --policy {policy} --confirm")
-        # After the real prune, the cache is under the limit
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} --dry-run")
+    def test_prune_gets_under_limit(self, policy):
+        run(f"conan cache:clean-size --max-size {LIMIT} --policy {policy}")
+        # A second run now finds the cache already under the limit
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy {policy}")
         assert "within the size limit" in out
 
     @pytest.mark.parametrize("policy", ALL_POLICIES)
-    def test_confirmation_is_requested(self, policy):
-        # Without --confirm, a non-interactive run must refuse to remove silently
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} "
-                  f"-cc core:non_interactive=True", error=True)
-        assert "interactive" in out.lower()
-        # The packages are still there
-        out2 = run(f"conan cache:clean-size --max-size 650000B --policy {policy} --dry-run")
-        assert "Would remove" in out2
-
-    @pytest.mark.parametrize("policy", ALL_POLICIES)
     def test_json_format(self, policy):
-        out = run(f"conan cache:clean-size --max-size 650000B --policy {policy} --dry-run -f json")
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy {policy} -f json")
         # The JSON object is the last thing printed on stdout
         data = json.loads(out[out.index("{"):out.rindex("}") + 1])
-        assert data["dry_run"] is True
         assert data["policy"] == policy
-        assert data["max_size"] == 650000
+        assert data["max_size"] == 800000
         assert len(data["removed"]) == 1
 
 
@@ -174,34 +140,14 @@ def test_max_size_is_required():
 
 def test_invalid_size():
     out = run("conan cache:clean-size --max-size banana", error=True)
-    assert "Invalid size" in out
+    assert "Invalid --max-size" in out
 
 
 def test_invalid_age():
-    out = run("conan cache:clean-size --max-size 1GB --older-than 5x", error=True)
+    out = run("conan cache:clean-size --max-size 1 --older-than 5x", error=True)
     assert "Invalid age" in out
 
 
 def test_invalid_policy():
-    out = run("conan cache:clean-size --max-size 1GB --policy biggest", error=True)
+    out = run("conan cache:clean-size --max-size 1 --policy biggest", error=True)
     assert "invalid choice" in out.lower()
-
-
-def test_small_unitless_number_rejected():
-    # '50' without a unit is a likely typo (meant 50GB?) and would wipe the cache
-    out = run("conan cache:clean-size --max-size 50 --dry-run", error=True)
-    assert "forgotten unit" in out
-    out_zero = run("conan cache:clean-size --max-size 0 --dry-run", error=True)
-    assert "forgotten unit" in out_zero
-
-
-def test_explicit_small_bytes_allowed():
-    # With an explicit unit the user is trusted, even for tiny sizes
-    out = run("conan cache:clean-size --max-size 100B --dry-run")
-    assert "forgotten unit" not in out
-
-
-def test_large_unitless_bytes_allowed():
-    # A large bare byte count is a plausible real limit, not a typo
-    out = run("conan cache:clean-size --max-size 5000000000 --dry-run")
-    assert "forgotten unit" not in out
