@@ -157,17 +157,9 @@ def _text_output(result):
 
 
 def _json_output(result):
-    payload = {
-        "cache_size": result["cache_size"],
-        "max_size": result["max_size"],
-        "size_after": result["size_after"],
-        "policy": result["policy"],
-        "older_than": result["older_than"],
-        "over_limit": result["over_limit"],
-        "protected": result["protected"],
-        "recipes_size": result["recipes_size"],
-        "removed": [{"ref": str(i["pref"]), "size": i["size"]} for i in result["removed"]],
-    }
+    # Same shape as the result dict; only the package refs need stringifying for JSON.
+    payload = {**result, "removed": [{"ref": str(i["pref"]), "size": i["size"]}
+                                     for i in result["removed"]]}
     cli_out_write(json.dumps(payload, indent=2))
 
 
@@ -192,8 +184,8 @@ def clean_size(conan_api: ConanAPI, parser, *args):
                              "largest=biggest first.")
     parser.add_argument("--older-than", action=OnceArgument, default=None,
                         help="Only evict packages not used for at least this long, e.g. 30d, 4w, "
-                             "2h (units: y, M, w, d, h, m, s). Recently-used packages are kept even "
-                             "if the cache is over the limit, to avoid re-downloading them.")
+                             f"2h (units: {', '.join(_AGE_UNITS)}). Recently-used packages are kept "
+                             "even if the cache is over the limit, to avoid re-downloading them.")
     args = parser.parse_args(*args)
 
     max_size = _parse_max_size(args.max_size)
