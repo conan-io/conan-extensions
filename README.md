@@ -37,6 +37,10 @@ Commands useful for managing [JFrog Build Infos](https://www.buildinfo.org/) and
 
 Commands to create Software Bill of Materials.
 
+#### [Cache](extensions/commands/cache)
+
+Commands to help manage the local Conan cache, such as pruning it down to a maximum size.
+
 ### [Deployers](extensions/deployers)
 
 These are the current custom deployers. Recall they are experimental and can experience breaking changes, use them as a base to create your own under your control for stability.
