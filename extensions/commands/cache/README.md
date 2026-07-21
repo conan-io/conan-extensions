@@ -30,6 +30,9 @@ It is a prototype of the idea discussed in [conan#20157](https://github.com/cona
 - `-f, --format` _Optional_: `json` for machine-readable output.
 
 **Notes**
+- Combining flags: `--older-than <age> --policy largest` protects recently-used packages and, among
+  the older ones, evicts the largest first — a size-aware LRU that reclaims space in as few deletions
+  as possible while keeping your working set intact.
 - The eviction unit is a package binary (a package revision). Recipe and cached-source folders are
   counted towards the reported cache size but are never removed. If package binaries alone cannot
   bring the cache under the limit, the command warns and suggests `conan cache clean`.

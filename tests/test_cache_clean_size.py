@@ -2,10 +2,27 @@ import json
 import os
 import tempfile
 import textwrap
+import time
 
 import pytest
 
 from tools import save, run
+
+
+def _backdate_package(payload_size, days):
+    """Age a package by setting its cache folder mtime `days` into the past.
+
+    The folder mtime is exactly the recency signal the command uses for lru / --older-than
+    (PkgCache.get_package_lru). Packages are told apart by their unique payload size.
+    """
+    store = os.path.join(os.environ["CONAN_HOME"], "p")
+    old = time.time() - days * 86400
+    for root, _dirs, files in os.walk(store):
+        if "payload.bin" in files and \
+                os.path.getsize(os.path.join(root, "payload.bin")) == payload_size:
+            os.utime(os.path.dirname(root), (old, old))  # <base>/p/payload.bin -> age <base>
+            return
+    raise AssertionError(f"no package with a {payload_size}-byte payload under {store}")
 
 
 ALL_POLICIES = ["lru", "oldest", "largest"]
@@ -88,6 +105,24 @@ class TestCleanSizeWithPackages:
         listing = run('conan list "*:*"')
         assert "No packages found for this revision" in listing
         assert "alpha/1.0" in listing and "beta/1.0" in listing
+
+    # --- Size-aware LRU: --older-than + --policy largest ---
+
+    def test_largest_among_old_evicts_biggest_first(self):
+        # Both packages are old, so both are eligible; largest goes first.
+        _backdate_package(400000, days=40)
+        _backdate_package(500000, days=40)
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy largest --older-than 30d")
+        assert "beta/1.0" in out
+        assert "alpha/1.0" not in out
+
+    def test_recent_large_package_is_protected_over_old_small_one(self):
+        # alpha (smaller) is old; beta (bigger) was just used, so it is protected. Even under
+        # the 'largest' policy, recency wins: the old alpha is evicted and the recent beta stays.
+        _backdate_package(400000, days=40)  # alpha aged; beta left fresh
+        out = run(f"conan cache:clean-size --max-size {LIMIT} --policy largest --older-than 30d")
+        assert "alpha/1.0" in out
+        assert "beta/1.0" not in out
 
     # --- Flag combinations, exercised against every policy ---
 
