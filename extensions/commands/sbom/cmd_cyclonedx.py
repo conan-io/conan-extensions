@@ -91,7 +91,7 @@ def cyclonedx(conan_api: ConanAPI, parser, *args) -> 'Bom':
             version=node.conanfile.version,
             qualifiers={
                 "prev": node.prev,
-                "rref": node.ref.revision if node.ref else None,
+                "rrev": node.ref.revision if node.ref else None,
                 "user": node.conanfile.user,
                 "channel": node.conanfile.channel,
                 "repository_url": node.remote.url if node.remote else None
