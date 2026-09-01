@@ -1,0 +1,14 @@
+namespace Test;
+
+table Manufacturer {
+	name:string;
+	coolness:uint8;
+}
+
+table Car {
+	make:Manufacturer;
+	model:string;
+	year:uint16;
+}
+
+root_type Car;

@@ -1,0 +1,25 @@
+import os
+
+def options(opt):
+	opt.load('compiler_cxx')
+
+def configure(conf):
+	conf.load('conan_deps', tooldir='build')
+	conf.find_program("flatc", var="FLATC", mandatory=True)
+	conf.load('compiler_cxx')
+
+def build(bld):
+	gen_header = bld.path.get_bld().find_or_declare("generated/car_generated.h")
+	bld(
+		rule = "${FLATC} --cpp -o ${TGT[0].parent} ${SRC}",
+		source = "car.fbs",
+		target = gen_header
+	)
+	bld(
+		features = "cxx cxxshlib conan",
+		source = "mylib.cpp",
+		includes = gen_header.parent.abspath(),
+		use = "flatbuffers",
+		target = "mylib"
+	)
+
