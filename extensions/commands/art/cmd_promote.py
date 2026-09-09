@@ -76,12 +76,11 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     revision_path = _get_path_from_pref(pref_with_prev)
 
     storage_list = _request(url, user, password, "get",
-                            f"api/storage/{origin}/{revision_path}?list")
+                            f"api/storage/{origin}/{revision_path}")
     
-    # TODO: Do we want to support metadata promotion?
     folder_contents = {
         item["uri"][1:] for item in
-        storage_list.get("files", [])
+        storage_list.get("children", [])
     }
 
     # Ensure we have a valid Conan package
@@ -98,6 +97,11 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
             _promote_path(url, user, password, origin, destination,
                           path=f"{revision_path}/{conan_package}")
             break
+
+    # Promote package metadata
+    if "metadata" in folder_contents:
+        _promote_path(url, user, password, origin, destination,
+                      path=f"{revision_path}/metadata")
 
     # Finally, necessary metadata
     for meta_file in metadata_files:
