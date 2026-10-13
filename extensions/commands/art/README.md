@@ -127,7 +127,7 @@ usage: conan art:promote [-h] [--out-file OUT_FILE]
                          [-cc CORE_CONF] --from ORIGIN --to DESTINATION
                          [--remote REMOTE] [--server SERVER] [--url URL]
                          [--user USER] [--password PASSWORD] [--token TOKEN]
-                         [--force]
+                         [--force] [--update-recipes]
                          list
 
 Promote Conan recipes and packages in a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
@@ -161,19 +161,23 @@ options:
   --force               Overwrite the files that already exist in the
                         destination repository, instead of skipping them.
                         Needs overwrite permissions in the destination
-                        repository
+                        repository. The recipes are only overwritten together
+                        with --update-recipes
+  --update-recipes      Promote the files of the recipes one by one, like the
+                        packages, instead of copying their whole folder at
+                        once. The recipe revisions that already exist in the
+                        destination are updated with the files they miss, like
+                        metadata added later, instead of being skipped
 ```
 
 Uses a pkglist file to promote a package from one Artifactory repository to another, without downloading the packages locally.
 Needs a Pro license to work.
 
-The files of every recipe and package revision in the list are promoted one by one:
+The files of every package revision in the list are promoted one by one: the binary (`conan_package`), `conaninfo.txt`, `conanmanifest.txt` and the metadata files, including the ones in subfolders. The files that make a revision valid (`conaninfo.txt` and `conanmanifest.txt`) are promoted last, so an interrupted promotion doesn't leave a revision that looks complete, and running it again continues where it stopped.
 
-- For the recipes: `conanfile.py`, `conanmanifest.txt` and, if the recipe has them, the `conan_export` and `conan_sources` compressed files (they contain the `conandata.yml`, the exported files and the exported sources).
-- For the packages: the binary (`conan_package`), `conaninfo.txt` and `conanmanifest.txt`.
-- The metadata files of the recipes and the packages, including the ones in subfolders.
-
-The files that make a revision valid (`conanfile.py` or `conaninfo.txt`, and `conanmanifest.txt`) are promoted last, so an interrupted promotion doesn't leave a revision that looks complete, and running it again continues where it stopped.
-
-By default, the files that already exist in the destination repository are skipped, so promoting a revision again only adds what is missing, like the metadata files that were added after the first promotion.
+By default, the files that already exist in the destination repository are skipped, so promoting a package revision again only adds what is missing, like the metadata files that were added after the first promotion.
 The metadata can change without a new revision though, and those changes are not promoted that way. To overwrite the files that already exist in the destination, use `--force`. Note that overwriting needs permissions in the destination repository that are not needed otherwise.
+
+The recipes are promoted in a different way by default: the whole folder of the recipe revision (`conanfile.py`, `conanmanifest.txt`, the `conan_export` and `conan_sources` compressed files with the `conandata.yml`, the exported files and sources, and the metadata) is copied at once.
+A recipe revision that already exists in the destination is skipped completely, so the files that were added to it later, like metadata, are not promoted, and `--force` doesn't overwrite them.
+Use `--update-recipes` to promote the files of the recipes one by one, like the packages: the recipe revisions that already exist in the destination get the files they miss, and `--force` can overwrite the ones that changed.
