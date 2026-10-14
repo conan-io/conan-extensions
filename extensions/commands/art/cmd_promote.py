@@ -117,26 +117,23 @@ def _list_destination_folder(url, user, password, destination, folder):
         raise
 
 
-def _promote_files(url, user, password, origin, destination, folder, files, force):
+def _promote_files(url, user, password, origin, destination, folder, files, destination_files, force):
     """ Promote the files (paths relative to the folder), in order, from origin to destination.
 
-    The destination folder is listed only once, to know which files are already there
+    destination_files are the files that are already in the destination folder (listed only once by the caller)
     """
-    destination_files = _list_destination_folder(url, user, password, destination, folder) or set()
     for file in files:
         _promote_path(url, user, password, origin, destination, f"{folder}{file}",
                       exists=file in destination_files, force=force)
 
 
-def _promote_recipe_folder(url, user, password, origin, destination, rrev):
-    """ Promote the recipe revision copying its whole folder at once.
+def _promote_recipe_folder(url, user, password, origin, destination, folder):
+    """ Promote the whole folder of a recipe revision at once, with a single copy.
 
     The copy cannot be merged into a folder that already exists, Artifactory creates a subfolder
-    inside of it, so a recipe revision that already exists in the destination is skipped, even with --force
+    inside of it, so the folder must not exist in the destination
     """
-    folder = f"{_get_export_path_from_rrev(rrev)}/"
-    exists = _list_destination_folder(url, user, password, destination, folder) is not None
-    _promote_path(url, user, password, origin, destination, folder, exists=exists, force=False)
+    _promote_path(url, user, password, origin, destination, f"{folder}/", exists=False, force=False)
 
 
 def _promote_recipe_rrev(url, user, password, origin, destination, rrev, force=False):
@@ -148,11 +145,16 @@ def _promote_recipe_rrev(url, user, password, origin, destination, rrev, force=F
     info_files = ["/conanfile.py", "/conanmanifest.txt"]
     _check_complete(files, info_files, ref, origin)
 
-    # The files that make the recipe valid go last
-    to_promote = (_metadata_files(files)
-                  + _compressed_files(files, ["/conan_export", "/conan_sources"])
-                  + info_files)
-    _promote_files(url, user, password, origin, destination, folder, to_promote, force)
+    destination_files = _list_destination_folder(url, user, password, destination, folder)
+    if destination_files is None:
+        # The recipe revision is not in the destination yet, so it is promoted all at once, with a single copy
+        _promote_recipe_folder(url, user, password, origin, destination, folder)
+    else:
+        # The files that make the recipe valid go last
+        to_promote = (_metadata_files(files)
+                      + _compressed_files(files, ["/conan_export", "/conan_sources"])
+                      + info_files)
+        _promote_files(url, user, password, origin, destination, folder, to_promote, destination_files, force)
 
 
 def _promote_package_prev(url, user, password, origin, destination, pref_with_prev, force=False):
@@ -173,7 +175,8 @@ def _promote_package_prev(url, user, password, origin, destination, pref_with_pr
     to_promote = (_compressed_files(files, ["/conan_package"])
                   + _metadata_files(files)
                   + info_files)
-    _promote_files(url, user, password, origin, destination, folder, to_promote, force)
+    destination_files = _list_destination_folder(url, user, password, destination, folder) or set()
+    _promote_files(url, user, password, origin, destination, folder, to_promote, destination_files, force)
 
 
 @conan_command(group="Artifactory")
@@ -196,13 +199,7 @@ def promote(conan_api: ConanAPI, parser, *args):
 
     parser.add_argument("--force", help="Overwrite the files that already exist in the destination repository, "
                                         "instead of skipping them. Needs overwrite permissions in the destination "
-                                        "repository. The recipes are only overwritten together with --update-recipes",
-                        action="store_true")
-    parser.add_argument("--update-recipes", help="Promote the files of the recipes one by one, like the packages, "
-                                                 "instead of copying their whole folder at once. The recipe revisions "
-                                                 "that already exist in the destination are updated with the files "
-                                                 "they miss, like metadata added later, instead of being skipped",
-                        action="store_true")
+                                        "repository", action="store_true")
 
     args = parser.parse_args(*args)
 
@@ -219,7 +216,8 @@ def promote(conan_api: ConanAPI, parser, *args):
         raise ConanException(f"Expected every package to come from the same origin repository in {args.origin}, "
                              f"use --remote to disambiguate")
     if len(remotes) == 0:
-        raise ConanException(f"Can't promote empty package list {args.list}")
+        ConanOutput().info(f"Nothing to promote, empty package list {args.list}")
+        return
 
     if args.remote is not None:
         origin_remote = args.remote
@@ -245,12 +243,8 @@ def promote(conan_api: ConanAPI, parser, *args):
             raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
                                  "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            if args.update_recipes:
-                _promote_recipe_rrev(url, user, password, args.origin, args.destination,
-                                     f"{name_version}#{rrev}", force=args.force)
-            else:
-                _promote_recipe_folder(url, user, password, args.origin, args.destination,
-                                       f"{name_version}#{rrev}")
+            _promote_recipe_rrev(url, user, password, args.origin, args.destination,
+                                 f"{name_version}#{rrev}", force=args.force)
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
