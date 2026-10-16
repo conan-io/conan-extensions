@@ -22,7 +22,7 @@ def _get_export_path_from_rrev(rrev):
     channel = recipe_ref.channel or "_"
     path = f"{user}/{recipe_ref.name}/{recipe_ref.version}/{channel}"
     if recipe_ref.revision:
-        path += f"/{recipe_ref.revision}/export/"
+        path += f"/{recipe_ref.revision}/export"
     return path
 
 
@@ -49,66 +49,140 @@ def _request(url, user, password, request_type, request_url):
         raise ConanException(f"Error requesting {request_url}: {e}")
 
 
-def _promote_path(url, user, password, origin, destination, path):
-    """ Promote path from origin to destination
+def _list_folder(url, user, password, repo, folder):
+    """ Files in the folder of the repository (recursively), as a set of paths relative to the folder,
+    like "/conanfile.py" or "/metadata/logs/build.txt"
+
+    Raises NotFoundException if the folder does not exist
+    """
+    storage_list = _request(url, user, password, "get", f"api/storage/{repo}/{folder}?list&deep=1")
+    return {item["uri"] for item in storage_list.get("files", [])}
+
+
+def _list_origin_folder(url, user, password, origin, folder, ref):
+    try:
+        return _list_folder(url, user, password, origin, folder)
+    except NotFoundException:
+        raise ConanException(f"{ref} not found in the '{origin}' repository, cannot promote. "
+                             f"Make sure it exists in the origin repository.")
+
+
+def _check_complete(files, required, ref, origin):
+    missing = [file[1:] for file in required if file not in files]
+    if missing:
+        raise ConanException(f"{ref} is missing {', '.join(missing)} in the '{origin}' repository, "
+                             f"cannot promote. Make sure it exists and is complete in the origin repository.")
+
+
+def _metadata_files(files):
+    return sorted(file for file in files if file.startswith("/metadata/"))
+
+
+def _compressed_files(files, names):
+    """ For each name, the compressed file (like conan_package.tgz) with the compression it was uploaded with """
+    compressed = []
+    for name in names:
+        for ext in ["tgz", "tzst", "txz"]:
+            if f"{name}.{ext}" in files:
+                compressed.append(f"{name}.{ext}")
+                break
+    return compressed
+
+
+def _promote_path(url, user, password, origin, destination, path, exists, force):
+    """ Promote path from origin to destination, unless it already exists in the destination
+    and force is not set. exists tells if the path is already in the destination
 
     Raises if the promotion fails (the file is not there after calling this)
     """
     ConanOutput().subtitle(f"Promoting {path}")
+    if exists:
+        if not force:
+            ConanOutput().info("Destination already exists, skipping")
+            return
+        ConanOutput().info("Destination already exists, overwriting (--force)")
+
     path = urllib.parse.quote_plus(path, safe='/')
-    # The copy api creates a subfolder if the destination already exists, need to check beforehand to avoid this
     try:
-        # This first request will raise a 404 if no file is found
-        _request(url, user, password, "get", f"api/storage/{destination}/{path}")
-        ConanOutput().warning("Destination already exists, skipping")
+        _request(url, user, password, "post",
+                 f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
+    except ConanException as e:
+        ConanOutput().error(f"Failed to promote {path}: {e}")
+        raise
+    ConanOutput().success("Promoted file")
+
+
+def _list_destination_folder(url, user, password, destination, folder):
+    """ Files in the folder of the destination repository, None if the folder does not exist yet """
+    try:
+        return _list_folder(url, user, password, destination, folder)
     except NotFoundException:
-        # It raised a 404, so it's not in destination. We proceed to promote it
-        try:
-            _request(url, user, password, "post", f"api/copy/{origin}/{path}?to=/{destination}/{path}&suppressLayouts=0")
-            ConanOutput().success("Promoted file")
-        except ConanException as e:
-            ConanOutput().error(f"Failed to promote {path}: {e}")
-            raise
-    except Exception as e:
-        ConanOutput().error(f"File promotion failed unexpectedly: '{e}'")
+        return None
+    except ConanException as e:
+        ConanOutput().error(f"Failed to list '{folder}' in the '{destination}' repository: {e}")
         raise
 
 
-def _promote_package_prev(url, user, password, origin, destination, pref_with_prev):
+def _promote_files(url, user, password, origin, destination, folder, files, destination_files, force):
+    """ Promote the files (paths relative to the folder), in order, from origin to destination.
+
+    destination_files are the files that are already in the destination folder (listed only once by the caller)
+    """
+    for file in files:
+        _promote_path(url, user, password, origin, destination, f"{folder}{file}",
+                      exists=file in destination_files, force=force)
+
+
+def _promote_recipe_folder(url, user, password, origin, destination, folder):
+    """ Promote the whole folder of a recipe revision at once, with a single copy.
+
+    The copy cannot be merged into a folder that already exists, Artifactory creates a subfolder
+    inside of it, so the folder must not exist in the destination
+    """
+    _promote_path(url, user, password, origin, destination, f"{folder}/", exists=False, force=False)
+
+
+def _promote_recipe_rrev(url, user, password, origin, destination, rrev, force=False):
+    folder = _get_export_path_from_rrev(rrev)
+    ref = f"Recipe {rrev}"
+    files = _list_origin_folder(url, user, password, origin, folder, ref)
+
+    # Ensure we have a valid Conan recipe
+    info_files = ["/conanfile.py", "/conanmanifest.txt"]
+    _check_complete(files, info_files, ref, origin)
+
+    destination_files = _list_destination_folder(url, user, password, destination, folder)
+    if destination_files is None:
+        # The recipe revision is not in the destination yet, so it is promoted all at once, with a single copy
+        _promote_recipe_folder(url, user, password, origin, destination, folder)
+    else:
+        # The files that make the recipe valid go last
+        to_promote = (_metadata_files(files)
+                      + _compressed_files(files, ["/conan_export", "/conan_sources"])
+                      + info_files)
+        _promote_files(url, user, password, origin, destination, folder, to_promote, destination_files, force)
+
+
+def _promote_package_prev(url, user, password, origin, destination, pref_with_prev, force=False):
     # We need to manually promote the files one by one, else Artifactory's
     # automatic .timestamp handling would create overwrites.
     # We let Artifactory handle the .timestamp copy
     # which allows this command to be executed without overwrite permissions
-    revision_path = _get_path_from_pref(pref_with_prev)
-
-    storage_list = _request(url, user, password, "get",
-                            f"api/storage/{origin}/{revision_path}?list")
-    
-    # TODO: Do we want to support metadata promotion?
-    folder_contents = {
-        item["uri"][1:] for item in
-        storage_list.get("files", [])
-    }
+    # (unless --force is used, as that overwrites the files that already exist)
+    folder = _get_path_from_pref(pref_with_prev)
+    ref = f"Package {pref_with_prev}"
+    files = _list_origin_folder(url, user, password, origin, folder, ref)
 
     # Ensure we have a valid Conan package
-    metadata_files = ["conaninfo.txt", "conanmanifest.txt"]
-    if not all(meta_file in folder_contents for meta_file in metadata_files):
-        raise ConanException("Package folder is missing conaninfo.txt/conanmanifest.txt files, cannot promote. "
-                             "Make sure the package exists and is complete in the origin repository.")
+    info_files = ["/conaninfo.txt", "/conanmanifest.txt"]
+    _check_complete(files, info_files, ref, origin)
 
-    # Promote package binaries
-    package_extension = ["tgz", "tzst", "txz"]
-    for ext in package_extension:
-        conan_package = f"conan_package.{ext}"
-        if conan_package in folder_contents:
-            _promote_path(url, user, password, origin, destination,
-                          path=f"{revision_path}/{conan_package}")
-            break
-
-    # Finally, necessary metadata
-    for meta_file in metadata_files:
-        _promote_path(url, user, password, origin, destination,
-                      path=f"{revision_path}/{meta_file}")
+    # The files that make the package valid go last
+    to_promote = (_compressed_files(files, ["/conan_package"])
+                  + _metadata_files(files)
+                  + info_files)
+    destination_files = _list_destination_folder(url, user, password, destination, folder) or set()
+    _promote_files(url, user, password, origin, destination, folder, to_promote, destination_files, force)
 
 
 @conan_command(group="Artifactory")
@@ -129,8 +203,13 @@ def promote(conan_api: ConanAPI, parser, *args):
     parser.add_argument("--password", help="Password for the user name (instead of token)")
     parser.add_argument("--token", help="Token for the repository (instead of password)")
 
+    parser.add_argument("--force", help="Overwrite the files that already exist in the destination repository, "
+                                        "instead of skipping them. Needs overwrite permissions in the destination "
+                                        "repository", action="store_true")
+
     args = parser.parse_args(*args)
 
+    assert_server_or_url_user_password(args)
     url, user, password = get_url_user_password(args)
     if not url.endswith("/"):
         url += "/"
@@ -142,6 +221,9 @@ def promote(conan_api: ConanAPI, parser, *args):
     if len(remotes) > 1 and args.remote is None:
         raise ConanException(f"Expected every package to come from the same origin repository in {args.origin}, "
                              f"use --remote to disambiguate")
+    if len(remotes) == 0:
+        ConanOutput().info(f"Nothing to promote, empty package list {args.list}")
+        return
 
     if args.remote is not None:
         origin_remote = args.remote
@@ -154,7 +236,6 @@ def promote(conan_api: ConanAPI, parser, *args):
         raise ConanException(f"Package list must come from the remote associated with {args.origin}, "
                              f"but found from local cache")
 
-    assert_server_or_url_user_password(args)
     # Only artifactory pro edition supports this feature
     response = _request(url, user, password, "get", "api/system/version")
     if response["license"] == "Artifactory Community Edition for C/C++":
@@ -168,8 +249,8 @@ def promote(conan_api: ConanAPI, parser, *args):
             raise ConanException(f"Recipe {name_version} does not have any revisions specified. "
                                  "It's necessary to specify recipe revisions for promotion.")
         for rrev, recipe_revision in recipe["revisions"].items():
-            _promote_path(url, user, password, args.origin, args.destination,
-                          _get_export_path_from_rrev(f"{name_version}#{rrev}"))
+            _promote_recipe_rrev(url, user, password, args.origin, args.destination,
+                                 f"{name_version}#{rrev}", force=args.force)
             if "packages" not in recipe_revision:
                 ConanOutput().info(f"Recipe {name_version}#{rrev} does not have any package, skipping")
                 continue
@@ -180,4 +261,5 @@ def promote(conan_api: ConanAPI, parser, *args):
                 for prev, package_revision in package["revisions"].items():
                     _promote_package_prev(url, user, password,
                                           args.origin, args.destination,
-                                          f"{name_version}#{rrev}:{pkgid}#{prev}")
+                                          f"{name_version}#{rrev}:{pkgid}#{prev}",
+                                          force=args.force)

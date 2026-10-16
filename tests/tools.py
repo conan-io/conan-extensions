@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 
@@ -24,6 +25,9 @@ def run(cmd, error=False, *, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
 
 
 def save(f, content):
+    folder = os.path.dirname(f)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
     with open(f, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 

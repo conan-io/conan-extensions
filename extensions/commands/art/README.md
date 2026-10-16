@@ -122,26 +122,31 @@ Now, both release and debug binaries from that package are available in the dest
 
 ```
 $ conan art:promote -h
-usage: conan promote [-h] [-v [V]] [-cc CORE_CONF] --from ORIGIN --to
-                     DESTINATION [--remote REMOTE] [--server SERVER]
-                     [--url URL] [--user USER] [--password PASSWORD]
-                     [--token TOKEN]
-                     list
+usage: conan art:promote [-h] [--out-file OUT_FILE]
+                         [-v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]]
+                         [-cc CORE_CONF] --from ORIGIN --to DESTINATION
+                         [--remote REMOTE] [--server SERVER] [--url URL]
+                         [--user USER] [--password PASSWORD] [--token TOKEN]
+                         [--force]
+                         list
 
-Promote Conan recipes and packages in a pkglist file from an origin Artifactory repository to a destination repository,
-without downloading the packages locally
+Promote Conan recipes and packages in a pkglist file from an origin Artifactory repository to a destination repository, without downloading the packages locally
 
 positional arguments:
   list                  Package list file to promote
 
 options:
   -h, --help            show this help message and exit
-  -v [V]                Level of detail of the output. Valid options from less
+  --out-file OUT_FILE   Write the output of the command to the specified file
+                        instead of stdout.
+  -v [{quiet,error,warning,notice,status,verbose,debug,v,trace,vv}]
+                        Level of detail of the output. Valid options from less
                         verbose to more verbose: -vquiet, -verror, -vwarning,
                         -vnotice, -vstatus, -v or -vverbose, -vv or -vdebug,
                         -vvv or -vtrace
-  -cc CORE_CONF, --core-conf CORE_CONF
-                        Global configuration for Conan
+  -cc, --core-conf CORE_CONF
+                        Define core configuration, overwriting global.conf
+                        values. E.g.: -cc core:non_interactive=True
   --from ORIGIN         Artifactory origin repository name
   --to DESTINATION      Artifactory destination repository name
   --remote REMOTE       Promote packages from this remote (to disambiguate in
@@ -153,7 +158,20 @@ options:
   --user USER           User name for the repository
   --password PASSWORD   Password for the user name (instead of token)
   --token TOKEN         Token for the repository (instead of password)
+  --force               Overwrite the files that already exist in the
+                        destination repository, instead of skipping them.
+                        Needs overwrite permissions in the destination
+                        repository
 ```
 
-Uses a pkglist file to promote a package from one Artifactory repository to another, without downloading the packages locally.
+Uses a pkglist file to promote recipes and packages from one Artifactory repository to another, without downloading them locally.
 Needs a Pro license to work.
+
+The files of every package revision in the list are promoted one by one: the binary (`conan_package`), `conaninfo.txt`, `conanmanifest.txt` and the metadata files, including the ones in subfolders. The files that make a revision valid (`conaninfo.txt` and `conanmanifest.txt`) are promoted last, so an interrupted promotion doesn't leave a revision that looks complete, and running it again continues where it stopped.
+
+The recipe revisions are promoted in the same way, one file at a time (`conanfile.py`, `conanmanifest.txt`, the `conan_export` and `conan_sources` compressed files and the metadata files), unless they don't exist in the destination repository yet. Then they are promoted all at once, copying their whole folder with a single request instead of one per file.
+
+By default, the files that already exist in the destination repository are skipped, so promoting a revision again only adds what is missing, like the metadata files that were added after the first promotion.
+The metadata can change without a new revision though, and those changes are not promoted that way. To overwrite the files that already exist in the destination, use `--force`. Note that overwriting needs permissions in the destination repository that are not needed otherwise.
+
+A revision that is not in the origin repository, or is not complete there (a recipe needs its `conanfile.py` and `conanmanifest.txt`, a package its `conaninfo.txt` and `conanmanifest.txt`), is not promoted, and the command fails with an error that says which one it is.
