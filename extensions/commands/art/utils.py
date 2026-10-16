@@ -62,14 +62,14 @@ class UnexpectedResponseException(ConanException):
 
 
 def api_request(method, request_url, user=None, password=None, json_data=None,
-                sign_key_name=None):
+                sign_key_name=None, session=requests):
     headers = {}
     if json_data:
         headers.update({"Content-Type": "application/json"})
     if sign_key_name:
         headers.update({"X-JFrog-Crypto-Key-Name": sign_key_name})
 
-    requests_method = getattr(requests, method)
+    requests_method = getattr(session, method)
     if user and password:
         response = requests_method(request_url, auth=(
             user, password), data=json_data, headers=headers)

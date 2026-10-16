@@ -1,6 +1,7 @@
 import json
 import os.path
 import urllib.parse
+import requests
 
 from conan.api.conan_api import ConanAPI
 from conan.api.model import MultiPackagesList, PkgReference, RecipeReference
@@ -9,6 +10,10 @@ from conan.cli.command import conan_command
 from conan.errors import ConanException
 from utils import api_request, assert_server_or_url_user_password, NotFoundException
 from cmd_server import get_url_user_password
+
+# All the requests share this session, so they reuse the connection to the server instead of opening a new one
+# (TCP and TLS handshakes) for each of them, which is most of the time of a request
+_session = requests.Session()
 
 
 def _get_export_path_from_rrev(rrev):
@@ -36,7 +41,8 @@ def _get_path_from_pref(pref):
 
 def _request(url, user, password, request_type, request_url):
     try:
-        return json.loads(api_request(request_type, f"{url}{request_url}", user, password))
+        return json.loads(api_request(request_type, f"{url}{request_url}", user, password,
+                                      session=_session))
     except ConanException:
         raise
     except Exception as e:
